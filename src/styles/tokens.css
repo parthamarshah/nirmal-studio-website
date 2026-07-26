@@ -1,0 +1,26 @@
+:root {
+  /* Palette — from the Nirmal Studio creative brief */
+  --color-bg: #f6f4ef;
+  --color-text: #111111;
+  --color-bronze: #a97e5e;
+  --color-stone: #8b8880;
+  --color-beige: #e6ddc9;
+  --color-warm-white: #fbfaf6;
+
+  /* Type — heading serif is a placeholder until the font-comparison pass (Task #4) */
+  --font-heading: Georgia, 'Times New Roman', serif;
+  --font-body: 'Open Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+
+  /* Spacing scale — generous, per the brief's "whitespace as a design element" */
+  --space-xs: 0.5rem;
+  --space-sm: 1rem;
+  --space-md: 2rem;
+  --space-lg: 4rem;
+  --space-xl: 8rem;
+  --space-2xl: 14rem;
+
+  /* Motion timing — luxury/slow easing, nothing bounces */
+  --ease-luxury: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-slow: 1.2s;
+  --duration-medium: 0.6s;
+}
