@@ -112,7 +112,17 @@ Tagline: "Designing Spaces. Crafting Experiences."
   `<a>`/`<button>` but should trigger the cursor's hover-scale can opt in with
   `data-cursor-hover`. An element that needs its *native* cursor back (e.g. something
   overlapping a form field visually) can opt out with `data-cursor-native`. Both are
-  read by `src/components/CustomCursor.jsx` / `src/index.css`.
+  read by `src/components/CustomCursor.jsx` / `src/index.css`. The cursor dot itself
+  uses `mix-blend-mode: difference` with a white fill — this makes it visible against
+  *any* background (dark or light) without per-section color-matching; don't replace
+  it with a fixed color.
+- **In-page navigation goes through `scrollTo()`** (`src/lib/scroll.js`), never a
+  native anchor jump or `element.scrollIntoView()` directly — those bypass Lenis and
+  desync it from ScrollTrigger. `scrollTo()` accepts a CSS selector, a DOM element, or
+  a number (pixel offset), and falls back correctly to native scrolling when Lenis is
+  off (the `prefers-reduced-motion` case). See `Hero.jsx`'s CTA for the pattern:
+  `<a href="#target" onClick={(e) => { e.preventDefault(); scrollTo('#target') }}>` —
+  keep the real `href` so it still works if JS fails.
 - Respect `prefers-reduced-motion`. `src/lib/scroll.js` already checks it and skips
   Lenis/ScrollTrigger init when set, and exports a `prefersReducedMotion()` helper for
   reuse. **The CSS block in `src/index.css` only covers CSS `animation`/`transition` —
@@ -122,6 +132,31 @@ Tagline: "Designing Spaces. Crafting Experiences."
   assume the CSS block covers it.
 - Dark mode is explicitly **out of scope** (fixed cream `#F6F4EF` / `#111` palette) —
   don't add a toggle.
+
+## Known incident patterns — check new code against these
+
+These recurred or were caught in review during earlier build phases. Check new code
+against them rather than rediscovering them by chance:
+
+- **"Invisible cursor" is a recurring failure class, not a single bug.** It's happened
+  twice via two different mechanisms: (1) hiding the native cursor before the custom
+  dot has a real on-screen position, and (2) the dot's fill color matching a full-screen
+  overlay's background color (Loader's `#111` vs. the dot's old `var(--color-text)`
+  fill). Fixed structurally now via `mix-blend-mode: difference` (see above) — if a
+  future change moves away from that, re-check both failure modes.
+- **Anonymous callbacks passed to `gsap.ticker.add()` or similar "add a listener,
+  keep no reference" APIs can never be removed.** `scroll.js`'s ticker callback hit
+  this once. Always store the reference if there's any teardown path.
+- **`ScrollTrigger.getAll().forEach(kill)` is a global operation** — it kills every
+  component's triggers, not just the caller's own. Each section owns cleanup of the
+  triggers *it* registered; don't add a blanket kill-all anywhere.
+- **Any full-screen overlay (a new Loader-like component, a modal) needs an explicit
+  `background` on the section immediately behind it too**, not just on the overlay —
+  otherwise there's a flash-of-uncomposited-content window (e.g. before an image
+  loads) where light text sits on the page's light body background.
+- **A data-file lookup that can return `undefined` (e.g. `array.find(...)`) must be
+  guarded before its result is dereferenced** — there is no error boundary anywhere in
+  this app, so an unguarded read white-screens the entire site over a single data typo.
 
 ## Deploy
 

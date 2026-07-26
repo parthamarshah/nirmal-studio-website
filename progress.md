@@ -25,10 +25,20 @@ live in `CLAUDE.md` — read that first if you're picking this up cold.
 - **Fonts chosen** — Fraunces (heading), Syne (wordmark), via a live visual comparison
   page deployed to Pages and reviewed by Parth (page since deleted, decision baked into
   `src/styles/tokens.css` and `index.html`'s Google Fonts link).
+- **Loader + Hero + Statement** — black-screen wordmark loader (skips entirely for
+  `prefers-reduced-motion`), full-bleed Hero with a slow Ken Burns zoom on the Citadel
+  Tower render (landscape for desktop, portrait crop for mobile via `<picture>`),
+  scroll-triggered Statement fade-in. Extracted the Citadel Tower images from the
+  source PDF into `public/images/citadel-tower/` — confirmed they actually resolve in
+  the production build (`curl` 200, not just `npm run dev`). Added `scrollTo()` to
+  `src/lib/scroll.js` (routes in-page navigation through Lenis instead of a native
+  anchor jump, so scroll state doesn't desync) and `--z-loader`/`--z-cursor` tokens.
+  See "Known incident patterns" in `CLAUDE.md` — this phase re-triggered the
+  cursor-invisible-on-load bug via a second, different mechanism (dark-on-dark
+  contrast, not stacking) — fixed with `mix-blend-mode: difference` on the cursor dot.
 
 ## Not started yet
 
-- Loader + Hero + Statement sections
 - Focus-Image + Philosophy split-screen
 - Idea-to-Home animated timeline
 - Extract project images from `Fold Architects_2.pdf`

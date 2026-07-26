@@ -21,7 +21,8 @@ export const projects = [
     builtUpArea: '9,600 sqft',
     concept:
       'An ongoing commercial tower bringing ground-floor retail and café life to the street, with upper-floor offices set behind a textured, plant-softened façade.',
-    heroImage: '/images/citadel-tower/hero.jpg',
+    heroImage: '/images/citadel-tower/exterior-landscape.jpg',
+    heroImageMobile: '/images/citadel-tower/exterior-portrait.jpg',
     gallery: [],
     challenge: null,
     drawings: null,

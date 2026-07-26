@@ -24,4 +24,10 @@
   --ease-luxury: cubic-bezier(0.16, 1, 0.3, 1);
   --duration-slow: 1.2s;
   --duration-medium: 0.6s;
+
+  /* Z-index scale — the cursor must always be topmost, or hiding the native
+     cursor (see CustomCursor.jsx) leaves nothing visible underneath a
+     higher-stacked overlay. Any new full-screen overlay goes below --z-cursor. */
+  --z-loader: 100;
+  --z-cursor: 9999;
 }

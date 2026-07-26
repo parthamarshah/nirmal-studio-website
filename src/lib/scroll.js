@@ -55,7 +55,29 @@ export function initScroll() {
   gsap.ticker.add(tickerFn)
   gsap.ticker.lagSmoothing(0)
 
+  // Google Fonts loads with display=swap, so Fraunces/Syne swap in after
+  // first paint and reflow the page — any ScrollTrigger start/end positions
+  // computed before that reflow are wrong. Refresh once fonts settle.
+  document.fonts?.ready?.then(() => ScrollTrigger.refresh())
+
   return { lenis, reducedMotion }
+}
+
+// Scroll to a target (selector, element, or number) through Lenis so it
+// stays in sync with ScrollTrigger — a native anchor jump or
+// element.scrollIntoView() bypasses Lenis entirely and desyncs it.
+export function scrollTo(target) {
+  if (lenis) {
+    lenis.scrollTo(target)
+    return
+  }
+  const behavior = prefersReducedMotion() ? 'auto' : 'smooth'
+  if (typeof target === 'number') {
+    window.scrollTo({ top: target, behavior })
+    return
+  }
+  const el = typeof target === 'string' ? document.querySelector(target) : target
+  el?.scrollIntoView({ behavior })
 }
 
 // Only tears down what THIS module owns (the Lenis instance + its ticker
