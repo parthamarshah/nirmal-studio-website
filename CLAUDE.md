@@ -77,9 +77,25 @@ Tagline: "Designing Spaces. Crafting Experiences."
     cursor, hover states). Never scroll-linked.
 - **Content-as-data pattern**: components read from `src/data/*.js`. Adding/editing
   real content later should be a data edit, not a component rewrite.
-- Respect `prefers-reduced-motion` — already handled at the scroll-stack level
-  (`src/lib/scroll.js`) and in global CSS (`src/index.css`); any new component doing
-  its own GSAP/Framer animation should check this too.
+- **Image paths go in `public/images/<slug>/...`, never `src/assets/`.** Files in
+  `public/` are copied to the build output as-is, so a plain root-relative string path
+  in a data file (e.g. `/images/citadel-tower/hero.jpg`) resolves correctly in both
+  `npm run dev` and the production build. A path under `src/` works in dev (which
+  serves all of `src/`) but silently 404s after `npm run build`, since Vite only
+  bundles files that are actually `import`ed somewhere — a data file holding a bare
+  string path never triggers that. Don't reintroduce `src/assets/images`.
+- **Custom cursor hover attributes**: any interactive element that isn't already an
+  `<a>`/`<button>` but should trigger the cursor's hover-scale can opt in with
+  `data-cursor-hover`. An element that needs its *native* cursor back (e.g. something
+  overlapping a form field visually) can opt out with `data-cursor-native`. Both are
+  read by `src/components/CustomCursor.jsx` / `src/index.css`.
+- Respect `prefers-reduced-motion`. `src/lib/scroll.js` already checks it and skips
+  Lenis/ScrollTrigger init when set, and exports a `prefersReducedMotion()` helper for
+  reuse. **The CSS block in `src/index.css` only covers CSS `animation`/`transition` —
+  it has no effect on GSAP or Framer Motion, which both animate via inline
+  transforms.** Every new component doing its own GSAP/Framer animation must call the
+  `prefersReducedMotion()` helper itself before registering that animation — don't
+  assume the CSS block covers it.
 - Dark mode is explicitly **out of scope** (fixed cream `#F6F4EF` / `#111` palette) —
   don't add a toggle.
 

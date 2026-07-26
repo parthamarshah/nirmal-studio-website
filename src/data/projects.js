@@ -4,6 +4,13 @@
 //
 // Fields left null are deliberate placeholders (drawings/construction/video/
 // clientExperience aren't ready yet) — render them as absent, not fabricated.
+//
+// Image paths are root-relative into public/images/<slug>/... (NOT
+// src/assets) — files in public/ are copied to the build output as-is, so a
+// plain string path here resolves correctly in both dev and the production
+// build. A path under src/ would work in `npm run dev` (which serves all of
+// src/) but silently 404 after `npm run build`, since Vite only bundles
+// files that are actually `import`ed somewhere.
 export const projects = [
   {
     slug: 'citadel-tower',
@@ -14,7 +21,7 @@ export const projects = [
     builtUpArea: '9,600 sqft',
     concept:
       'An ongoing commercial tower bringing ground-floor retail and café life to the street, with upper-floor offices set behind a textured, plant-softened façade.',
-    heroImage: '/src/assets/images/citadel-tower/hero.jpg',
+    heroImage: '/images/citadel-tower/hero.jpg',
     gallery: [],
     challenge: null,
     drawings: null,

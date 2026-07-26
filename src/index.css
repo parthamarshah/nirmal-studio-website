@@ -36,10 +36,19 @@ img {
 }
 
 /* Custom cursor hides the native one on pointer (mouse) devices only —
-   touch devices never get a cursor at all, so this must not apply there. */
+   touch devices never get a cursor at all, so this must not apply there.
+   Form fields and selectable text keep their native cursor (I-beam etc.) —
+   the custom dot doesn't communicate "click to type" or "select this text". */
 @media (hover: hover) and (pointer: fine) {
   body.has-custom-cursor {
     cursor: none;
+  }
+
+  body.has-custom-cursor input,
+  body.has-custom-cursor textarea,
+  body.has-custom-cursor [contenteditable],
+  body.has-custom-cursor [data-cursor-native] {
+    cursor: auto;
   }
 }
 
