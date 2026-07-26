@@ -17,6 +17,24 @@ Explicit bar to beat: an existing single-prompt Lovable draft
 (`~/Downloads/WhatsApp Video 2026-07-21 at 18.21.04.mp4`). This needs to be decisively
 better than that, not a marginal improvement.
 
+## GitHub and Cloudflare are both already connected — self-serve these
+
+- **GitHub**: this repo is pushed to `github.com/parthamarshah/nirmal-studio-website`
+  and `git push`/`git pull` work directly, no `gh` CLI needed.
+- **Cloudflare**: Wrangler CLI is authenticated (`npx wrangler whoami` confirms it)
+  against the "Gurjar" account, with a `pages:write` scope. The `nirmal-studio-website`
+  Pages project exists and deploys work via `npx wrangler pages deploy dist
+  --project-name nirmal-studio-website`.
+- **Do not ask Parth to do GitHub or Cloudflare dashboard steps** (creating things,
+  pushing, deploying) — just run the commands directly. The only exception is
+  attaching the `nirmalstudio.com` custom domain to the Pages project: that replaces
+  whatever's currently live on the real domain, so confirm with him immediately before
+  running `wrangler pages domain add` (see Task list / Deploy section below) — that's
+  the one case where asking is mandatory, not optional.
+- If a genuinely new Cloudflare/GitHub permission is needed beyond what's already
+  authorized (e.g. a scope the current OAuth token doesn't cover), that's the other
+  case where asking is unavoidable — otherwise, just proceed.
+
 ## Brand structure — do not misrepresent this
 
 **Nirmal Studio = Tej Shah's personal brand/practice, not a multi-founder firm.**
@@ -101,15 +119,23 @@ Tagline: "Designing Spaces. Crafting Experiences."
 
 ## Deploy
 
-- Repo: `https://github.com/parthamarshah/nirmal-studio-website`
-- Cloudflare Pages: `nirmalstudio.com` is on Cloudflare (account "Gurjar") but as of
-  planning, **no Pages project was bound to it** — a new Pages project needs creating
-  and connecting to the GitHub repo, then the custom domain added to it. This requires
-  Parth's Cloudflare dashboard access, done step-by-step, not something Claude can do
-  via CLI (no `gh`/Homebrew on this machine either — plain `git` is what's used).
-  Build command: `npm run build`, output directory: `dist`. Node version pinned via
-  `.node-version` / `package.json` engines — set `NODE_VERSION` in the Cloudflare Pages
-  dashboard to match if the build fails on Node version detection.
+- Repo: `https://github.com/parthamarshah/nirmal-studio-website` (plain `git push`,
+  no `gh` CLI/Homebrew on this machine).
+- Cloudflare: Wrangler CLI is authenticated (`npx wrangler whoami`) against the
+  "Gurjar" account (where `nirmalstudio.com`'s DNS actually lives — OAuth via
+  `wrangler login` needs `dangerouslyDisableSandbox: true` on the Bash call, since the
+  loopback callback server otherwise isn't reachable from the real browser).
+- **Pages project**: `nirmal-studio-website`, already created, live at
+  `https://nirmal-studio-website.pages.dev`. Deploy mechanism is direct CLI, not git
+  integration: `npm run build && npx wrangler pages deploy dist --project-name
+  nirmal-studio-website`. Run this after each build phase lands, alongside the git
+  commit/push.
+- **`nirmalstudio.com` custom domain is intentionally NOT yet attached** to this Pages
+  project — the domain currently shows Parth's Lovable placeholder, and connecting it
+  now would replace that with whatever's currently built (which was just the
+  foundation placeholder text). Attach it once Hero is genuinely ready to be the
+  public face of the site, via `npx wrangler pages domain add nirmalstudio.com
+  --project-name nirmal-studio-website` (or the dashboard's Custom domains tab).
 
 ## Working style for this project
 
