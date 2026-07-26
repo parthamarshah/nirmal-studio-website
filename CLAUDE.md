@@ -76,6 +76,12 @@ Tagline: "Designing Spaces. Crafting Experiences."
   slow Ken Burns-style pan/zoom on a strong still render (e.g. Citadel Tower exterior)
   until/unless Parth supplies real generated video — media is a swappable asset, not
   something to rebuild the section around.
+- **Fonts (decided)**: heading serif is **Fraunces** (`--font-heading`), wordmark is
+  **Syne** (`--font-wordmark`, bold 800 for "nirmal" + regular 400 for "studio",
+  replacing the unlicensed Stinger Wide trial), body stays Open Sans. Both pulled via
+  Google Fonts link in `index.html`; self-hosting them is a later polish-pass item, not
+  urgent now. Chosen by Parth via a live visual comparison, not from font names — don't
+  re-ask or re-litigate this.
 
 ## Tech stack & architecture
 

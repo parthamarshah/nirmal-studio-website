@@ -1,14 +1,9 @@
 import { useEffect } from 'react'
 import { initScroll, destroyScroll } from './lib/scroll'
 import CustomCursor from './components/CustomCursor'
-import FontPreview from './components/FontPreview'
 
 // Sections are added here one at a time as each build phase (Tasks #5–#13)
 // lands — this file stays intentionally minimal until then.
-//
-// TEMPORARY: rendering FontPreview instead of the real placeholder while
-// Task #4 (font comparison) is being decided. Swap back once a font is
-// chosen, then delete FontPreview.jsx.
 function App() {
   useEffect(() => {
     initScroll()
@@ -19,7 +14,20 @@ function App() {
     <>
       <CustomCursor />
       <main>
-        <FontPreview />
+        <section
+          style={{
+            minHeight: '100svh',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontFamily: 'var(--font-heading)',
+            fontSize: 'clamp(1.5rem, 4vw, 3rem)',
+            textAlign: 'center',
+            padding: 'var(--space-lg)',
+          }}
+        >
+          Nirmal Studio — foundation deployed, sections coming next.
+        </section>
       </main>
     </>
   )

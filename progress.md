@@ -22,10 +22,12 @@ live in `CLAUDE.md` — read that first if you're picking this up cold.
   deploy dist --project-name nirmal-studio-website` after each build phase).
   `nirmalstudio.com` custom domain is deliberately NOT yet attached — still showing
   Parth's Lovable placeholder until Hero is ready.
+- **Fonts chosen** — Fraunces (heading), Syne (wordmark), via a live visual comparison
+  page deployed to Pages and reviewed by Parth (page since deleted, decision baked into
+  `src/styles/tokens.css` and `index.html`'s Google Fonts link).
 
 ## Not started yet
 
-- Font comparison pass (heading serif + wordmark alternative to Stinger Wide)
 - Loader + Hero + Statement sections
 - Focus-Image + Philosophy split-screen
 - Idea-to-Home animated timeline

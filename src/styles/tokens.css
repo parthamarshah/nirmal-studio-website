@@ -7,9 +7,10 @@
   --color-beige: #e6ddc9;
   --color-warm-white: #fbfaf6;
 
-  /* Type — heading serif is a placeholder until the font-comparison pass (Task #4) */
-  --font-heading: Georgia, 'Times New Roman', serif;
+  /* Type — chosen via the font-comparison pass (Task #4) */
+  --font-heading: 'Fraunces', Georgia, serif;
   --font-body: 'Open Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-wordmark: 'Syne', sans-serif;
 
   /* Spacing scale — generous, per the brief's "whitespace as a design element" */
   --space-xs: 0.5rem;
