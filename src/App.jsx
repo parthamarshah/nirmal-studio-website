@@ -1,6 +1,5 @@
 import { useEffect } from 'react'
 import { initScroll, destroyScroll } from './lib/scroll'
-import CustomCursor from './components/CustomCursor'
 import Loader from './components/Loader'
 import Hero from './components/Hero'
 import Statement from './components/Statement'
@@ -19,7 +18,6 @@ function App() {
   return (
     <>
       <Loader />
-      <CustomCursor />
       <main>
         <Hero project={heroProject} />
         <Statement />

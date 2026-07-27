@@ -91,14 +91,20 @@ Tagline: "Designing Spaces. Crafting Experiences."
 - **Mobile-first, not desktop-first-then-adapt.** Mobile is the primary "ultra smooth"
   target; desktop can be comparatively subdued but must feel equally polished. Build
   each section's mobile layout/interaction first, then layer desktop-only enhancements
-  (parallax, custom cursor, pinning/scrub) on top.
+  (parallax, pinning/scrub) on top.
+- **No custom cursor.** The brief called for one; built it (a mouse-follow dot
+  replacing the native cursor), Parth reviewed it live and rejected it — "normal mouse
+  look is fine." Removed entirely (`src/components/CustomCursor.jsx` deleted, no
+  `data-cursor-hover`/`data-cursor-native` attributes, no `has-custom-cursor` CSS). Use
+  the plain native cursor everywhere; don't reintroduce this without him asking for it
+  again.
 - **Motion libraries have separate, non-overlapping jobs** (this avoids two systems
   fighting over scroll):
   - **Lenis** — smooth-scroll only, initialized once (`src/lib/scroll.js`).
   - **GSAP + ScrollTrigger** — all scroll-driven animation: pinning, scrub, parallax,
     mask reveals, split-text, image sequences. Synced to Lenis in the same file.
-  - **Framer Motion** — mount/exit transitions and micro-interactions only (custom
-    cursor, hover states). Never scroll-linked.
+  - **Framer Motion** — mount/exit transitions and micro-interactions only (hover
+    states, mount/exit transitions). Never scroll-linked.
 - **Content-as-data pattern**: components read from `src/data/*.js`. Adding/editing
   real content later should be a data edit, not a component rewrite.
 - **Image paths go in `public/images/<slug>/...`, never `src/assets/`.** Files in
@@ -108,14 +114,6 @@ Tagline: "Designing Spaces. Crafting Experiences."
   serves all of `src/`) but silently 404s after `npm run build`, since Vite only
   bundles files that are actually `import`ed somewhere — a data file holding a bare
   string path never triggers that. Don't reintroduce `src/assets/images`.
-- **Custom cursor hover attributes**: any interactive element that isn't already an
-  `<a>`/`<button>` but should trigger the cursor's hover-scale can opt in with
-  `data-cursor-hover`. An element that needs its *native* cursor back (e.g. something
-  overlapping a form field visually) can opt out with `data-cursor-native`. Both are
-  read by `src/components/CustomCursor.jsx` / `src/index.css`. The cursor dot itself
-  uses `mix-blend-mode: difference` with a white fill — this makes it visible against
-  *any* background (dark or light) without per-section color-matching; don't replace
-  it with a fixed color.
 - **In-page navigation goes through `scrollTo()`** (`src/lib/scroll.js`), never a
   native anchor jump or `element.scrollIntoView()` directly — those bypass Lenis and
   desync it from ScrollTrigger. `scrollTo()` accepts a CSS selector, a DOM element, or
@@ -138,12 +136,13 @@ Tagline: "Designing Spaces. Crafting Experiences."
 These recurred or were caught in review during earlier build phases. Check new code
 against them rather than rediscovering them by chance:
 
-- **"Invisible cursor" is a recurring failure class, not a single bug.** It's happened
-  twice via two different mechanisms: (1) hiding the native cursor before the custom
-  dot has a real on-screen position, and (2) the dot's fill color matching a full-screen
-  overlay's background color (Loader's `#111` vs. the dot's old `var(--color-text)`
-  fill). Fixed structurally now via `mix-blend-mode: difference` (see above) — if a
-  future change moves away from that, re-check both failure modes.
+- **(Historical — the custom cursor this applied to is now removed.)** A custom
+  mouse-follow cursor went through two rounds of "invisible cursor" bugs (hiding the
+  native cursor before the dot had a real position; the dot's fill color matching a
+  full-screen overlay's background) before Parth rejected the feature outright on
+  review. Kept here as a reminder: a decorative interaction can be bug-free and still
+  get cut because the person who owns the site just doesn't like it — verify with him
+  before sinking more time into fixing something like this rather than reconsidering it.
 - **Anonymous callbacks passed to `gsap.ticker.add()` or similar "add a listener,
   keep no reference" APIs can never be removed.** `scroll.js`'s ticker callback hit
   this once. Always store the reference if there's any teardown path.

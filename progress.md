@@ -36,6 +36,9 @@ live in `CLAUDE.md` — read that first if you're picking this up cold.
   See "Known incident patterns" in `CLAUDE.md` — this phase re-triggered the
   cursor-invisible-on-load bug via a second, different mechanism (dark-on-dark
   contrast, not stacking) — fixed with `mix-blend-mode: difference` on the cursor dot.
+- **Custom cursor removed** — Parth reviewed it live and preferred the plain native
+  cursor. Deleted `CustomCursor.jsx` and all related CSS/attributes/tokens entirely
+  (not disabled — fully removed). See `CLAUDE.md`'s "No custom cursor" note.
 
 ## Not started yet
 

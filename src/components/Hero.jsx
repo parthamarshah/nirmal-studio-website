@@ -115,7 +115,6 @@ export default function Hero({ project }) {
             through Lenis so scroll state doesn't desync. */}
         <a
           href="#statement"
-          data-cursor-hover
           onClick={(e) => {
             e.preventDefault()
             scrollTo('#statement')
