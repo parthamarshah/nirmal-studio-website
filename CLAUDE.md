@@ -193,6 +193,28 @@ against them rather than rediscovering them by chance:
   was never affected) but silently broke on desktop, which is easy to miss if testing
   happens on a phone. The next scrollable overlay (e.g. a project gallery lightbox in
   Task #9) will hit this too if `data-lenis-prevent` isn't added from the start.
+- **The inverse of the rule above also holds: an element that's only conditionally a
+  scroll container must drop `data-lenis-prevent` when it isn't one** — leaving it on
+  unconditionally silences Lenis's wheel smoothing/sync over that whole region even
+  when there's nothing nested to protect from it. Process.jsx's horizontal-scroll track
+  hit this: on desktop it's pinned and transform-driven (not actually scrollable,
+  `overflow: visible`), but on mobile/reduced-motion it's a real native `overflow-x:
+  auto` scroll-snap container. The attribute is only correct in the second case — gate
+  it on the same state that switches between the two modes (`data-lenis-prevent={pinned
+  ? undefined : ''}`, not `false`, since React still renders `data-lenis-prevent="false"`
+  for a literal `false` and Lenis only checks the attribute's presence). Any future
+  component with a "pinned/transform-driven on desktop, natively scrollable on
+  mobile" split needs this checked both ways, not just the "add it" direction.
+- **`gsap.to()` cleanup via `.kill()` alone doesn't reset the target's own last-applied
+  inline style** — it stops the tween, but whatever transform/width/etc. it last wrote
+  stays on the element. Process.jsx's pin-to-mobile-fallback transition hit this: on a
+  desktop→mobile resize mid-scroll, killing the scrub tween left a stale inline
+  `transform` on the track (and a stale inline `width` on its progress-fill bar), which
+  the very next render's mobile CSS could never override — same "inline beats
+  stylesheet" failure class as the entry below, just reached via a leftover animated
+  style instead of a hardcoded one. Fix: `gsap.set(el, { clearProps: 'transform' })` (or
+  the relevant prop) in the same cleanup that calls `.kill()`, whenever the element gets
+  handed off to a different (non-GSAP-driven) CSS layout afterward.
 - **A full-screen overlay's backdrop `onClick={close}` also fires when the click
   bubbles up from content inside it** — a plain `onClick` on the overlay div doesn't
   distinguish "clicked the backdrop" from "clicked the child that bubbled up to it."

@@ -5,18 +5,32 @@ live in `CLAUDE.md` — read that first if you're picking this up cold.
 
 ## Resume here
 
-Next up: **Task #8 — Process horizontal-scroll journey** (Section 8:
-Discovery→...→Completion). Build mobile-first, run `npm run build && npm run lint`,
-deploy via `npx wrangler pages deploy dist --project-name nirmal-studio-website`,
+Next up: **Task #9 — Featured Projects immersive storytelling**. Curate which of the
+27 already-extracted gallery images become each project's hero/gallery lead, and write
+challenge/materials/construction copy. Build mobile-first, run `npm run build && npm run
+lint`, deploy via `npx wrangler pages deploy dist --project-name nirmal-studio-website`,
 commit + push, update this file.
 
-Before starting Task #8, Parth still needs to re-verify the two fixes from this
-session on his phone (floor-plan lightbox pan/zoom + close button, Philosophy's
-border-only pill badges) — see the "Lightbox + Philosophy chip fixes" entry below for
-exactly what changed. Also two things still waiting on him, unrelated to code: Tej's
-sign-off on the Philosophy paragraph + IdeaTimeline stage copy (both generic "studio
-voice," not confirmed facts), and confirming the Nishee House client is fine with
-their full floor-plan layout being public.
+Task #8 (Process) landed this session but wasn't visually verified in a real browser —
+the Claude-in-Chrome extension wasn't connected this session, so only `npm run build` +
+`npm run lint` + a full manual code re-read + three review-agent passes (ux-reviewer,
+impact-tracker, edge-case-checker) confirmed it, not an actual look at the live page.
+Parth should check `https://nirmal-studio-website.pages.dev` himself before this is
+considered fully done: (1) desktop >=1024px — scroll into Process, confirm vertical
+scroll converts to horizontal card motion smoothly (pinned, no jank), progress dots +
+bar track correctly, clicking a dot jumps to that stage; (2) resize the browser across
+the 1024px breakpoint mid-scroll — confirm no leftover card/progress-bar jump when it
+falls back to mobile layout; (3) mobile/narrow width — confirm horizontal swipe-snap
+carousel, dots still work; (4) with OS-level "reduce motion" on — confirm it's the same
+swipe-snap fallback as mobile, not a broken pinned attempt.
+
+Also still needs Parth to re-verify the two phone fixes from the *previous* session
+(floor-plan lightbox pan/zoom + close button, Philosophy's border-only pill badges) —
+see the "Lightbox + Philosophy chip fixes" entry below for exactly what changed. Also
+two things still waiting on him, unrelated to code: Tej's sign-off on the Philosophy
+paragraph + IdeaTimeline stage copy + now Process's stage copy too (all generic "studio
+voice," not confirmed facts), and confirming the Nishee House client is fine with their
+full floor-plan layout being public.
 
 Everything below is committed and pushed to `main`
 (`github.com/parthamarshah/nirmal-studio-website`) and deployed at
@@ -149,6 +163,39 @@ Everything below is committed and pushed to `main`
     user landing on a zoomed-in corner of a 1584px-wide image with no cue that there's
     more to pan to could briefly read it as broken). Both are real but lower-severity —
     revisit in the polish pass, not blocking Task #8.
+- **Process horizontal-scroll journey** (`Process.jsx`) — Section 8, a genuinely
+  different narrative from IdeaTimeline (Task #7's per-project physical build sequence):
+  6 typographic stages telling the studio's own working method (Listen → Read the Site
+  → Shape the Idea → Resolve the Detail → Build Together → Hand It Over), generic
+  studio-voice copy pending Tej's sign-off, same flag as Philosophy's and IdeaTimeline's.
+  On desktop (>=1024px, `gsap.matchMedia`, only when motion isn't reduced): a real GSAP
+  ScrollTrigger pin — vertical scroll drives horizontal translateX of the card track,
+  with a bronze progress bar + clickable stage dots, a persistent small "Process" label
+  (since the real `<h2>` scrolls out of view once pinned), and a "Keep scrolling ↓" hint
+  on the first card only that fades once the visitor advances past it. On mobile and for
+  any reduced-motion user (regardless of viewport width): a native CSS horizontal
+  scroll-snap carousel instead, sharing the same dot/progress-bar row and activeIndex
+  state — gated on a `pinned` boolean class, not just the media query, so a
+  reduced-motion desktop user still gets the working snap-scroll fallback rather than a
+  clipped, un-scrollable track. Three review-agent passes (ux-reviewer, impact-tracker,
+  edge-case-checker) caught real bugs before commit, all fixed: `data-lenis-prevent` was
+  applied unconditionally to the track even though it's only a real scroll container in
+  the non-pinned case (silenced Lenis's wheel smoothing over the whole pinned section);
+  the dot-click fallback used `scrollIntoView()` instead of the track's own `scrollLeft`
+  (bypasses Lenis, CLAUDE.md's `scrollTo()` rule); `.kill()`-ing the scrub tween on a
+  desktop→mobile resize left a stale inline `transform`/`width` that the mobile CSS
+  could never override (new CLAUDE.md known-incident entry); a dot clicked in the
+  one-paint window where `pinned` is true but the ScrollTrigger hasn't been created yet
+  could silently fall through to the wrong scroll mechanism (now an explicit no-op);
+  the mobile scroll-listener's index could go out of bounds on iOS rubber-band
+  overscroll (now clamped, matching the desktop path); progress-bar contrast (2.7:1,
+  swapped to `--color-bronze-dark`) and panel-border contrast (1.2:1 beige, swapped to
+  `--color-stone`) both failed the 3:1 UI-component floor; dot tap targets were 9×9px
+  (expanded to a 44×44px hit area via a transparent `::before`, visual dot unchanged).
+  **Not visually verified in a real browser this session** — Claude-in-Chrome wasn't
+  connected, so only build/lint + manual code re-read + the three agent passes confirm
+  it. Parth should check `nirmal-studio-website.pages.dev` himself — see "Resume here"
+  above for exactly what to look at.
 
 ## Not started yet
 
@@ -157,7 +204,6 @@ Everything below is committed and pushed to `main`
   project's hero/gallery lead, and writing challenge/materials/construction copy, is
   still this task's job)
 - Studio (Tej Shah) + Network (FOLD) sections
-- Process horizontal-scroll journey
 - Journal + Testimonials (hidden until real content exists)
 - Contact section
 - Polish pass (perf/accessibility/SEO) + final comparison against the Lovable baseline video

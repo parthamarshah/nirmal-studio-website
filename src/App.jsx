@@ -6,6 +6,7 @@ import Statement from './components/Statement'
 import FocusImage from './components/FocusImage'
 import Philosophy from './components/Philosophy'
 import IdeaTimeline from './components/IdeaTimeline'
+import Process from './components/Process'
 import { projects } from './data/projects'
 
 // Sections are added here one at a time as each build phase (Tasks #5–#13)
@@ -30,6 +31,7 @@ function App() {
         <FocusImage project={focusProject} />
         <Philosophy project={philosophyProject} />
         <IdeaTimeline project={timelineProject} />
+        <Process />
       </main>
     </>
   )
