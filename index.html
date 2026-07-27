@@ -12,8 +12,24 @@
          pass. Self-hosting these is a later polish-pass item, not blocking now. -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- Split into two requests. Syne (the wordmark) uses display=optional,
+         not swap or block: `block` was tried first and confirmed (via a real
+         Slow-4G test) to still show two fonts — its swap period is infinite,
+         so a font that arrives even slightly late still swaps in after the
+         fallback already painted, just delayed rather than fixed. `optional`
+         has no swap period: the browser decides almost immediately (~100ms)
+         whether Syne is ready, and if not, uses the fallback for that whole
+         visit and never swaps later — no flash is possible under any network
+         condition. Trade-off: on a slow/cold-cache first load, the wordmark
+         may render in the fallback font that one time instead of Syne.
+         Fraunces is used across the whole page's body copy, so it keeps
+         swap to avoid a longer invisible-text window on slow connections. -->
     <link
-      href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=Syne:wght@400;800&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Syne:wght@400;800&display=optional"
       rel="stylesheet"
     />
   </head>

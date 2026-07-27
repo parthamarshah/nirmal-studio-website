@@ -5,15 +5,47 @@ live in `CLAUDE.md` — read that first if you're picking this up cold.
 
 ## Resume here
 
-Next up: **Section 7 — Studio (Tej Shah) + Network (FOLD)**. See "Not started yet" below.
+Next up: **Journal + Testimonials / Contact section** (both still "Not started yet"
+below) — Studio (Task #10) landed this session, so it's off this list now.
 
-Task #9 (Featured Projects) landed this session — see its "Done" entry below — but,
+Also fixed this session, before Task #10: the Loader's "nirmal" wordmark briefly
+showed in two different fonts on first load (Google Fonts' `display=swap` let the
+fallback sans-serif paint first, then swapped to Syne mid-animation). **This took two
+attempts** — the first (`index.html` requesting Syne with `display=block`, plus a
+`document.fonts.load()`-gated fade-in with an 800ms max-wait in `Loader.jsx`) was
+actually verified live by Parth (DevTools → Network → Slow 4G → disable cache →
+hard-reload, screen-recorded) and the flash still happened. Root cause: `block` has
+an *infinite* swap period — if the font arrives after the block window, the browser
+shows fallback first and swaps to Syne whenever it finishes, no matter how late; no
+JS timing constant can out-guess an arbitrarily slow network against a display mode
+that always eventually swaps. Fixed properly by switching Syne to
+`display=optional` — the browser decides in ~100ms whether the font's ready, and if
+not, uses the fallback for that whole visit and **never swaps in later**, so no
+flash is possible under any network condition. Trade-off: on a slow/cold-cache first
+load, the wordmark may render in the fallback font that one time instead of Syne.
+The JS gating in `Loader.jsx` (fontReady state, document.fonts.load race) was removed
+along with it — it was solving a problem `optional` no longer has, so it was just
+unnecessary complexity once the CSS-level fix was correct; back to a plain
+opacity-fade-on-mount. **This version was verified live by Parth** — same Slow 4G +
+disable-cache + hard-reload test, screen-recorded again: "nirmal" rendered in the
+fallback font (not Syne, since it didn't arrive within `optional`'s ~100ms decision
+window on that throttled connection) but stayed that way for the entire loader with
+no swap, confirming the fix. This is the one item this session that got genuinely
+verified rather than left as a build/lint-only guess — worth remembering that a real
+Slow-4G test is what actually caught the first fix's flaw; build/lint alone had
+passed on both attempts. Parth was asked whether to prioritize this check, the
+Studio section check, or a deploy-then-check-both approach, and said he'd rather
+finish fixing things one at a time than deploy yet — so nothing's been pushed to
+Cloudflare this session, just committed locally once done.
+
+Task #9 (Featured Projects) landed last session — see its "Done" entry below — but,
 like Task #8 before it, **wasn't visually verified in a real browser**: the
-Claude-in-Chrome extension wasn't connected this session either, so only `npm run
+Claude-in-Chrome extension wasn't connected that session either, so only `npm run
 build` + `npm run lint` + three review-agent passes (ux-reviewer, impact-tracker,
-edge-case-checker, each run once and again after fixes) confirmed it. This is now two
-sessions in a row this happened — worth checking the extension connection before the
-next one starts, rather than discovering it's down mid-session again. Parth should
+edge-case-checker, each run once and again after fixes) confirmed it. The extension
+was unavailable *this* session too (third session running) — flagging again that
+it's worth checking the connection before the next one starts, rather than
+discovering it's down mid-session yet again. Parth should
 check `https://nirmal-studio-website.pages.dev` himself: (1) the new Featured Projects
 grid between Idea-to-Home and Process — 9 cards, tap one to open the full-screen story
 takeover (hero image, facts, concept/challenge/materials/construction copy, photo
@@ -255,10 +287,48 @@ Everything below is committed and pushed to `main`
   `display:flex` centering on a fixed-size circle); Prev/Next buttons were under the
   44px tap-target floor. **Not visually verified in a real browser this session either**
   — same Claude-in-Chrome connection issue as Task #8 above, two sessions running now.
+- **Studio (Tej Shah) + Network (FOLD)** (`Studio.jsx`) — Section 7, inserted between
+  Featured Projects and Process (page order follows the brief's section numbers, same
+  reasoning as Task #9's placement). Tej gets a full ~100svh block (name, title,
+  based-in, and a first-person bio); FOLD gets a secondary block (~75svh floor) — an
+  intro paragraph explaining it's an informal, non-legal network (not co-founders of
+  Nirmal Studio), then a 1-column (mobile) / 3-column (desktop) card grid for the other
+  three architects, using `founders.js`'s facts as-is. Tej's `bio` field in
+  `founders.js` was null pending this task; filled it in now, constrained to only the
+  facts already confirmed elsewhere in that file (Ahmedabad, R+R Architects, the three
+  expertise areas) plus the philosophy language Philosophy.jsx already established —
+  no invented years, mentors, or awards. Flagged pending Tej's sign-off, same bar as
+  the other studio-voice copy in this codebase. **Note on the "~3/4 the space" ratio**:
+  `100svh`/`75svh` are floors, not rendered heights — on mobile, FOLD's 3 stacked
+  member cards (each with name/title/basedIn/background/expertise) push its actual
+  height well past the floor, while Tej's shorter content mostly just fills his floor.
+  A first pass caught this inverted (FOLD taller than Tej on mobile, the opposite of
+  the brand-structure intent) and tightened FOLD's mobile-only padding and card gap to
+  reduce the excess whitespace inflating it — but with real content this dense for 3
+  people vs. one person's bio, an exact 3/4 pixel ratio on every device isn't something
+  static CSS can strictly guarantee; the achievable target was "reads as clearly
+  secondary" (lighter beige panel, smaller heading scale, tighter spacing), not a
+  precise enforced ratio. Worth Parth's eyes once verified in a browser. Three
+  review-agent passes (ux-reviewer, impact-tracker, edge-case-checker) also caught:
+  FOLD members' based-in text used `--color-stone-dark` on the beige panel background,
+  ~3.94:1 — below the 4.5:1 AA floor (swapped to `--color-bronze-darker`, already used
+  one line above it for the same background); the two ScrollTrigger reveals used a bare
+  `'top 75%'` instead of `'clamp(top 75%)'` — the exact unreachable-trigger incident
+  IdeaTimeline hit twice and FeaturedProjects already guards against, reverted here by
+  oversight, now fixed; Tej's new `bio` and the separate background/expertise paragraph
+  right below it said the same two facts twice with drifted wording ("interiors" vs
+  "detailing") — dropped the second paragraph now that `bio` covers the same ground;
+  the FOLD intro read as a legal disclaimer ("not co-founders," defined by negation)
+  rather than confident brand copy — reworded to state the same fact positively; the
+  FOLD grid had no visual separator between cards, risking three people's info blurring
+  into one paragraph — added a hairline `border-top` per card (both mobile and desktop,
+  mirrors Philosophy.jsx's existing use of the same device on the desktop breakpoint).
+  **Not visually verified in a real browser this session** — third session in a row the
+  Claude-in-Chrome extension wasn't connected; only `npm run build` + `npm run lint` +
+  the three agent passes confirm it.
 
 ## Not started yet
 
-- Studio (Tej Shah) + Network (FOLD) sections
 - Journal + Testimonials (hidden until real content exists)
 - Contact section
 - Polish pass (perf/accessibility/SEO) + final comparison against the Lovable baseline video

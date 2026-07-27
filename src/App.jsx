@@ -7,6 +7,7 @@ import FocusImage from './components/FocusImage'
 import Philosophy from './components/Philosophy'
 import IdeaTimeline from './components/IdeaTimeline'
 import FeaturedProjects from './components/FeaturedProjects'
+import Studio from './components/Studio'
 import Process from './components/Process'
 import { projects } from './data/projects'
 
@@ -33,6 +34,7 @@ function App() {
         <Philosophy project={philosophyProject} />
         <IdeaTimeline project={timelineProject} />
         <FeaturedProjects />
+        <Studio />
         <Process />
       </main>
     </>

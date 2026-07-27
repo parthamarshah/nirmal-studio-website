@@ -1,7 +1,10 @@
-// Tej Shah is Nirmal Studio's founder — the primary Studio section (Task #10)
-// gets a fully drafted bio for him. The `bio` field below is intentionally
-// left null until that section is actually built, rather than front-loading
-// copywriting during foundation scaffolding.
+// Tej Shah is Nirmal Studio's founder. `bio` below is generic studio-voice
+// copy (same flag as Philosophy/IdeaTimeline/Process) grounded only in the
+// facts already confirmed elsewhere in this file — Ahmedabad, R+R
+// Architects, and the three expertise areas — plus the philosophy language
+// already established in Philosophy.jsx. No invented years of experience,
+// mentors, awards, or claims about R+R itself: needs Tej's sign-off before
+// treating as final, same as the other studio-voice copy in this codebase.
 export const tejShah = {
   name: 'Tej Shah',
   title: 'Founder, Nirmal Studio',
@@ -9,7 +12,7 @@ export const tejShah = {
   background: 'Worked at R+R Architects, Ahmedabad.',
   expertise:
     'High-end bungalows, luxury residential detailing, and corporate office buildings.',
-  bio: null,
+  bio: 'Before founding Nirmal Studio, I worked at R+R Architects in Ahmedabad. Today the studio designs high-end bungalows, luxury residential interiors, and corporate office buildings — each one built around how light moves through a room, how a family actually lives in a home, and what the site itself is already telling us. Materials that age honestly. Climate and context respected, not overridden. Vastu treated as a real constraint, not an afterthought. That’s the practice I run, one project at a time.',
 }
 
 // FOLD is an informal, non-legal network — NOT co-founders of Nirmal Studio.
