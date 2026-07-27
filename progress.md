@@ -3,12 +3,24 @@
 Section-by-section log. Update this after each phase lands. Full context/decisions
 live in `CLAUDE.md` — read that first if you're picking this up cold.
 
+## Resume here
+
+Next up: **Task #6 — Focus-Image + Philosophy split-screen sections** (Section 3:
+full-screen photography with minimal text; Section 4: split-screen with
+sketches/tracing-paper imagery on one side, philosophy copy — light, movement,
+context, materials, climate, vastu, lifestyle — on the other). Build mobile-first,
+run `npm run build && npm run lint`, deploy via `npx wrangler pages deploy dist
+--project-name nirmal-studio-website`, commit + push, update this file.
+
+Everything below is committed and pushed to `main`
+(`github.com/parthamarshah/nirmal-studio-website`) and deployed at
+`nirmal-studio-website.pages.dev` as of the last session.
+
 ## Done
 
 - **Foundation** — Vite + React (plain JS) scaffolded. Installed `gsap`, `lenis`,
   `framer-motion`. Wired Lenis + GSAP ScrollTrigger scroll stack (`src/lib/scroll.js`),
-  respecting `prefers-reduced-motion`. Custom cursor component (desktop/mouse only,
-  `src/components/CustomCursor.jsx`). Global palette/type/spacing tokens
+  respecting `prefers-reduced-motion`. Global palette/type/spacing tokens
   (`src/styles/tokens.css`) using the brief's cream/bronze/stone/beige palette —
   heading font is a serif placeholder pending the font-comparison pass. Content-as-data
   files created for projects, founders/FOLD, journal, testimonials
@@ -32,13 +44,12 @@ live in `CLAUDE.md` — read that first if you're picking this up cold.
   source PDF into `public/images/citadel-tower/` — confirmed they actually resolve in
   the production build (`curl` 200, not just `npm run dev`). Added `scrollTo()` to
   `src/lib/scroll.js` (routes in-page navigation through Lenis instead of a native
-  anchor jump, so scroll state doesn't desync) and `--z-loader`/`--z-cursor` tokens.
-  See "Known incident patterns" in `CLAUDE.md` — this phase re-triggered the
-  cursor-invisible-on-load bug via a second, different mechanism (dark-on-dark
-  contrast, not stacking) — fixed with `mix-blend-mode: difference` on the cursor dot.
-- **Custom cursor removed** — Parth reviewed it live and preferred the plain native
-  cursor. Deleted `CustomCursor.jsx` and all related CSS/attributes/tokens entirely
-  (not disabled — fully removed). See `CLAUDE.md`'s "No custom cursor" note.
+  anchor jump, so scroll state doesn't desync) and a `--z-loader` token.
+- **Custom cursor built, then removed** — a mouse-follow custom cursor was built
+  (fixing two rounds of "invisible cursor" bugs along the way), then Parth reviewed it
+  live and preferred the plain native cursor. Deleted `CustomCursor.jsx` and all
+  related CSS/attributes/tokens entirely (not disabled — fully removed). See
+  `CLAUDE.md`'s "No custom cursor" note — don't reintroduce without him asking again.
 
 ## Not started yet
 
