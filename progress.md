@@ -5,12 +5,10 @@ live in `CLAUDE.md` — read that first if you're picking this up cold.
 
 ## Resume here
 
-Next up: **Task #6 — Focus-Image + Philosophy split-screen sections** (Section 3:
-full-screen photography with minimal text; Section 4: split-screen with
-sketches/tracing-paper imagery on one side, philosophy copy — light, movement,
-context, materials, climate, vastu, lifestyle — on the other). Build mobile-first,
-run `npm run build && npm run lint`, deploy via `npx wrangler pages deploy dist
---project-name nirmal-studio-website`, commit + push, update this file.
+Next up: **Task #7 — Idea-to-Home animated timeline** (Section 5:
+Idea→Sketch→Model→Drawings→Construction→Finished Home morphing timeline). Build
+mobile-first, run `npm run build && npm run lint`, deploy via `npx wrangler pages
+deploy dist --project-name nirmal-studio-website`, commit + push, update this file.
 
 Everything below is committed and pushed to `main`
 (`github.com/parthamarshah/nirmal-studio-website`) and deployed at
@@ -50,13 +48,34 @@ Everything below is committed and pushed to `main`
   live and preferred the plain native cursor. Deleted `CustomCursor.jsx` and all
   related CSS/attributes/tokens entirely (not disabled — fully removed). See
   `CLAUDE.md`'s "No custom cursor" note — don't reintroduce without him asking again.
+- **Focus-Image + Philosophy split-screen** — Section 3 (`FocusImage.jsx`): full-bleed
+  scroll-scrubbed-parallax photo of the Terra Row Houses render (a father and son
+  walking in), with a plain project-credit caption (name/type/location) rather than
+  more "people/life" copy, since Hero and Philosophy already cover that idea. Section 4
+  (`Philosophy.jsx`): split-screen, stacked on mobile/side-by-side from 768px, philosophy
+  copy touching light/movement/context/materials/climate/vastu/lifestyle plus a row of
+  theme tags. No real sketch/tracing-paper photography exists yet for the image half —
+  used the Dolomite/Calcite Factory Office interior render instead (real project
+  imagery, chosen because its stone/wood materiality actually matches the copy) behind
+  a single swappable `project.heroImage` path, same pattern as Hero's media. While in
+  the source PDF for these two, extracted every remaining image for all 7 confirmed
+  projects (27 files, `public/images/<slug>/gallery-N.jpg`, via a one-off PyMuPDF
+  script — `pdftoppm`/`pdfimages`/ImageMagick aren't installed on this machine,
+  `pip install pymupdf` was) and listed them in each project's `gallery` array in
+  `src/data/projects.js` — Task #9 (Featured Projects) now has real imagery for every
+  project to pick from, not just this task's two curated picks (`heroImage` stays null
+  for the 3 projects with no dedicated hero shot chosen yet — that's still a Task #9
+  curation call, not this task's). Hero's CTA now points at `#philosophy` instead of
+  `#statement`, since Philosophy is a better fit for "Our Approach" copy than the
+  single-sentence Statement was.
 
 ## Not started yet
 
-- Focus-Image + Philosophy split-screen
 - Idea-to-Home animated timeline
-- Extract project images from `Fold Architects_2.pdf`
-- Featured Projects immersive storytelling section
+- Featured Projects immersive storytelling section (raw image extraction from the PDF
+  is done for all 7 projects — see `Done` above — but curating which shots become each
+  project's hero/gallery lead, and writing challenge/materials/construction copy, is
+  still this task's job)
 - Studio (Tej Shah) + Network (FOLD) sections
 - Process horizontal-scroll journey
 - Journal + Testimonials (hidden until real content exists)

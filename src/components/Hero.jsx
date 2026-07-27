@@ -106,18 +106,18 @@ export default function Hero({ project }) {
         >
           We design architecture around people, light, and the way life unfolds.
         </p>
-        {/* Points at #statement for now — repoint to #featured-projects once
-            Task #9 (Featured Projects) exists. Copy says "Our Approach" (not
-            "Explore Our Work") because it currently lands on the Philosophy
-            statement, not a projects grid — repoint copy alongside the href
-            when Task #9 lands. href is a real in-page anchor (Statement has
-            that id) so it still works if JS fails; the click handler routes
-            through Lenis so scroll state doesn't desync. */}
+        {/* Points at #philosophy (Task #6) — the actual Philosophy section,
+            which fits "Our Approach" better than Statement did. Repoint to
+            #featured-projects once Task #9 (Featured Projects) exists and
+            update the copy to something like "Explore Our Work" at the same
+            time. href is a real in-page anchor so it still works if JS
+            fails; the click handler routes through Lenis so scroll state
+            doesn't desync. */}
         <a
-          href="#statement"
+          href="#philosophy"
           onClick={(e) => {
             e.preventDefault()
-            scrollTo('#statement')
+            scrollTo('#philosophy')
           }}
           style={{
             display: 'inline-flex',

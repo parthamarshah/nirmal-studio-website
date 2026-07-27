@@ -6,6 +6,11 @@
   --color-stone: #8b8880;
   --color-beige: #e6ddc9;
   --color-warm-white: #fbfaf6;
+  /* Darkened bronze/stone for AA-contrast small text on --color-bg — the
+     base --color-bronze/--color-stone only hit ~3.2:1 there, below the
+     4.5:1 AA floor for sub-large text (e.g. Philosophy's theme tags). */
+  --color-bronze-dark: #8a5f3e;
+  --color-stone-dark: #6e6b63;
 
   /* Type — chosen via the font-comparison pass (Task #4) */
   --font-heading: 'Fraunces', Georgia, serif;
