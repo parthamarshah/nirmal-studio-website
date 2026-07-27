@@ -8,6 +8,13 @@
 //
 // Fields left null are deliberate placeholders (drawings/construction/video/
 // clientExperience aren't ready yet) — render them as absent, not fabricated.
+// `challenge`/`materials`/`construction` copy on the 7 PDF projects is generic
+// studio-voice language grounded only in already-confirmed facts (type,
+// location, sqft, what's visible in the renders) — not specific claims Tej
+// hasn't verified. Same flag as Philosophy/IdeaTimeline/Process's copy: needs
+// his sign-off before treating it as final. Left null on Shimla/Nishee since
+// their construction status isn't confirmed (see Content rules in CLAUDE.md)
+// and a `construction` field is specifically a claim about build stage.
 //
 // Image paths are root-relative into public/images/<slug>/... (NOT
 // src/assets) — files in public/ are copied to the build output as-is, so a
@@ -45,10 +52,12 @@ export const projects = [
       '/images/citadel-tower/gallery-2.jpg',
       '/images/citadel-tower/gallery-3.jpg',
     ],
-    challenge: null,
+    challenge:
+      'A commercial address that needed to work at two different speeds — ground-floor retail and café life that reads at street level, and upper-floor offices that stay calm and private above it, on a tight 2,400 sqft footprint carrying a 9,600 sqft tower.',
     drawings: null,
-    materials: null,
-    construction: null,
+    materials:
+      "A textured, plant-softened façade breaks up the tower's mass and filters Indore's harsh sun without the building hiding behind heavy shading.",
+    construction: 'Currently under construction — structure and façade work progressing on site.',
     video: null,
     clientExperience: null,
   },
@@ -63,10 +72,12 @@ export const projects = [
     heroImage: '/images/terra-row-houses/exterior-landscape.jpg',
     heroImageMobile: '/images/terra-row-houses/exterior-portrait.jpg',
     gallery: ['/images/terra-row-houses/gallery-1.jpg'],
-    challenge: null,
+    challenge:
+      'Fitting genuinely private, full-sized homes into a row-house format — shared party walls without the compressed, look-alike feel row housing often falls into.',
     drawings: null,
-    materials: null,
-    construction: null,
+    materials:
+      "Materials chosen to give each unit its own identity within a consistent street rhythm — warm textures rather than one finish repeated across every façade.",
+    construction: 'Currently under construction.',
     video: null,
     clientExperience: null,
   },
@@ -78,19 +89,19 @@ export const projects = [
     siteArea: null,
     builtUpArea: '300 sqft',
     concept: 'An ongoing office interior fit-out in Indore.',
-    heroImage: null,
+    heroImage: '/images/agrawals-office/gallery-3.jpg',
     gallery: [
       '/images/agrawals-office/gallery-1.jpg',
       '/images/agrawals-office/gallery-2.jpg',
-      '/images/agrawals-office/gallery-3.jpg',
       '/images/agrawals-office/gallery-4.jpg',
       '/images/agrawals-office/gallery-5.jpg',
       '/images/agrawals-office/gallery-6.jpg',
     ],
-    challenge: null,
+    challenge:
+      'A working professional office in a compact 300 sqft footprint — every square foot had to double up, without the space ever feeling cramped or purely functional.',
     drawings: null,
-    materials: null,
-    construction: null,
+    materials: 'Warm wood panelling, marble accents, and soft upholstery, chosen to read as considered rather than corporate.',
+    construction: 'Fit-out currently underway.',
     video: null,
     clientExperience: null,
   },
@@ -102,17 +113,23 @@ export const projects = [
     siteArea: null,
     builtUpArea: '660 sqft',
     concept: 'An ongoing showroom interior in Ahmedabad.',
-    heroImage: null,
+    // gallery-3, not gallery-1 — gallery-1 has the client's "KOHIRAA" store
+    // signage clearly legible, and this data file deliberately doesn't name
+    // the client (see plan doc). Keeping the un-badged shot as the primary/
+    // card-level image; the branded shot still exists further into the
+    // gallery, same exposure level every other project's incidental branding
+    // gets, just not promoted to the payoff frame.
+    heroImage: '/images/jewelry-store/gallery-3.jpg',
     gallery: [
       '/images/jewelry-store/gallery-1.jpg',
       '/images/jewelry-store/gallery-2.jpg',
-      '/images/jewelry-store/gallery-3.jpg',
       '/images/jewelry-store/gallery-4.jpg',
     ],
-    challenge: null,
+    challenge:
+      "A showroom that has to hold a client's attention on individual pieces of jewellery — the space needed to recede, not compete, while still feeling distinctly premium.",
     drawings: null,
-    materials: null,
-    construction: null,
+    materials: 'Warm brass detailing, soft rose-toned surfaces, and focused display lighting built around the merchandise itself.',
+    construction: 'Fit-out currently underway.',
     video: null,
     clientExperience: null,
   },
@@ -124,17 +141,17 @@ export const projects = [
     siteArea: null,
     builtUpArea: '350 sqft',
     concept: 'An ongoing office interior in Ahmedabad.',
-    heroImage: null,
+    heroImage: '/images/law-office/gallery-3.jpg',
     gallery: [
       '/images/law-office/gallery-1.jpg',
       '/images/law-office/gallery-2.jpg',
-      '/images/law-office/gallery-3.jpg',
       '/images/law-office/gallery-4.jpg',
     ],
-    challenge: null,
+    challenge:
+      "A small legal practice's office needed to feel unhurried and private in 350 sqft, without losing the working efficiency a busy practice depends on.",
     drawings: null,
-    materials: null,
-    construction: null,
+    materials: 'Timber screening and warm, textured finishes soften what could otherwise read as a purely transactional office.',
+    construction: 'Fit-out currently underway.',
     video: null,
     clientExperience: null,
   },
@@ -153,10 +170,12 @@ export const projects = [
       '/images/dolomite-factory-office/gallery-3.jpg',
       '/images/dolomite-factory-office/gallery-4.jpg',
     ],
-    challenge: null,
+    challenge:
+      'An office attached to a working factory that needed its own calm identity — distinct from the industrial floor around it, without feeling disconnected from it.',
     drawings: null,
-    materials: null,
-    construction: null,
+    materials:
+      "Stone and wood surfaces that nod to the client's own material — dolomite and calcite — carried through as a quiet material language across the interior.",
+    construction: 'Fit-out currently underway.',
     video: null,
     clientExperience: null,
   },
@@ -176,10 +195,11 @@ export const projects = [
       '/images/gurjars-house-extension/gallery-4.jpg',
       '/images/gurjars-house-extension/gallery-5.jpg',
     ],
-    challenge: null,
+    challenge:
+      "Extending a lived-in family home without it reading as an addition — the new 2,500 sqft had to feel like it always belonged.",
     drawings: null,
-    materials: null,
-    construction: null,
+    materials: 'Materials matched and continued from the existing house, rather than introduced as a visibly newer layer.',
+    construction: 'Currently under construction.',
     video: null,
     clientExperience: null,
   },
