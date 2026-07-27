@@ -138,14 +138,24 @@ export default function Philosophy({ project }) {
             good on handover day. The result isn&rsquo;t a style. It&rsquo;s a
             home that fits the life already being lived in it.
           </p>
+          {/* Pill badges, not a bare label + inline list — the earlier
+              "Guided by" text row read as an afterthought rather than a
+              designed element (Parth's review feedback). Border-only chips
+              (not filled) for two reasons: --color-beige as a fill sits at
+              ~1.2:1 against --color-bg, near-invisible on a phone outdoors,
+              and a filled pill in this app already means "tap this" (the
+              IdeaTimeline lightbox trigger) — reusing that language on a
+              static label would read as broken interactivity. */}
           <p
             style={{
               fontFamily: 'var(--font-body)',
-              fontSize: '0.75rem',
-              letterSpacing: '0.1em',
+              fontSize: '0.7rem',
+              letterSpacing: '0.12em',
               textTransform: 'uppercase',
               color: 'var(--color-stone-dark)',
-              marginBottom: 'var(--space-xs)',
+              margin: '0 0 var(--space-sm)',
+              paddingTop: 'var(--space-md)',
+              borderTop: '1px solid var(--color-stone-dark)',
             }}
           >
             Guided by
@@ -154,31 +164,29 @@ export default function Philosophy({ project }) {
             style={{
               display: 'flex',
               flexWrap: 'wrap',
-              gap: 'var(--space-sm)',
+              gap: 'var(--space-xs)',
               listStyle: 'none',
               margin: 0,
               padding: 0,
             }}
           >
-            {THEMES.map((theme, i) => (
-              <li
-                key={theme}
-                style={{
-                  fontFamily: 'var(--font-body)',
-                  fontSize: '0.8rem',
-                  letterSpacing: '0.08em',
-                  textTransform: 'uppercase',
-                  color: 'var(--color-bronze-dark)',
-                }}
-              >
-                {theme}
-                {i < THEMES.length - 1 && (
-                  <span
-                    style={{ color: 'var(--color-stone-dark)', marginLeft: 'var(--space-sm)' }}
-                  >
-                    ·
-                  </span>
-                )}
+            {THEMES.map((theme) => (
+              <li key={theme}>
+                <span
+                  style={{
+                    display: 'inline-block',
+                    padding: '6px 15px',
+                    borderRadius: 999,
+                    border: '1px solid var(--color-bronze-darker)',
+                    fontFamily: 'var(--font-body)',
+                    fontSize: '0.75rem',
+                    letterSpacing: '0.06em',
+                    textTransform: 'uppercase',
+                    color: 'var(--color-bronze-darker)',
+                  }}
+                >
+                  {theme}
+                </span>
               </li>
             ))}
           </ul>

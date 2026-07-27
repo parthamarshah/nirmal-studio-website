@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { gsap, prefersReducedMotion, ScrollTrigger } from '../lib/scroll'
 
 // Section 5 of the brief: Idea→Sketch→Model→Drawings→Construction→Finished
@@ -53,6 +54,10 @@ export default function IdeaTimeline({ project }) {
   const lineFillRef = useRef(null)
   const stageRefs = useRef([])
   const lastMarkerRef = useRef(null)
+  // The drawing is dense enough that its dimension text is unreadable at
+  // the inline display size on a phone (Parth confirmed on a real device) —
+  // holds { src, alt } for whichever stage's image is open, or null.
+  const [lightboxImage, setLightboxImage] = useState(null)
 
   const stages = STAGES.map((stage) =>
     stage.name === 'Drawings' && project?.drawings
@@ -174,6 +179,15 @@ export default function IdeaTimeline({ project }) {
   // caused by the lazy-loaded drawing reflowing the layout below it.
   const handleDrawingLoad = () => ScrollTrigger.refresh()
 
+  useEffect(() => {
+    if (!lightboxImage) return
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setLightboxImage(null)
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [lightboxImage])
+
   return (
     <section
       style={{
@@ -285,28 +299,64 @@ export default function IdeaTimeline({ project }) {
                 mobile viewport. */}
             {stage.image && (
               <figure style={{ margin: 'var(--space-sm) 0 0' }}>
-                <img
-                  src={stage.image}
-                  alt={stage.imageCaption}
-                  loading="lazy"
-                  onLoad={handleDrawingLoad}
-                  // width/height are the Nishee crop's own pixel dimensions
-                  // — only a CLS-reservation hint (browsers derive an
-                  // intrinsic ratio from these before load, then the real
-                  // image ratio takes over once decoded). Deliberately NOT
-                  // also set as a CSS aspect-ratio, which would force this
-                  // exact ratio permanently — this component is data-driven
-                  // (project.drawings), and Shimla House's own drawing is a
-                  // different shape; a hardcoded CSS ratio would distort it.
-                  width={1584}
-                  height={1548}
+                <button
+                  type="button"
+                  onClick={() => setLightboxImage({ src: stage.image, alt: stage.imageCaption })}
                   style={{
-                    width: '100%',
-                    height: 'auto',
                     display: 'block',
-                    border: '1px solid var(--color-beige)',
+                    width: '100%',
+                    padding: 0,
+                    border: 'none',
+                    background: 'none',
+                    cursor: 'zoom-in',
+                    position: 'relative',
                   }}
-                />
+                >
+                  <img
+                    src={stage.image}
+                    alt={stage.imageCaption}
+                    loading="lazy"
+                    onLoad={handleDrawingLoad}
+                    // width/height are the Nishee crop's own pixel
+                    // dimensions — only a CLS-reservation hint (browsers
+                    // derive an intrinsic ratio from these before load, then
+                    // the real image ratio takes over once decoded).
+                    // Deliberately NOT also set as a CSS aspect-ratio, which
+                    // would force this exact ratio permanently — this
+                    // component is data-driven (project.drawings), and
+                    // Shimla House's own drawing is a different shape; a
+                    // hardcoded CSS ratio would distort it.
+                    width={1584}
+                    height={1548}
+                    style={{
+                      width: '100%',
+                      height: 'auto',
+                      display: 'block',
+                      border: '1px solid var(--color-beige)',
+                    }}
+                  />
+                  {/* Small tap-to-enlarge affordance — dense dimension text
+                      on this drawing is unreadable at inline mobile size
+                      (confirmed on a real device), so this isn't optional
+                      decoration. */}
+                  <span
+                    style={{
+                      position: 'absolute',
+                      right: 8,
+                      bottom: 8,
+                      padding: '4px 10px',
+                      borderRadius: 999,
+                      background: 'rgba(17,17,17,0.7)',
+                      color: 'var(--color-warm-white)',
+                      fontFamily: 'var(--font-body)',
+                      fontSize: '0.7rem',
+                      letterSpacing: '0.04em',
+                      textTransform: 'uppercase',
+                    }}
+                  >
+                    Tap to enlarge
+                  </span>
+                </button>
                 <figcaption
                   style={{
                     fontFamily: 'var(--font-body)',
@@ -323,6 +373,97 @@ export default function IdeaTimeline({ project }) {
           </div>
         ))}
       </div>
+
+      {/* Full-screen preview so the drawing's dimension text is actually
+          readable on a phone — the inline image is too small for that on
+          its own. Explicit solid background on the overlay itself (per
+          CLAUDE.md's known-incident note on full-screen overlays), not just
+          a transparent scrim. */}
+      <AnimatePresence>
+        {lightboxImage && (
+          <motion.div
+            initial={prefersReducedMotion() ? false : { opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={prefersReducedMotion() ? undefined : { opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            // Only close on a direct backdrop click, not a click that
+            // bubbled up from the image — without this guard, a double-tap-
+            // to-zoom gesture on the drawing fires a click on its first tap
+            // and closes the lightbox before the zoom ever registers,
+            // defeating the one thing this overlay exists to let you do.
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setLightboxImage(null)
+            }}
+            // Lenis (src/lib/scroll.js) installs a global wheel handler
+            // that has no concept of nested scrollable elements — without
+            // this attribute, a desktop mouse wheel over the overlay would
+            // scroll the PAGE BEHIND it instead of panning the drawing
+            // (Lenis checks the event target's ancestor chain for this
+            // attribute and skips it). Touch panning is unaffected — Lenis
+            // only smooths wheel input, not touch — so this is a
+            // desktop-only fix, easy to miss testing on a phone.
+            data-lenis-prevent
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 'var(--z-overlay)',
+              background: '#111111',
+              // Deliberately NOT centered/fit-to-screen — the whole point is
+              // to render the drawing at (or beyond, via native pinch-zoom;
+              // the site's viewport meta tag doesn't block it) its natural
+              // size so dimension text is actually bigger than the inline
+              // version, not the same size again. overflow:auto + the
+              // image's natural width makes this a pan/scroll view.
+              overflow: 'auto',
+              overscrollBehavior: 'contain',
+              // Padding on the container (not margin on the image) so the
+              // trailing space survives scrolling to the image's right/
+              // bottom edge — an image wider than its scroll container
+              // drops a trailing margin once scrolled past it.
+              padding: 'var(--space-md)',
+            }}
+          >
+            <img
+              src={lightboxImage.src}
+              alt={lightboxImage.alt}
+              // No width/height/maxWidth here, deliberately — an
+              // unconstrained <img> renders at its own intrinsic pixel
+              // size, which works correctly regardless of which project's
+              // drawing this data-driven src points to. A hardcoded pixel
+              // width (even one matching Nishee's own crop) would misrender
+              // a differently-sized drawing.
+              style={{ display: 'block', margin: '0 auto' }}
+            />
+            <button
+              type="button"
+              onClick={() => setLightboxImage(null)}
+              aria-label="Close"
+              style={{
+                // fixed, not absolute — this overlay scrolls (that's the
+                // point), an absolutely-positioned button would scroll away
+                // with the image instead of staying reachable.
+                position: 'fixed',
+                top: 'var(--space-sm)',
+                right: 'var(--space-sm)',
+                width: 44,
+                height: 44,
+                borderRadius: '50%',
+                border: '1px solid var(--color-warm-white)',
+                // 0.85, not 0.6 — most of a floor plan is light/white, and
+                // at 0.6 the button's edge disappeared against that area,
+                // leaving only the glyph and no visible tap-target boundary.
+                background: 'rgba(17,17,17,0.85)',
+                color: 'var(--color-warm-white)',
+                fontSize: '1.25rem',
+                lineHeight: 1,
+                cursor: 'pointer',
+              }}
+            >
+              &times;
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </section>
   )
 }

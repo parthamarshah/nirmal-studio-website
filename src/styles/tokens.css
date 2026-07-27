@@ -11,6 +11,11 @@
      4.5:1 AA floor for sub-large text (e.g. Philosophy's theme tags). */
   --color-bronze-dark: #8a5f3e;
   --color-stone-dark: #6e6b63;
+  /* One step darker still — --color-bronze-dark only hits ~4.1:1 against
+     --color-beige (a darker background than --color-bg), below AA for
+     small text (e.g. Philosophy's theme-tag chips, which sit on a beige
+     fill, not the page background). */
+  --color-bronze-darker: #7a5236;
 
   /* Type — chosen via the font-comparison pass (Task #4) */
   --font-heading: 'Fraunces', Georgia, serif;
@@ -32,4 +37,5 @@
 
   /* Z-index scale */
   --z-loader: 100;
+  --z-overlay: 90;
 }

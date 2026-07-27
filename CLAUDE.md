@@ -184,6 +184,24 @@ against them rather than rediscovering them by chance:
   max scroll on tall viewports, leaving that content stuck invisible forever. Prefix
   the value with `clamp(...)` (e.g. `'clamp(bottom bottom)'`) so it always resolves
   inside the actually-achievable scroll range.
+- **Any nested scrollable element (`overflow: auto`/`scroll`) needs `data-lenis-prevent`
+  on it, or a desktop mouse wheel over it scrolls the page behind it instead** — Lenis
+  (`src/lib/scroll.js`) installs a global wheel handler with no concept of nested
+  scroll containers; it checks for this attribute on the event target's ancestor chain
+  and skips those events if present. IdeaTimeline.jsx's floor-plan lightbox hit this —
+  worked fine on mobile (Lenis only smooths wheel input, not touch, so touch panning
+  was never affected) but silently broke on desktop, which is easy to miss if testing
+  happens on a phone. The next scrollable overlay (e.g. a project gallery lightbox in
+  Task #9) will hit this too if `data-lenis-prevent` isn't added from the start.
+- **A full-screen overlay's backdrop `onClick={close}` also fires when the click
+  bubbles up from content inside it** — a plain `onClick` on the overlay div doesn't
+  distinguish "clicked the backdrop" from "clicked the child that bubbled up to it."
+  IdeaTimeline.jsx's lightbox hit this: the drawing image had no `stopPropagation`, so
+  a double-tap-to-zoom gesture on the image fired a click on its first tap and closed
+  the lightbox before the zoom registered — defeating the feature entirely. Fix:
+  `onClick={(e) => { if (e.target === e.currentTarget) close() }}` on the backdrop,
+  not a bare `() => close()`. Check any future full-screen overlay with interactive
+  content inside it (not just a dismiss-on-click scrim) against this.
 
 ## Deploy
 

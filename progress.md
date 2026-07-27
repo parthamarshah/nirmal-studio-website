@@ -10,6 +10,14 @@ Discovery→...→Completion). Build mobile-first, run `npm run build && npm run
 deploy via `npx wrangler pages deploy dist --project-name nirmal-studio-website`,
 commit + push, update this file.
 
+Before starting Task #8, Parth still needs to re-verify the two fixes from this
+session on his phone (floor-plan lightbox pan/zoom + close button, Philosophy's
+border-only pill badges) — see the "Lightbox + Philosophy chip fixes" entry below for
+exactly what changed. Also two things still waiting on him, unrelated to code: Tej's
+sign-off on the Philosophy paragraph + IdeaTimeline stage copy (both generic "studio
+voice," not confirmed facts), and confirming the Nishee House client is fine with
+their full floor-plan layout being public.
+
 Everything below is committed and pushed to `main`
 (`github.com/parthamarshah/nirmal-studio-website`) and deployed at
 `nirmal-studio-website.pages.dev` as of the last session.
@@ -67,7 +75,13 @@ Everything below is committed and pushed to `main`
   for the 3 projects with no dedicated hero shot chosen yet — that's still a Task #9
   curation call, not this task's). Hero's CTA now points at `#philosophy` instead of
   `#statement`, since Philosophy is a better fit for "Our Approach" copy than the
-  single-sentence Statement was.
+  single-sentence Statement was. Later in the session, after Parth reviewed on his
+  phone: replaced the theme-tag row's plain "Guided by" label + inline text list (felt
+  like an afterthought, his words) with bordered pill badges above a divider line —
+  more deliberate/designed presentation. Added `--color-bronze-darker` to
+  `tokens.css` since the original `--color-bronze-dark` only hits ~4.1:1 against the
+  chips' beige fill (a darker background than the page bg it was originally checked
+  against), below AA for that size text.
 - **Two new confirmed projects: Shimla House + Nishee House** — Parth confirmed these
   as genuine current Nirmal Studio work, sourced directly from him (not the PDF): a
   real floor-plan drawing for each (`public/images/shimla-house/` and
@@ -83,11 +97,12 @@ Everything below is committed and pushed to `main`
   6 stages (Idea/Sketch/Model/Drawings/Construction/Finished Home), typographic per
   Parth's call except "Drawings," which shows the real Nishee House floor plan
   (`project.drawings`, content-as-data like every other section) cropped to drop the
-  title block so the plan itself fills the frame — legible at desktop width (~700px),
-  but the image displays at roughly 20% scale on a 375px phone and dimension-text
-  legibility there is **unverified** (no visual QA was done this session — see below).
-  If it reads as illegible on a real phone, the fix is either full-bleed width on
-  mobile or a tap-to-enlarge, not a smaller crop. Note for Task #9: only Nishee
+  title block so the plan itself fills the frame. Parth confirmed on a real phone:
+  room names (BEDROOM-1, LOUNGE, etc.) read fine inline, but the small dimension
+  numbers under each label don't. Fixed with a tap-to-enlarge lightbox (tap the image
+  → full-screen pan/scroll view at the drawing's natural pixel size, not fit-to-screen
+  — fit-to-screen renders at the same size as inline on a phone, since inline is
+  already width-constrained to the viewport). Note for Task #9: only Nishee
   House's drawing was cropped this way — Shimla House's (`public/images/shimla-house/
   drawings-ground-floor.jpg`) is still the full sheet with its title block, so the two
   will look inconsistent side by side until that's reconciled. A bronze line grows
@@ -101,6 +116,39 @@ Everything below is committed and pushed to `main`
   values with `clamp(...)`. Also added the inline-style-beats-media-query cascade rule
   (from the Philosophy fix earlier this session) to that same list, since it wasn't
   written down anywhere before now.
+- **Lightbox + Philosophy chip fixes, from Parth's phone review** — two rounds of
+  review-agent findings (ux-reviewer, impact-tracker, edge-case-checker) surfaced real
+  bugs beyond what Parth could see visually:
+  - Lenis (global smooth-scroll) was hijacking desktop mouse-wheel input over the
+    lightbox, scrolling the page behind it instead of panning the drawing — fixed with
+    `data-lenis-prevent` on the overlay. Documented as a new CLAUDE.md known-incident
+    pattern (any future `overflow: auto` overlay needs this, and it's easy to miss
+    testing only on a phone since Lenis only intercepts wheel, not touch).
+  - The lightbox's backdrop `onClick` was also firing when the click bubbled up from
+    the drawing image itself — a double-tap-to-zoom gesture closed the lightbox on its
+    first tap, before the zoom ever registered, defeating the whole feature. Fixed by
+    gating the close handler on `e.target === e.currentTarget` (only a direct backdrop
+    click closes it now).
+  - The lightbox close button was `rgba(17,17,17,0.6)`, which nearly disappeared over
+    the light/white areas that make up most of an architectural drawing. Bumped to
+    0.85.
+  - Philosophy's "bordered" pill badges had no actual border — just a `--color-beige`
+    fill, which sits at ~1.2:1 contrast against `--color-bg` (near-identical
+    lightness), so the redesign meant to fix "just left there" would have still read
+    as barely-there on a real phone. Changed to border-only chips (`--color-bronze-darker`
+    border, transparent fill) — this also fixes a second issue: a *filled* pill
+    already means "tap this" elsewhere in the app (the lightbox trigger), so a filled
+    static label was borrowing the wrong visual language. Restored a small "Guided by"
+    eyebrow label above the row (removed in the first redesign pass) since bare
+    uppercase words with no framing failed the first-time-user test — kept it visually
+    distinct (smaller, letter-spaced, `--color-stone-dark`) from the original plain-text
+    version Parth rejected, so it doesn't regress back to "afterthought."
+  - Not yet fixed (non-blocking, flagged by review, worth remembering): no
+    `role="dialog"`/focus-management on the lightbox (screen-reader/keyboard users get
+    no modal cue), and no "drag to pan / pinch to zoom" affordance on lightbox open (a
+    user landing on a zoomed-in corner of a 1584px-wide image with no cue that there's
+    more to pan to could briefly read it as broken). Both are real but lower-severity —
+    revisit in the polish pass, not blocking Task #8.
 
 ## Not started yet
 
