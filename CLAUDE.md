@@ -169,6 +169,21 @@ against them rather than rediscovering them by chance:
 - **A data-file lookup that can return `undefined` (e.g. `array.find(...)`) must be
   guarded before its result is dereferenced** — there is no error boundary anywhere in
   this app, so an unguarded read white-screens the entire site over a single data typo.
+- **An inline `style` property always beats a stylesheet rule targeting the same
+  element, regardless of selector specificity (short of `!important`) — including a
+  scoped `<style>` block's own `@media` query.** Philosophy.jsx's desktop split-screen
+  was silently defeated by an inline `gridTemplateColumns: '1fr'` that its own injected
+  `@media (min-width: 768px)` rule could never override. If a property needs to change
+  at a breakpoint, that property must not also be set inline — put the whole thing (base
+  case included) in the `<style>` block, not just the override.
+- **A `ScrollTrigger` `start`/`end` expressed as a fixed viewport percentage (e.g.
+  `'bottom 60%'`, `'top 80%'`) can be mathematically unreachable if there isn't enough
+  scrollable content past the trigger element** — most commonly when the element is the
+  last thing on the page. IdeaTimeline.jsx hit this twice in one component: a scrub
+  animation that could never reach 100%, and a reveal whose trigger point fell beyond
+  max scroll on tall viewports, leaving that content stuck invisible forever. Prefix
+  the value with `clamp(...)` (e.g. `'clamp(bottom bottom)'`) so it always resolves
+  inside the actually-achievable scroll range.
 
 ## Deploy
 

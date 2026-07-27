@@ -5,10 +5,10 @@ live in `CLAUDE.md` — read that first if you're picking this up cold.
 
 ## Resume here
 
-Next up: **Task #7 — Idea-to-Home animated timeline** (Section 5:
-Idea→Sketch→Model→Drawings→Construction→Finished Home morphing timeline). Build
-mobile-first, run `npm run build && npm run lint`, deploy via `npx wrangler pages
-deploy dist --project-name nirmal-studio-website`, commit + push, update this file.
+Next up: **Task #8 — Process horizontal-scroll journey** (Section 8:
+Discovery→...→Completion). Build mobile-first, run `npm run build && npm run lint`,
+deploy via `npx wrangler pages deploy dist --project-name nirmal-studio-website`,
+commit + push, update this file.
 
 Everything below is committed and pushed to `main`
 (`github.com/parthamarshah/nirmal-studio-website`) and deployed at
@@ -79,10 +79,31 @@ Everything below is committed and pushed to `main`
   "concept visualization" label, never mixed into `gallery`/`heroImage`. See
   `CLAUDE.md`'s Content rules for the full constraint — read that before touching
   either project's imagery. Confirmed project count is now 9, not 7.
+- **Idea-to-Home timeline** (`IdeaTimeline.jsx`) — vertical scroll-reveal timeline,
+  6 stages (Idea/Sketch/Model/Drawings/Construction/Finished Home), typographic per
+  Parth's call except "Drawings," which shows the real Nishee House floor plan
+  (`project.drawings`, content-as-data like every other section) cropped to drop the
+  title block so the plan itself fills the frame — legible at desktop width (~700px),
+  but the image displays at roughly 20% scale on a 375px phone and dimension-text
+  legibility there is **unverified** (no visual QA was done this session — see below).
+  If it reads as illegible on a real phone, the fix is either full-bleed width on
+  mobile or a tap-to-enlarge, not a smaller crop. Note for Task #9: only Nishee
+  House's drawing was cropped this way — Shimla House's (`public/images/shimla-house/
+  drawings-ground-floor.jpg`) is still the full sheet with its title block, so the two
+  will look inconsistent side by side until that's reconciled. A bronze line grows
+  down a connecting
+  track as you scroll, in sync with each stage fading in. Two real GSAP bugs came out
+  of review and are now documented in
+  CLAUDE.md's known-incident list so they don't recur silently: a `ScrollTrigger`
+  `start`/`end` expressed as a fixed viewport percentage can be unreachable when the
+  trigger element is the last thing on the page (the line could never finish filling,
+  and the last stage could get stuck invisible on tall viewports) — fixed by prefixing
+  values with `clamp(...)`. Also added the inline-style-beats-media-query cascade rule
+  (from the Philosophy fix earlier this session) to that same list, since it wasn't
+  written down anywhere before now.
 
 ## Not started yet
 
-- Idea-to-Home animated timeline
 - Featured Projects immersive storytelling section (raw image extraction from the PDF
   is done for all 7 projects — see `Done` above — but curating which shots become each
   project's hero/gallery lead, and writing challenge/materials/construction copy, is

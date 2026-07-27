@@ -5,6 +5,7 @@ import Hero from './components/Hero'
 import Statement from './components/Statement'
 import FocusImage from './components/FocusImage'
 import Philosophy from './components/Philosophy'
+import IdeaTimeline from './components/IdeaTimeline'
 import { projects } from './data/projects'
 
 // Sections are added here one at a time as each build phase (Tasks #5–#13)
@@ -18,6 +19,7 @@ function App() {
   const heroProject = projects.find((p) => p.slug === 'citadel-tower')
   const focusProject = projects.find((p) => p.slug === 'terra-row-houses')
   const philosophyProject = projects.find((p) => p.slug === 'dolomite-factory-office')
+  const timelineProject = projects.find((p) => p.slug === 'nishee-house')
 
   return (
     <>
@@ -27,6 +29,7 @@ function App() {
         <Statement />
         <FocusImage project={focusProject} />
         <Philosophy project={philosophyProject} />
+        <IdeaTimeline project={timelineProject} />
       </main>
     </>
   )
