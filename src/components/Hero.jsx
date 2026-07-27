@@ -106,18 +106,19 @@ export default function Hero({ project }) {
         >
           We design architecture around people, light, and the way life unfolds.
         </p>
-        {/* Points at #philosophy (Task #6) — the actual Philosophy section,
-            which fits "Our Approach" better than Statement did. Repoint to
-            #featured-projects once Task #9 (Featured Projects) exists and
-            update the copy to something like "Explore Our Work" at the same
-            time. href is a real in-page anchor so it still works if JS
-            fails; the click handler routes through Lenis so scroll state
-            doesn't desync. */}
+        {/* Repointed to #projects (Featured Projects, Task #9) now that it
+            exists — the previous #philosophy target was Task #6's interim
+            placeholder, flagged in this same comment to be repointed once
+            Featured Projects landed. #featured-projects (the id the old
+            comment named) was never real; FeaturedProjects.jsx's actual id
+            is "projects". href is a real in-page anchor so it still works
+            if JS fails; the click handler routes through Lenis so scroll
+            state doesn't desync. */}
         <a
-          href="#philosophy"
+          href="#projects"
           onClick={(e) => {
             e.preventDefault()
-            scrollTo('#philosophy')
+            scrollTo('#projects')
           }}
           style={{
             display: 'inline-flex',
@@ -132,7 +133,7 @@ export default function Hero({ project }) {
           }}
         >
           <span style={{ borderBottom: '1px solid var(--color-warm-white)', paddingBottom: 4 }}>
-            Our Approach
+            Explore Our Work
           </span>
         </a>
       </div>

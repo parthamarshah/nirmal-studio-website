@@ -9,6 +9,9 @@ import IdeaTimeline from './components/IdeaTimeline'
 import FeaturedProjects from './components/FeaturedProjects'
 import Studio from './components/Studio'
 import Process from './components/Process'
+import Journal from './components/Journal'
+import Testimonials from './components/Testimonials'
+import Contact from './components/Contact'
 import { projects } from './data/projects'
 
 // Sections are added here one at a time as each build phase (Tasks #5–#13)
@@ -36,6 +39,9 @@ function App() {
         <FeaturedProjects />
         <Studio />
         <Process />
+        <Journal />
+        <Testimonials />
+        <Contact />
       </main>
     </>
   )

@@ -224,6 +224,27 @@ against them rather than rediscovering them by chance:
   `onClick={(e) => { if (e.target === e.currentTarget) close() }}` on the backdrop,
   not a bare `() => close()`. Check any future full-screen overlay with interactive
   content inside it (not just a dismiss-on-click scrim) against this.
+- **A `const`/`useCallback` referenced in an earlier `useEffect`'s dependency array
+  throws "Cannot access before initialization" on every render** if that `const` is
+  declared later in the same function body — `const` isn't hoisted, and the deps
+  array is evaluated as part of the synchronous render, before execution reaches the
+  later declaration. FeaturedProjects.jsx's back-button history integration hit this:
+  a `closeTopLayer` `useCallback` was referenced in an Escape-key effect's deps array
+  above its own declaration further down. Since this component mounts unconditionally
+  and there's no error boundary anywhere in this app, this white-screened the entire
+  site on every load — and neither `npm run build` (vite) nor `npm run lint` (oxlint)
+  catch it, since it's a runtime-only ordering bug, not a syntax or static-analysis
+  issue. Only actually rendering the component catches it. Fix: declare every
+  `const`/`useCallback`/`useRef` an effect's deps array references *above* that
+  effect, not just above where it's called. To verify a component that has no error
+  boundary and isn't easy to click-test live, an SSR render is a fast, real check:
+  bundle it with `vite`'s `build({ build: { ssr: true, write: false, rollupOptions:
+  { input: 'src/components/X.jsx' } } })`, stub `globalThis.window =
+  { matchMedia: () => ({ matches: false }) }` (covers `prefersReducedMotion()`), then
+  `renderToStaticMarkup` it from `react-dom/server` — effects don't run under SSR, so
+  this exercises exactly the synchronous render-time bugs this class of issue lives
+  in, without needing a real browser. Check any future component that adds
+  close-on-back-button (or similar) history/event-listener plumbing against this.
 
 ## Deploy
 

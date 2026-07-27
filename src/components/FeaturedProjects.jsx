@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { gsap, prefersReducedMotion } from '../lib/scroll'
 import { projects } from '../data/projects'
@@ -67,16 +67,70 @@ export default function FeaturedProjects() {
     }
   }, [])
 
+  // Neither takeover pushes a client-side route — this is a single-page app
+  // with no router — so without this, the mobile back gesture/browser back
+  // button doesn't close the lightbox or the project detail overlay, it
+  // navigates away from the site entirely. Each open (openProject,
+  // openLightbox below) pushes one history entry and increments
+  // pushedLevelsRef; every close path (Escape below, the × buttons, both
+  // backdrop clicks, and goToProject when it implicitly closes an
+  // open lightbox) calls closeTopLayer(), which only pops history when
+  // pushedLevelsRef says one of *our* entries is actually outstanding —
+  // otherwise it clears state directly. Without that guard, a real
+  // back-button press followed by a stray click on the still-live × would
+  // call history.back() with nothing of ours left to pop, navigating away
+  // from the site — the exact bug this whole effect exists to prevent.
+  //
+  // closingRef adds a second guard for the double-tap case specifically:
+  // history.back() is async (popstate lands a tick later), and nothing
+  // disables pointer events during the 0.3s/0.25s Framer exit animation
+  // (unlike Loader.jsx), so two fast taps on a close button can both fire
+  // before pushedLevelsRef has been decremented. closingRef is set
+  // synchronously the instant the first back() call goes out and only
+  // cleared once popstate actually lands, so a second tap in that window is
+  // a no-op instead of a second back() call.
+  //
+  // Both refs, and closeTopLayer itself, must be declared before any effect
+  // that references closeTopLayer in its dependency array — a const isn't
+  // hoisted, so an earlier effect closing over a later-declared const
+  // throws "Cannot access before initialization" the moment this component
+  // renders, not just a lint warning.
+  const pushedLevelsRef = useRef(0)
+  const closingRef = useRef(false)
+
+  const closeTopLayer = useCallback(() => {
+    if (pushedLevelsRef.current > 0) {
+      if (closingRef.current) return
+      closingRef.current = true
+      window.history.back()
+    } else if (lightboxImage) {
+      setLightboxImage(null)
+    } else {
+      setActiveSlug(null)
+    }
+  }, [lightboxImage])
+
   useEffect(() => {
-    if (!activeProject) return
-    const handleKeyDown = (e) => {
-      if (e.key !== 'Escape') return
+    const handlePopState = () => {
+      closingRef.current = false
+      pushedLevelsRef.current = Math.max(0, pushedLevelsRef.current - 1)
       if (lightboxImage) setLightboxImage(null)
       else setActiveSlug(null)
     }
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [lightboxImage])
+
+  useEffect(() => {
+    if (!activeProject) return
+    const handleKeyDown = (e) => {
+      // Routed through closeTopLayer(), not a direct state clear — see the
+      // popstate effect above for why every close path goes through it.
+      if (e.key === 'Escape') closeTopLayer()
+    }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [activeProject, lightboxImage])
+  }, [activeProject, lightboxImage, closeTopLayer])
 
   // Runs on every activeSlug change, including Prev/Next (not just the
   // initial open) — resets scroll to the top of the new project's content
@@ -109,16 +163,35 @@ export default function FeaturedProjects() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lightboxImage])
 
-  const closeProject = () => {
-    setActiveSlug(null)
-    setLightboxImage(null)
+  // openProject/openLightbox both push one history entry per open and
+  // increment pushedLevelsRef — see the popstate effect above. goToProject
+  // deliberately does neither: it's not opening a new layer, just changing
+  // which project the already-open layer shows, so the back button should
+  // still close the whole overlay in one press regardless of how many times
+  // Prev/Next was clicked. It does still route through closeTopLayer() if a
+  // lightbox happens to be open — defensive only now that the lightbox
+  // traps Tab to its own close button (see its onKeyDown below), but the
+  // Prev/Next buttons still sit in the DOM underneath the lightbox's
+  // sibling overlay, so this stays as a safety net against any future
+  // change to that trap rather than something currently reachable.
+  const openProject = (project, triggerEl) => {
+    triggerRef.current = triggerEl
+    pushedLevelsRef.current += 1
+    window.history.pushState({ nirmalOverlay: 'project' }, '')
+    setActiveSlug(project.slug)
+  }
+
+  const openLightbox = (image) => {
+    pushedLevelsRef.current += 1
+    window.history.pushState({ nirmalOverlay: 'lightbox' }, '')
+    setLightboxImage(image)
   }
 
   const goToProject = (dir) => {
     if (activeIndex < 0) return
     const next = (activeIndex + dir + projects.length) % projects.length
     setActiveSlug(projects[next].slug)
-    setLightboxImage(null)
+    if (lightboxImage) closeTopLayer()
   }
 
   // Minimal Tab-trap on the detail dialog — without it, Tab from the close
@@ -189,10 +262,7 @@ export default function FeaturedProjects() {
               cardRefs.current[i] = el
             }}
             className="project-card"
-            onClick={(e) => {
-              triggerRef.current = e.currentTarget
-              setActiveSlug(project.slug)
-            }}
+            onClick={(e) => openProject(project, e.currentTarget)}
           >
             {cardImage(project) && (
               <img
@@ -220,13 +290,14 @@ export default function FeaturedProjects() {
           <motion.div
             key="project-detail"
             role="dialog"
+            aria-modal="true"
             aria-label={`${activeProject.name} project details`}
             initial={prefersReducedMotion() ? false : { opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={prefersReducedMotion() ? undefined : { opacity: 0 }}
             transition={{ duration: 0.3 }}
             onClick={(e) => {
-              if (e.target === e.currentTarget) closeProject()
+              if (e.target === e.currentTarget) closeTopLayer()
             }}
             onKeyDown={handleDialogKeyDown}
             data-lenis-prevent
@@ -237,7 +308,7 @@ export default function FeaturedProjects() {
               <button
                 type="button"
                 ref={detailCloseRef}
-                onClick={closeProject}
+                onClick={closeTopLayer}
                 aria-label="Close"
                 className="project-detail-close"
               >
@@ -303,7 +374,7 @@ export default function FeaturedProjects() {
                           key={src}
                           type="button"
                           className="project-detail-thumb"
-                          onClick={() => setLightboxImage({ src, alt: activeProject.name, mode: 'fit' })}
+                          onClick={() => openLightbox({ src, alt: activeProject.name, mode: 'fit' })}
                         >
                           <img src={src} alt="" aria-hidden="true" loading="lazy" />
                         </button>
@@ -319,7 +390,7 @@ export default function FeaturedProjects() {
                       type="button"
                       className="project-detail-drawing"
                       onClick={() =>
-                        setLightboxImage({
+                        openLightbox({
                           src: activeProject.drawings,
                           alt: `${activeProject.name}, ground floor plan`,
                           mode: 'pan',
@@ -347,7 +418,7 @@ export default function FeaturedProjects() {
                           type="button"
                           className="project-detail-thumb is-concept"
                           onClick={() =>
-                            setLightboxImage({
+                            openLightbox({
                               src,
                               alt: `${activeProject.name} concept visualization`,
                               mode: 'fit',
@@ -392,9 +463,35 @@ export default function FeaturedProjects() {
             exit={prefersReducedMotion() ? undefined : { opacity: 0 }}
             transition={{ duration: 0.25 }}
             onClick={(e) => {
-              if (e.target === e.currentTarget) setLightboxImage(null)
+              if (e.target === e.currentTarget) closeTopLayer()
             }}
-            data-lenis-prevent
+            onKeyDown={(e) => {
+              // The close button is the lightbox's only focusable element,
+              // so trapping Tab here just means it always refocuses that
+              // one button — without this, Tab escapes to whatever's
+              // focusable in the project-detail panel sitting behind it
+              // (invisible but still reachable, the same class of bug
+              // handleDialogKeyDown above already guards the other dialog
+              // against — see goToProject's comment on why that panel's
+              // Prev/Next buttons are keyboard- but not pointer-reachable
+              // while this lightbox is open).
+              if (e.key === 'Tab') {
+                e.preventDefault()
+                lightboxCloseRef.current?.focus()
+              }
+            }}
+            // Only 'pan' mode (the floor-plan drawing) is a real overflow:
+            // auto scroll container — 'fit' mode (every gallery/concept-art
+            // thumbnail, the overwhelming majority of opens) isn't, so
+            // applying this unconditionally silenced Lenis's wheel handling
+            // over a region that isn't actually a scroll container, letting
+            // a desktop mouse wheel scroll the real document invisibly
+            // behind this full-screen overlay — the exact inverse of the
+            // Process.jsx incident CLAUDE.md documents, and the one it
+            // explicitly predicted this component would hit. `undefined`,
+            // not `false` — Lenis only checks the attribute's presence, and
+            // React renders a literal `false` as the string "false".
+            data-lenis-prevent={lightboxImage.mode === 'pan' ? '' : undefined}
             className={`project-lightbox project-lightbox-${lightboxImage.mode}`}
           >
             {lightboxImage.label && (
@@ -404,7 +501,7 @@ export default function FeaturedProjects() {
             <button
               type="button"
               ref={lightboxCloseRef}
-              onClick={() => setLightboxImage(null)}
+              onClick={closeTopLayer}
               aria-label="Close"
               className="project-lightbox-close"
             >

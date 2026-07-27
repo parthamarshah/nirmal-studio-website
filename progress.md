@@ -5,8 +5,116 @@ live in `CLAUDE.md` — read that first if you're picking this up cold.
 
 ## Resume here
 
-Next up: **Journal + Testimonials / Contact section** (both still "Not started yet"
-below) — Studio (Task #10) landed this session, so it's off this list now.
+**All sections in the original plan are now built** (Hero through Contact, Section
+1–11) — the "Not started yet" list below is now empty except the polish pass. Parth
+has deliberately deferred all verification/QA to one dedicated session rather than
+checking incrementally — see the checklist at the end of this note for exactly what
+that session needs to look at, since none of it is visible from a diff or from
+build/lint.
+
+Landed this session, in order: the Loader font-flash fix (below), Studio/FOLD
+(Task #10), a back-button fix for Featured Projects' full-screen takeover, and
+Journal/Testimonials/Contact (Tasks #9 already had its own entry; this closes out
+#11 and the two hidden-until-content sections).
+
+**Featured Projects back-button fix**: neither the project-detail takeover nor its
+nested lightbox previously handled the browser back button or mobile back-gesture at
+all — this is a single-page app with no router, so pressing back while either was
+open navigated away from the site entirely instead of closing it. Fixed with
+`history.pushState`/`popstate` in `FeaturedProjects.jsx`: each open pushes one entry,
+every close path (Escape, both × buttons, both backdrop clicks) routes through one
+`closeTopLayer()` function that pops history instead of clearing state directly, so
+a real back-button press and an in-app close button now go through the exact same
+code path. Two real bugs surfaced and got fixed only because they were checked, not
+assumed clean from build/lint:
+- **A double-tap-to-close race** — `history.back()` is async, so two fast taps on a
+  close button (nothing disables pointer events during the 0.3s/0.25s exit
+  animation) could both fire before the first pop landed, popping one entry too many
+  and leaving the site. Fixed with a `closingRef` flag set synchronously before the
+  first `back()` call and cleared only once `popstate` actually lands.
+- **A genuine crash-on-every-render bug** (not caught by `npm run build` or
+  `npm run lint` — only actually rendering the component catches it): the new
+  `closeTopLayer` function was referenced in an earlier `useEffect`'s dependency
+  array before its own `const`/`useCallback` declaration later in the same function
+  body. `const` isn't hoisted, so this threw "Cannot access 'closeTopLayer' before
+  initialization" on every single render — meaning `FeaturedProjects` (which mounts
+  unconditionally, no error boundary anywhere in this app) would have white-screened
+  the entire site the moment this shipped. Caught by an agent doing an actual SSR
+  render of the component (`react-dom/server` + a minimal `window.matchMedia` stub),
+  independently re-verified the same way after the fix. Fixed by reordering the
+  declarations above the effect that closes over them. **Added to CLAUDE.md's
+  known-incident list** — this exact shape (an earlier effect's deps array
+  referencing a later `const`/`useCallback`) is worth checking on any future
+  component that adds similar close-on-back-button plumbing, since build/lint will
+  stay green the whole time regardless.
+- Also fixed: `aria-modal` was on the lightbox but not the project-detail dialog
+  (should be on both); the lightbox had no Tab-trap, so keyboard focus could escape
+  to the project-detail panel sitting behind it; `data-lenis-prevent` was applied
+  unconditionally to the lightbox even though only its `pan` mode (the floor-plan
+  drawing) is a real scroll container — `fit` mode (every gallery/concept-art
+  thumbnail, the majority of opens) isn't, so a desktop mouse wheel over it was
+  scrolling the real document invisibly behind the full-screen overlay. This is the
+  exact "inverse" incident CLAUDE.md already documents from Process.jsx, and the one
+  it explicitly predicted this component would hit.
+
+**Journal/Testimonials/Contact** (`Journal.jsx`, `Testimonials.jsx`, `Contact.jsx`,
+all new): Journal/Testimonials both hide entirely while their data arrays are empty
+(still true right now) — their expected data shape is documented directly in
+`src/data/journal.js`/`testimonials.js` (a commented example entry), not just in the
+component, so adding real content later is a data edit with no guessing. Verified
+both actually render correctly once populated, not just their empty-return branch,
+via an SSR render with a temporary mock data file. Contact has no form (nothing in
+this project authorizes a backend/form handler), no map/office block (omitted
+entirely rather than shown as a placeholder — same precedent as Journal/Testimonials
+hiding rather than showing "coming soon," add it back once Parth supplies an office
+address/photos), and a "Book a Consultation" CTA that's copy on a WhatsApp link
+(`wa.me`), not a real scheduling-tool integration, per the original planning doc.
+Two content/design calls made this session that Parth should see deliberately, not
+discover:
+- The WhatsApp number (`9106998434`) was confirmed directly with him before writing
+  the `wa.me` link — not inferred from the "910 699 8434" formatting, since a wrong
+  digit there would silently route a real enquiry to a stranger. The link is now
+  prefilled with a starter message ("Hi Tej, I'd like to talk about a project.") so
+  the first thing a visitor sees isn't a blank compose box.
+- The CTA is a **filled** bronze pill, not the border-only pill style used for
+  secondary controls elsewhere (e.g. Featured Projects' Prev/Next) — it's the one
+  conversion action on the whole site and should read as visually distinct from a
+  secondary nav control.
+- Also repointed Hero's CTA from `#philosophy`/"Our Approach" to `#projects`/
+  "Explore Our Work" — a stale code comment had been flagging this exact repoint
+  since Featured Projects (Task #9) landed two sessions ago and it never happened;
+  the old comment also named a `#featured-projects` anchor that was never real
+  (FeaturedProjects.jsx's actual id is `projects`). This is the site's only in-page
+  jump link and user-visible copy, so flagging it explicitly rather than letting it
+  slide into "just another commit."
+- **There is still no nav anywhere on this site** — Contact is reachable only by
+  scrolling the entire page from the top. Worth deciding whether that's fine for
+  launch or whether a persistent nav/jump-to-contact affordance belongs in the polish
+  pass.
+
+**What the deferred verification session actually needs to check** (none of this is
+visible from a diff, and build/lint passing doesn't mean any of it works):
+1. Open a project card → press the browser/mobile back button → detail view closes,
+   you're still on the site (not navigated away).
+2. Open a project → open a gallery image → press back twice → lightbox closes, then
+   the detail view closes, still on the site.
+3. Open a project → **double-tap the × fast** → still on the site (this is the race
+   that was found and fixed; worth specifically trying to break it).
+4. Tab into an open lightbox → focus should stay trapped on its close button, unable
+   to reach the Prev/Next buttons in the project-detail panel behind it.
+5. The Loader font-flash fix (see below) — Slow 4G + disable cache + hard-reload,
+   watching whether "nirmal" ever shows in two different fonts (it shouldn't; it may
+   show in a plain fallback font on a slow connection, which is expected).
+6. Studio's FOLD section on an actual mobile device — the "~3/4 the space of Tej's
+   section" brand-structure rule was implemented as a floor (`min-height`), not a
+   guaranteed rendered ratio (real content on mobile can and does exceed it) — worth
+   a real look to judge whether it reads as clearly secondary in practice.
+7. Contact's WhatsApp link/prefilled message and the filled-CTA styling choice —
+   both are calls made this session, not previously agreed.
+8. Tasks #8 (Process) and #9 (Featured Projects) still haven't had their own
+   from-scratch browser check either — three-plus sessions running now where
+   Claude-in-Chrome wasn't connected. See their own entries below for what to look
+   at specifically.
 
 Also fixed this session, before Task #10: the Loader's "nirmal" wordmark briefly
 showed in two different fonts on first load (Google Fonts' `display=swap` let the
@@ -326,12 +434,40 @@ Everything below is committed and pushed to `main`
   **Not visually verified in a real browser this session** — third session in a row the
   Claude-in-Chrome extension wasn't connected; only `npm run build` + `npm run lint` +
   the three agent passes confirm it.
+- **Featured Projects back-button fix** (`FeaturedProjects.jsx`) — full detail,
+  including the crash-on-every-render bug this caught and fixed, is in "Resume here"
+  above rather than duplicated here. Short version: browser back / mobile back-gesture
+  now closes the project-detail takeover and its lightbox instead of navigating away
+  from the site; caught and fixed a double-tap-to-close race and a real TDZ crash
+  along the way, both only via review-agent passes that actually rendered the
+  component (SSR), not build/lint alone.
+- **Journal, Testimonials, Contact** (`Journal.jsx`, `Testimonials.jsx`,
+  `Contact.jsx`) — Sections 9–11, closing out the original section plan. Full detail
+  in "Resume here" above. Short version: Journal/Testimonials hide entirely until
+  real content exists (data shape now documented in their own data files, not just
+  the component); Contact has no form and no map/office block (both intentional
+  omissions, not gaps), a WhatsApp CTA confirmed directly with Parth before writing
+  the link, and a repointed Hero CTA (`#projects`/"Explore Our Work") that closes out
+  a two-session-old stale TODO comment. **Not visually verified in a real browser
+  this session** — see the explicit checklist in "Resume here" for what the deferred
+  verification session needs to look at.
 
 ## Not started yet
 
-- Journal + Testimonials (hidden until real content exists)
-- Contact section
-- Polish pass (perf/accessibility/SEO) + final comparison against the Lovable baseline video
+- Polish pass (perf/accessibility/SEO) + final comparison against the Lovable
+  baseline video. Concrete perf gaps identified this session, not yet acted on:
+  9.1MB of images with no WebP/AVIF or responsive `srcset` (mobile downloads the
+  same size a desktop would), a single 505KB+ JS bundle with no code-splitting
+  (Vite's own build output already flags this), fonts still loaded from Google's CDN
+  rather than self-hosted. A Slow-4G test mid-session showed ~7.1MB transferred / 40
+  requests / ~40s to finish — heavy for the mobile-first target this project is
+  built for.
+- Deciding whether the site needs a persistent nav (Contact is currently reachable
+  only by scrolling the entire page from the top).
+- Journal/Testimonials sections exist (`Journal.jsx`/`Testimonials.jsx`) but stay
+  hidden until real content is added to their data files — this is the deliberate
+  "hide entirely, no coming-soon placeholder" behavior per CLAUDE.md, not
+  unfinished work.
 
 ## How to preview
 
