@@ -1,6 +1,10 @@
-// Only Nirmal Studio's own commissions (the "Ongoing" projects in the source
-// portfolio PDF). Prior-firm work by the founders (@UA Lab, @Terrafirma,
-// @Studio CC, @Stapati, @R+R) is intentionally excluded — see project memory.
+// Confirmed Nirmal Studio commissions. The first 7 are the "Ongoing" projects
+// in the source portfolio PDF (Fold Architects_2.pdf) — prior-firm work by
+// the founders (@UA Lab, @Terrafirma, @Studio CC, @Stapati, @R+R) is
+// intentionally excluded from that PDF's list, see project memory. Shimla
+// House and Nishee House were added later, direct from Parth, sourced from
+// real floor-plan drawings (not the PDF) — see the `conceptArt` note below
+// for why their imagery is handled differently from the other 7.
 //
 // Fields left null are deliberate placeholders (drawings/construction/video/
 // clientExperience aren't ready yet) — render them as absent, not fabricated.
@@ -11,6 +15,19 @@
 // build. A path under src/ would work in `npm run dev` (which serves all of
 // src/) but silently 404 after `npm run build`, since Vite only bundles
 // files that are actually `import`ed somewhere.
+//
+// `conceptArt` (Shimla House / Nishee House only) is AI-generated imagery,
+// not real Nirmal Studio design output or photography — keep it out of
+// `gallery`/`heroImage`, which every other project's consumer treats as real
+// project imagery. Any component that renders `conceptArt` MUST visibly
+// label it as concept visualization, not present it like `gallery`. The same
+// 11 images are shared across both projects because there's no reliable way
+// to tell which room belongs to which house from the files themselves.
+const SHIMLA_NISHEE_CONCEPT_ART = Array.from(
+  { length: 11 },
+  (_, i) => `/images/shimla-nishee-concept/concept-${i + 1}.jpg`,
+)
+
 export const projects = [
   {
     slug: 'citadel-tower',
@@ -161,6 +178,42 @@ export const projects = [
     ],
     challenge: null,
     drawings: null,
+    materials: null,
+    construction: null,
+    video: null,
+    clientExperience: null,
+  },
+  {
+    slug: 'shimla-house',
+    name: 'Shimla House',
+    type: 'Residential',
+    location: 'Ahmedabad',
+    siteArea: null,
+    builtUpArea: null,
+    concept: 'A residential home in Ahmedabad.',
+    heroImage: null,
+    gallery: [],
+    conceptArt: SHIMLA_NISHEE_CONCEPT_ART,
+    challenge: null,
+    drawings: '/images/shimla-house/drawings-ground-floor.jpg',
+    materials: null,
+    construction: null,
+    video: null,
+    clientExperience: null,
+  },
+  {
+    slug: 'nishee-house',
+    name: 'Nishee House',
+    type: 'Residential',
+    location: 'Ahmedabad',
+    siteArea: null,
+    builtUpArea: null,
+    concept: 'A residential home in Ahmedabad.',
+    heroImage: null,
+    gallery: [],
+    conceptArt: SHIMLA_NISHEE_CONCEPT_ART,
+    challenge: null,
+    drawings: '/images/nishee-house/drawings-ground-floor.jpg',
     materials: null,
     construction: null,
     video: null,

@@ -52,13 +52,26 @@ Tagline: "Designing Spaces. Crafting Experiences."
 
 ## Content rules
 
-- **Featured Projects**: only the "Ongoing" projects from
-  `/Users/parth/Downloads/Fold Architects_2.pdf` count as genuine Nirmal Studio work —
-  see `src/data/projects.js` for the confirmed list of 7. Everything else in that PDF
-  is prior-firm work (@UA Lab, @Terrafirma, @Studio CC, @Stapati, @R+R) done by the
-  four architects at their previous employers — **excluded**, not Nirmal Studio's to
-  claim. All 7 confirmed projects are under construction — expect renders/plans, not
-  finished-building photography.
+- **Featured Projects**: the confirmed list in `src/data/projects.js` has **9** entries.
+  7 are the "Ongoing" projects from `/Users/parth/Downloads/Fold Architects_2.pdf` —
+  everything else in that PDF is prior-firm work (@UA Lab, @Terrafirma, @Studio CC,
+  @Stapati, @R+R) done by the four architects at their previous employers,
+  **excluded**, not Nirmal Studio's to claim. Those 7 are under construction — expect
+  renders/plans, not finished-building photography. The other 2 — **Shimla House** and
+  **Nishee House** — came direct from Parth (not the PDF), confirmed as genuine current
+  Nirmal Studio work; their construction status isn't confirmed, so don't assert
+  "ongoing" or "complete" for either. Both are backed by a real floor-plan drawing
+  (`drawings` field) rather than renders.
+- **AI-generated concept art (`conceptArt` field, Shimla House / Nishee House only)**:
+  11 images Parth generated to visualize these two projects — **not real Nirmal Studio
+  design output or photography**. Never merge into `gallery` or use as `heroImage`,
+  both of which every other project treats as real project imagery. Any component
+  rendering `conceptArt` must carry a visible label (e.g. "Concept visualization") —
+  no exceptions, and don't put it in a section's most load-bearing/payoff frame (e.g.
+  don't use it to represent a finished building). The same 11 images are shared across
+  both projects since there's no reliable way to tell which room belongs to which
+  house from the files themselves — if Parth ever clarifies the split, update
+  `SHIMLA_NISHEE_CONCEPT_ART` in `projects.js` accordingly.
 - **Founder bios**: deep bio copy only for Tej Shah. The other three FOLD members use
   the PDF facts as-is (`src/data/founders.js`). Never invent years of experience,
   favourite material, or favourite architect for any of the four — not real facts we

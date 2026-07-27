@@ -68,6 +68,17 @@ Everything below is committed and pushed to `main`
   curation call, not this task's). Hero's CTA now points at `#philosophy` instead of
   `#statement`, since Philosophy is a better fit for "Our Approach" copy than the
   single-sentence Statement was.
+- **Two new confirmed projects: Shimla House + Nishee House** — Parth confirmed these
+  as genuine current Nirmal Studio work, sourced directly from him (not the PDF): a
+  real floor-plan drawing for each (`public/images/shimla-house/` and
+  `nishee-house/drawings-ground-floor.jpg`, one with "Architect: Nirmal Studio" on the
+  title block) plus 11 AI-generated concept-visualization images he shared, which are
+  explicitly **not** real design output — stored separately as `conceptArt` in
+  `projects.js` (shared across both projects, since there's no way to tell which room
+  belongs to which house from the files) and must always render with a visible
+  "concept visualization" label, never mixed into `gallery`/`heroImage`. See
+  `CLAUDE.md`'s Content rules for the full constraint — read that before touching
+  either project's imagery. Confirmed project count is now 9, not 7.
 
 ## Not started yet
 
