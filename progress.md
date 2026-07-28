@@ -10,20 +10,32 @@ tags, robots.txt/sitemap, JSON-LD structured data, social-links plumbing, Contac
 real address + map) — full detail in the matching "Done" entry below. Two things
 Parth needs to see, not just discover:
 
-- **A real brand-identity mismatch surfaced this session.** Parth shared the actual
-  Nirmal Studio logo (`Nirmal Studio Logo.png` / `Business Card - Front.psd`) while
-  this work was in progress — it uses a different typeface and different colors
-  than what's implemented site-wide: "nirmal" in a bold rounded sans, olive/grey-green
-  (`#6C705D`), "studio" in a script-style font, rust/terracotta (`#A94424`). The live
-  site uses Syne (bold "nirmal" + regular "studio") in the bronze/cream palette —
-  a deliberate choice from an earlier session's live font comparison (see CLAUDE.md).
-  Only the new favicon was built from the real logo this session (cropped the actual
-  "n" glyph, real colors, on the site's cream background) — nothing else was
-  changed to match it, since reconciling the whole site's type/color to the real
-  brand mark is a real scope decision, not something to decide unilaterally.
-  **Needs Parth's call**: keep the site's current Syne/bronze direction as an
-  intentional web-specific divergence, or bring fonts/colors in line with the
-  actual logo. `public/icons/` has the cropped "n" asset if that helps him judge.
+- **Brand-identity mismatch — raised and resolved this session, keep this
+  reasoning for later.** Parth shared the real Nirmal Studio logo
+  (`Nirmal Studio Logo.png` / `Business Card - Front.psd`) mid-session. Pulling
+  the PSD's actual text-layer metadata (via `psd-tools`, not just eyeballing
+  pixels) showed the real font is **"Stinger Wide Trial"** (Bold for "nirmal",
+  Light for "studio") — the exact same unlicensed trial font CLAUDE.md already
+  documents as deliberately replaced by Syne in an earlier session, specifically
+  because a trial/demo font isn't licensed for finished commercial work. So the
+  business card itself was apparently built with the trial version and never
+  updated. Told Parth this directly rather than implementing the trial font;
+  he chose to **keep Syne** (already the deliberate licensed stand-in for this
+  exact Bold/Light pairing) rather than buy a license or find a closer free
+  alternative. Also asked separately about the logo's actual colors (olive
+  `#6C705D` / rust `#A94424`) vs. the site's bronze/cream palette (wordmark-only
+  swap vs. sitewide vs. no change) — Parth chose **no change, keep bronze/cream**
+  everywhere. Net result: no font/color changes needed anywhere in the codebase.
+  One exception left as-is, not reverted: the new favicon (see the matching
+  "Done" entry) uses the real logo's actual "n" glyph and olive color, cropped
+  from the real artwork — built *before* the color question was asked, in
+  direct response to Parth sharing the file specifically for the favicon. Small
+  and self-contained enough (a 16–32px browser-tab icon) that reverting it to
+  a fake bronze-colored placeholder would be a real-asset-to-fake-asset
+  downgrade for a marginal consistency gain — flagged here rather than silently
+  decided, but not undone. **If Parth ever wants a byte-identical Stinger Wide
+  license purchased, or wants to revisit this later, that's the one open
+  thread — otherwise this is now closed, don't re-ask.**
 - **Google Business Profile**: Parth said he can create one now (he has a real
   address: `201, Second Floor, Tilakraj Complex, Panchavati 1st Lane, Ambavadi,
   Ahmedabad, Gujarat 380006`, now live on the Contact section and in the JSON-LD).
@@ -636,11 +648,9 @@ first fix). Both pushed and redeployed — live at
   rather than self-hosted. A Slow-4G test mid-session showed ~7.1MB transferred / 40
   requests / ~40s to finish — heavy for the mobile-first target this project is
   built for.
-- Whether to bring the site's implemented fonts/colors (Syne wordmark, bronze
-  palette) in line with the real logo Parth shared this session (different
-  typeface, olive/rust colors) — see "Resume here" above. Not decided yet.
 - Setting up a Google Business Profile for local search (Parth has a real
-  address now and said he can do this) — see "Resume here" above.
+  address now and said he can do this) — deliberately deferred a few days,
+  not urgent, see "Resume here" above.
 - Journal/Testimonials sections exist (`Journal.jsx`/`Testimonials.jsx`) but stay
   hidden until real content is added to their data files — this is the deliberate
   "hide entirely, no coming-soon placeholder" behavior per CLAUDE.md, not
