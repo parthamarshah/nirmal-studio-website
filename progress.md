@@ -230,12 +230,14 @@ already found and fixed.
 
 Task #8 (Process) got its first real QA pass this session — see "Resume here" above
 for what was checked (desktop pin/scrub/dots/progress-bar, verified live via DOM/
-ScrollTrigger state), what was found and fixed (the `activeIndex` desync on a
-resize-down-mid-scroll), and what's still only code-reviewed rather than live-verified
-on an actual narrow viewport (resize-across-breakpoint visuals, mobile swipe-snap) —
-blocked mid-session by the automation browser losing screen focus, not by anything in
-the component itself. Worth a quick live visual confirmation once that's resolved,
-but not urgent.
+ScrollTrigger state), the three real bugs found and fixed (the `activeIndex` desync on
+resize-down-mid-scroll, its mirror on resize-up-mid-scroll, and the mobile progress-fill
+bar being permanently frozen at 0%), and what's still only code-reviewed rather than
+live-verified on an actual narrow viewport (resize-across-breakpoint visuals, mobile
+swipe-snap) — blocked mid-session by the automation browser losing screen focus, not by
+anything in the component itself. Worth a quick live visual confirmation once that's
+resolved, but not urgent. All three fixes are committed (`48e90b2`, `df6fd7d`), pushed,
+and deployed — see the commit-status line below.
 
 Also still needs Parth to re-verify the two phone fixes from an earlier session
 (floor-plan lightbox pan/zoom + close button, Philosophy's border-only pill badges) —
@@ -257,7 +259,13 @@ redeployed at the start of this session — the live site had been 2 commits sta
 missing Studio/FOLD, Contact/Journal/Testimonials, and the back-button fix entirely).
 The Claude-in-Chrome extension connected successfully this session (fourth attempt —
 needed a full Chrome restart after install) and was used to run the deferred
-verification pass — see "Resume here" above for what it found.
+verification pass — see "Resume here" above for what it found. **Two more commits
+landed later in the same session**, after the browser lost screen focus (see "Resume
+here"): `48e90b2` (the resize-down `activeIndex` fix) and `df6fd7d` (the resize-up
+mirror fix + mobile progress-fill fix, both caught by review agents run against the
+first fix). Both pushed and redeployed — live at
+`https://f4591a3b.nirmal-studio-website.pages.dev` (and propagating to
+`nirmal-studio-website.pages.dev`). Working tree is clean, nothing uncommitted.
 
 ## Done
 
