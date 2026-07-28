@@ -26,11 +26,14 @@ better than that, not a marginal improvement.
   Pages project exists and deploys work via `npx wrangler pages deploy dist
   --project-name nirmal-studio-website`.
 - **Do not ask Parth to do GitHub or Cloudflare dashboard steps** (creating things,
-  pushing, deploying) — just run the commands directly. The only exception is
-  attaching the `nirmalstudio.com` custom domain to the Pages project: that replaces
-  whatever's currently live on the real domain, so confirm with him immediately before
-  running `wrangler pages domain add` (see Task list / Deploy section below) — that's
-  the one case where asking is mandatory, not optional.
+  pushing, deploying) — just do it directly, dashboard included if Claude-in-Chrome
+  is connected and already logged into the Gurjar account (confirmed working this
+  way for the domain-attach step below). The one exception requiring his explicit
+  go-ahead first is attaching/changing the `nirmalstudio.com` custom domain, since
+  that replaces whatever's currently live on the real domain — that's the one case
+  where asking is mandatory, not optional. **`nirmalstudio.com` is now attached**
+  (see Deploy section below) — this exception no longer applies going forward
+  unless the domain needs to be reattached/changed again.
 - If a genuinely new Cloudflare/GitHub permission is needed beyond what's already
   authorized (e.g. a scope the current OAuth token doesn't cover), that's the other
   case where asking is unavoidable — otherwise, just proceed.
@@ -308,12 +311,29 @@ against them rather than rediscovering them by chance:
   integration: `npm run build && npx wrangler pages deploy dist --project-name
   nirmal-studio-website`. Run this after each build phase lands, alongside the git
   commit/push.
-- **`nirmalstudio.com` custom domain is intentionally NOT yet attached** to this Pages
-  project — the domain currently shows Parth's Lovable placeholder, and connecting it
-  now would replace that with whatever's currently built (which was just the
-  foundation placeholder text). Attach it once Hero is genuinely ready to be the
-  public face of the site, via `npx wrangler pages domain add nirmalstudio.com
-  --project-name nirmal-studio-website` (or the dashboard's Custom domains tab).
+- **`nirmalstudio.com` is attached and live**, confirmed with Parth's explicit
+  go-ahead first per the rule above. The DNS swap (4 old `A` records pointing at
+  Lovable's GitHub Pages placeholder → 1 `CNAME` to
+  `nirmal-studio-website.pages.dev`) was done via the Cloudflare dashboard's
+  Custom domains tab (Workers & Pages → nirmal-studio-website → Custom domains),
+  **not** `wrangler pages domain add` — that CLI subcommand doesn't exist in the
+  installed wrangler (4.114.0; `wrangler pages --help` lists no `domain`
+  command as of this writing). If a future wrangler version restores it, that's
+  a fine shortcut, but don't assume the CLI command works without checking
+  `--help` first — this file said it existed for a while after it had already
+  been removed. If the domain ever needs to be reattached (e.g. a new Pages
+  project), the same dashboard flow works and is quick.
+- **Cloudflare's own zone-level "AI Crawl Control" injects extra `robots.txt`
+  rules on `nirmalstudio.com`** (not present on the `.pages.dev` URL, confirmed
+  by comparing both — so it's an account/zone setting, not anything in this
+  repo's `public/robots.txt`) blocking several AI crawlers by name (`GPTBot`,
+  `ClaudeBot`, `Google-Extended`, others) plus a `Content-Signal: ai-train=no`.
+  Regular Googlebot/classic search ranking is unaffected, but this does block
+  the crawlers behind AI answer engines (Google AI Overviews, ChatGPT
+  browsing, Claude browsing) from referencing the site — worth Parth's
+  explicit call given his stated local-SEO/discoverability priority, not
+  something to silently leave as Cloudflare's default. See progress.md's
+  "Resume here" for the flag raised to him.
 
 ## Working style for this project
 

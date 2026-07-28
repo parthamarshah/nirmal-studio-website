@@ -5,6 +5,73 @@ live in `CLAUDE.md` — read that first if you're picking this up cold.
 
 ## Resume here
 
+**`nirmalstudio.com` is now live** (same session, after the WebP/SEO work below).
+Parth explicitly confirmed the go-ahead in chat first, per CLAUDE.md's one
+mandatory-confirmation step. The `wrangler pages domain add` CLI command
+documented earlier in this file **no longer exists** in the installed wrangler
+(4.114.0 — `wrangler pages --help` confirms no `domain` subcommand). Done
+instead via the Cloudflare dashboard directly (Claude-in-Chrome was already
+logged into the Gurjar account, so this was self-serve, not handed to Parth as
+manual steps): Workers & Pages → nirmal-studio-website → Custom domains → Set
+up a custom domain → entered `nirmalstudio.com` → confirmed the DNS swap
+(4 old `A` records pointing at Lovable's GitHub Pages IPs → 1 `CNAME` to
+`nirmal-studio-website.pages.dev`) → Activate. SSL provisioned fast (already
+on Cloudflare DNS, same account). Verified live via `curl`: `https://
+nirmalstudio.com` and `www.nirmalstudio.com` both 200, correct `<title>`,
+correct canonical tag, favicon and a `.webp` image both serving correctly.
+**This CLAUDE.md instruction is now stale and should be updated**: "the
+`nirmalstudio.com` custom domain is intentionally NOT yet attached" is no
+longer true, and the documented `wrangler pages domain add` command should be
+corrected to "use the Cloudflare dashboard" for whoever reads this next.
+
+**New discovery from attaching the domain, not something this session
+configured — needs Parth's call**: `nirmalstudio.com`'s robots.txt now serves
+a Cloudflare-injected block (visible via `curl https://nirmalstudio.com/
+robots.txt`, confirmed absent on the `.pages.dev` URL, so it's a per-zone
+Cloudflare account setting, not anything in this repo) that disallows several
+AI crawlers by name — `GPTBot`, `ClaudeBot`, `Google-Extended`,
+`Applebot-Extended`, `Amazonbot`, `Bytespider`, `CCBot`,
+`meta-externalagent`, `CloudflareBrowserRenderingCrawler` — plus a
+`Content-Signal: ai-train=no` header. This doesn't affect classic Google
+search ranking (regular Googlebot is unaffected, still `Allow: /`), but it
+does block the crawlers behind AI answer engines (Google's AI Overviews,
+ChatGPT's browsing/citations, Claude's browsing) from referencing the site.
+Given Parth's stated goal is being found when people search for architects,
+worth explicitly asking him whether he wants these AI crawlers allowed —
+this is a Cloudflare dashboard zone setting (likely under Bots / AI Crawl
+Control for the nirmalstudio.com zone), not a code change.
+
+**Client permission for the Shimla/Nishee floor plans is now confirmed
+secured** (see the dedicated entry further down for the full history) — no
+longer a blocker.
+
+**Live Slow-4G re-test — partially done, with a real caveat.** The
+Claude-in-Chrome `document.hidden`-stuck-true environment bug that blocked
+earlier sessions was NOT present this time (confirmed via
+`document.hidden === false`, `hasFocus() === true`) — full live scroll-through
+of the entire page worked, screenshots were real (not stale), and this
+produced the **first actual live visual confirmation** of several things only
+previously verified via DOM inspection or code review: Nav's text-shadow
+contrast over Hero reads correctly against a bright building facade, Process's
+desktop pin/scrub genuinely advances its progress dots on real scroll (01→05
+watched live), IdeaTimeline's floor-plan "Tap to enlarge" hint renders
+correctly, Contact's "View on map" click-to-load placeholder correctly does
+NOT auto-load the iframe, and all 13 images rendered during a full scroll
+correctly resolved to `.webp` except the two floor-plan drawings (`.jpg`,
+confirmed via `img.currentSrc`) — the WebP wiring works in a real browser, not
+just in code review. **However**, no actual network-throttling tool is
+exposed to this session (no DevTools-protocol network-conditions control), so
+the specific "Slow 4G, cold cache" numbers Parth verified manually before
+couldn't be reproduced exactly. What was measured instead: a real (but
+warm-cache-assisted) page load came to ~1.4MB total encoded content across 17
+requests — not directly comparable to the old ~7.1MB/~40s Slow-4G figure, but
+directionally consistent with the WebP conversion's measured 8.6MB→4.6MB
+savings on the image set specifically. **A true cold-cache Slow-4G number
+still needs Parth to run it himself** (Chrome DevTools → Network → Slow 4G →
+disable cache → hard reload) if he wants the exact before/after comparison —
+2 minutes, matches his own established, more rigorous test method from an
+earlier session.
+
 **WebP image-optimization pass landed** (same session, after the SEO/brand work
 below). 44 of 46 files under `public/images/` now have a `.webp` sibling
 (Pillow, quality=80, generated on disk — `public/` isn't part of Vite's import
@@ -343,16 +410,15 @@ and deployed — see the commit-status line below.
 
 Also still needs Parth to re-verify the two phone fixes from an earlier session
 (floor-plan lightbox pan/zoom + close button, Philosophy's border-only pill badges) —
-see the "Lightbox + Philosophy chip fixes" entry below for exactly what changed. Three
-things still waiting on him, unrelated to code: Tej's sign-off on the Philosophy
-paragraph + IdeaTimeline stage copy + Process's stage copy + now Featured Projects'
-per-project challenge/materials/construction copy too (all generic "studio voice," not
-confirmed facts — see projects.js's header comment); confirming the Nishee House client
-is fine with their full floor-plan layout being public (now also used as that project's
-Featured Projects card art, which is more visible than its one appearance in
-Idea-to-Home was); and — new this session — whether showing Shimla House's floor plan
-at all is fine, since re-cropping it to match Nishee's (see below) means it's now used
-the same way.
+see the "Lightbox + Philosophy chip fixes" entry below for exactly what changed.
+
+**Client permission for the Shimla/Nishee floor plans (public display on both
+projects' Featured Projects card art and the pan-zoom lightbox) is confirmed
+secured as of a later session — no longer a blocker.** One thing still waiting
+on Parth, unrelated to code: Tej's sign-off on the Philosophy paragraph +
+IdeaTimeline stage copy + Process's stage copy + Featured Projects' per-project
+challenge/materials/construction copy (all generic "studio voice," not
+confirmed facts — see `projects.js`'s header comment).
 
 Everything below is committed, pushed to `main`
 (`github.com/parthamarshah/nirmal-studio-website`), and deployed at
@@ -552,8 +618,8 @@ first fix). Both pushed and redeployed — live at
   name the client — kept that shot in the gallery, just not promoted to card art. Also
   re-cropped `shimla-house/drawings-ground-floor.jpg` (dropped its title block) to match
   how `nishee-house`'s equivalent was already cropped, per the note IdeaTimeline's entry
-  left for this task — see the flag in "Resume here" above about whether showing
-  Shimla's floor plan this way needs the same client-permission check Nishee's does.
+  left for this task — client permission for showing both Shimla's and Nishee's floor
+  plans publicly this way is now confirmed secured (see the "Resume here" entry above).
   Three review-agent passes (ux-reviewer, impact-tracker, edge-case-checker) caught real
   bugs before commit, all fixed: the section subhead originally asserted all 9 projects
   are "in progress," which misrepresents Shimla/Nishee's unconfirmed status (both
