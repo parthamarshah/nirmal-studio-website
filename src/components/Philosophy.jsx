@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { gsap, prefersReducedMotion } from '../lib/scroll'
+import { webp } from '../lib/images'
 
 // Section 4 of the brief: Philosophy split-screen. Stacked image-over-text on
 // mobile (a 50/50 side-by-side is unreadable below tablet width), side-by-side
@@ -81,21 +82,24 @@ export default function Philosophy({ project }) {
             mobile, so a center-cropped landscape render still reads fine;
             add a mobile crop here if that stops being true. */}
         {hasImage && (
-          <img
-            ref={imageRef}
-            src={project.heroImage}
-            alt=""
-            aria-hidden="true"
-            loading="lazy"
-            style={{
-              position: 'absolute',
-              inset: 0,
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
-              objectPosition: 'center',
-            }}
-          />
+          <picture>
+            <source type="image/webp" srcSet={webp(project.heroImage)} />
+            <img
+              ref={imageRef}
+              src={project.heroImage}
+              alt=""
+              aria-hidden="true"
+              loading="lazy"
+              style={{
+                position: 'absolute',
+                inset: 0,
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                objectPosition: 'center',
+              }}
+            />
+          </picture>
         )}
       </div>
 

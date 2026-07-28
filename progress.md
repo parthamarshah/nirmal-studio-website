@@ -5,6 +5,53 @@ live in `CLAUDE.md` — read that first if you're picking this up cold.
 
 ## Resume here
 
+**WebP image-optimization pass landed** (same session, after the SEO/brand work
+below). 44 of 46 files under `public/images/` now have a `.webp` sibling
+(Pillow, quality=80, generated on disk — `public/` isn't part of Vite's import
+graph, so this can't be a build-time plugin, see `src/lib/images.js`'s comment).
+Every `<img>` referencing a converted JPEG is now wrapped in
+`<picture><source type="image/webp" srcSet={webp(path)} /><img src={path} .../></picture>`
+across `Hero.jsx`, `FocusImage.jsx`, `Philosophy.jsx`, and 5 spots in
+`FeaturedProjects.jsx` (card thumbnail, detail hero, gallery thumbnails,
+conceptArt thumbnails, shared lightbox). **The two floor-plan drawings
+(`nishee-house`/`shimla-house` `drawings-ground-floor.jpg`) were deliberately
+excluded and have no `.webp` sibling** — Parth confirmed on a real phone that
+the fine dimension text under each room label is already barely legible;
+lossy compression would make that worse. `IdeaTimeline.jsx` wasn't touched at
+all (both its image spots are always a drawing). `FeaturedProjects.jsx`'s
+mixed card-image case (`cardImage()` returns either a photo or, for
+Shimla/Nishee, a drawing) and its shared lightbox (`mode: 'pan'` = drawing,
+`mode: 'fit'` = photo) both gate the new `<source>` on the existing
+`cardIsDrawing()`/`mode` checks, verified by edge-case-checker to be
+unreachable-wrong given current and plausible future `projects.js` data.
+Byte savings on the converted set: 8.6MB → 4.6MB (~47%) for any WebP-capable
+browser; the two drawings stay full-size JPEG. `og:image`/JSON-LD `image` in
+`index.html` deliberately left pointed at the original JPEG (social-media
+scrapers are unreliable with WebP). Also fixed in the same pass: the grid
+card's `alt` text (added last session for image-search SEO) was giving
+screen-reader users an inaccurate description for Shimla/Nishee's floor-plan
+cards — described a drawing as if it were project photography, contradicting
+the visible "Floor plan" tag. New `cardAlt()` helper in `FeaturedProjects.jsx`
+says "floor plan" for those two, keeps the descriptive name/type/location alt
+for the other 7. **New CLAUDE.md known-incident entry**: a `<picture>`'s
+`<source>` does NOT fall back to `<img>` on a 404, only on a genuinely
+unsupported type/media — so a future project image added to `projects.js`
+without a matching `.webp` sibling would silently show broken in modern
+browsers, not just skip the optimization. Three review-agent passes
+(impact-tracker, ux-reviewer, edge-case-checker) ran against this before
+commit; impact-tracker went further than usual and actually rendered the
+production build in headless Chromium to confirm no `<picture>`-wrapper CSS
+regression (image rects pixel-identical to before, `.webp` sources actually
+selected) rather than reasoning from code alone. Perf items intentionally
+**not** done this pass, per explicit advisor guidance: font self-hosting
+(would put the twice-verified `display=optional` font-flash fix at risk with
+no way to re-test it this session) and JS code-splitting (166KB gzipped
+against ~9MB of images — the real problem was always images, not the bundle
+warning). **Not measured live** (no Slow-4G re-test this session, same
+Claude-in-Chrome environment blocker) — the byte-count math above is real,
+but the "~40s to finish on Slow 4G" figure from the original perf audit
+hasn't been re-run to confirm the actual felt improvement.
+
 **Local-SEO + site-essentials pass landed this session** (nav, favicon, OG/meta
 tags, robots.txt/sitemap, JSON-LD structured data, social-links plumbing, Contact's
 real address + map) — full detail in the matching "Done" entry below. Two things
@@ -640,14 +687,15 @@ first fix). Both pushed and redeployed — live at
 
 ## Not started yet
 
-- Polish pass (perf/accessibility/SEO) + final comparison against the Lovable
-  baseline video. Concrete perf gaps identified this session, not yet acted on:
-  9.1MB of images with no WebP/AVIF or responsive `srcset` (mobile downloads the
-  same size a desktop would), a single 505KB+ JS bundle with no code-splitting
-  (Vite's own build output already flags this), fonts still loaded from Google's CDN
-  rather than self-hosted. A Slow-4G test mid-session showed ~7.1MB transferred / 40
-  requests / ~40s to finish — heavy for the mobile-first target this project is
-  built for.
+- Polish pass (accessibility/final Lovable-baseline comparison) + a Slow-4G
+  re-test now that WebP conversion has landed (see "Resume here" above) — the
+  original ~7.1MB/~40s Slow-4G numbers predate that work and haven't been
+  re-measured live. Deliberately still not done: responsive `srcset` (multiple
+  resolutions per image, not just format), JS code-splitting (505KB+ bundle —
+  a real advisor call this session was that images were always the actual
+  problem, not the bundle warning), and self-hosting fonts (would risk the
+  twice-verified `display=optional` font-flash fix with no way to re-test it
+  this session).
 - Setting up a Google Business Profile for local search (Parth has a real
   address now and said he can do this) — deliberately deferred a few days,
   not urgent, see "Resume here" above.

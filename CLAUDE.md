@@ -280,6 +280,20 @@ against them rather than rediscovering them by chance:
   `AnimatePresence` overlay — new lightbox, new modal — against all three parts of
   this (disable on close, reset on open, guard against same-position click-through)
   rather than just the first.
+- **A `<picture>`'s `<source>` does not fall back to the `<img>` on a 404 — only on
+  a genuinely unsupported `type`/`media`.** If a `<source srcSet>` points at a file
+  that doesn't exist, the browser treats that source as "selected but broken," not
+  "unavailable, try the next one" — the image just shows broken, in exactly the
+  browsers (modern, WebP-supporting) most likely to be used for testing. This
+  matters here because `src/lib/images.js`'s `webp()` helper derives a `.webp`
+  sibling path by string substitution with no existence check — every image's
+  `<picture>` (`Hero.jsx`, `FocusImage.jsx`, `Philosophy.jsx`, `FeaturedProjects.jsx`)
+  trusts that a same-named `.webp` file actually exists on disk next to the
+  `.jpg`/`.jpeg` `projects.js` points at. Adding a new project's image to
+  `projects.js` without generating its `.webp` sibling silently breaks that image
+  for most real visitors, not just missing an optimization. Check any future image
+  addition against this before assuming "no `.webp` yet" just means "slightly
+  bigger download."
 
 ## Deploy
 

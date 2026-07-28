@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { gsap, prefersReducedMotion, scrollTo } from '../lib/scroll'
+import { webp } from '../lib/images'
 
 // Section 1 (cinematic hero) of the brief. No real project video exists yet
 // (all 7 confirmed projects are under construction) — uses a slow Ken
@@ -43,8 +44,12 @@ export default function Hero({ project }) {
       {hasImage && (
         <picture>
           {project.heroImageMobile && (
+            <source media="(max-width: 640px)" type="image/webp" srcSet={webp(project.heroImageMobile)} />
+          )}
+          {project.heroImageMobile && (
             <source media="(max-width: 640px)" srcSet={project.heroImageMobile} />
           )}
+          <source type="image/webp" srcSet={webp(project.heroImage)} />
           <img
             ref={imageRef}
             src={project.heroImage}

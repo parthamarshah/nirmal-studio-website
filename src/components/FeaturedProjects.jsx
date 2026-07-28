@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { gsap, prefersReducedMotion } from '../lib/scroll'
 import { projects } from '../data/projects'
+import { webp } from '../lib/images'
 
 // Section 6 of the brief: Featured Projects, immersive per-project
 // storytelling. A grid index (each card self-identifies with what kind of
@@ -270,6 +271,14 @@ export default function FeaturedProjects() {
 
   const cardImage = (project) => project.heroImage || project.drawings
   const cardIsDrawing = (project) => !project.heroImage && Boolean(project.drawings)
+  // Drawing cards must say so — the visible "Floor plan" tag already tells a
+  // sighted user this isn't project photography; an alt describing it as a
+  // photo of the building would give a screen-reader user a materially
+  // different, inaccurate picture of the same card.
+  const cardAlt = (project) =>
+    cardIsDrawing(project)
+      ? `${project.name}, floor plan`
+      : `${project.name}, ${project.type} in ${project.location}`
 
   return (
     <section
@@ -315,13 +324,15 @@ export default function FeaturedProjects() {
             onClick={(e) => openProject(project, e.currentTarget)}
           >
             {cardImage(project) && (
-              <img
-                src={cardImage(project)}
-                alt=""
-                aria-hidden="true"
-                loading="lazy"
-                className="project-card-image"
-              />
+              <picture>
+                {!cardIsDrawing(project) && <source type="image/webp" srcSet={webp(cardImage(project))} />}
+                <img
+                  src={cardImage(project)}
+                  alt={cardAlt(project)}
+                  loading="lazy"
+                  className="project-card-image"
+                />
+              </picture>
             )}
             {cardIsDrawing(project) && <span className="project-card-tag">Floor plan</span>}
             <span className="project-card-scrim" aria-hidden="true" />
@@ -367,7 +378,10 @@ export default function FeaturedProjects() {
 
               {activeProject.heroImage && (
                 <div className="project-detail-hero">
-                  <img src={activeProject.heroImage} alt={activeProject.name} loading="lazy" />
+                  <picture>
+                    <source type="image/webp" srcSet={webp(activeProject.heroImage)} />
+                    <img src={activeProject.heroImage} alt={activeProject.name} loading="lazy" />
+                  </picture>
                 </div>
               )}
 
@@ -426,7 +440,10 @@ export default function FeaturedProjects() {
                           className="project-detail-thumb"
                           onClick={() => openLightbox({ src, alt: activeProject.name, mode: 'fit' })}
                         >
-                          <img src={src} alt="" aria-hidden="true" loading="lazy" />
+                          <picture>
+                            <source type="image/webp" srcSet={webp(src)} />
+                            <img src={src} alt="" aria-hidden="true" loading="lazy" />
+                          </picture>
                         </button>
                       ))}
                     </div>
@@ -476,7 +493,10 @@ export default function FeaturedProjects() {
                             })
                           }
                         >
-                          <img src={src} alt="" aria-hidden="true" loading="lazy" />
+                          <picture>
+                            <source type="image/webp" srcSet={webp(src)} />
+                            <img src={src} alt="" aria-hidden="true" loading="lazy" />
+                          </picture>
                           <span className="project-detail-thumb-label">Concept</span>
                         </button>
                       ))}
@@ -548,7 +568,15 @@ export default function FeaturedProjects() {
             {lightboxImage.label && (
               <span className="project-lightbox-label">{lightboxImage.label}</span>
             )}
-            <img src={lightboxImage.src} alt={lightboxImage.alt} />
+            <picture>
+              {/* 'pan' mode is always the floor-plan drawing (see openLightbox
+                  call sites above) — never given a webp source, same reason
+                  drawings were excluded from this session's webp conversion. */}
+              {lightboxImage.mode === 'fit' && (
+                <source type="image/webp" srcSet={webp(lightboxImage.src)} />
+              )}
+              <img src={lightboxImage.src} alt={lightboxImage.alt} />
+            </picture>
             <button
               type="button"
               ref={lightboxCloseRef}
