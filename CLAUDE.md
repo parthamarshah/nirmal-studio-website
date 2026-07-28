@@ -245,6 +245,41 @@ against them rather than rediscovering them by chance:
   this exercises exactly the synchronous render-time bugs this class of issue lives
   in, without needing a real browser. Check any future component that adds
   close-on-back-button (or similar) history/event-listener plumbing against this.
+- **A full-screen `AnimatePresence`/Framer Motion overlay stays fully interactive for
+  its whole exit fade unless something explicitly disables it** — `opacity` animating
+  to 0 doesn't touch `pointer-events`, and Framer's `exit` prop only applies
+  non-animatable values (like `pointerEvents`) *after* the exit finishes, not at the
+  start, so putting it there doesn't help. A live-browser verification pass caught
+  this in FeaturedProjects.jsx: pressing the back button (or Escape, or a backdrop/×
+  close) cleared state, but the outgoing `position: fixed`, full-viewport dialog sat
+  in the DOM invisible-but-fully-clickable for the whole 0.25–0.3s fade, silently
+  swallowing real clicks on the page underneath — confirmed via
+  `document.elementFromPoint()` landing inside the "closed" dialog, not just a visual
+  guess. Fix: set `pointerEvents: 'none'` synchronously via a direct DOM ref the
+  instant any close is triggered (in FeaturedProjects.jsx's `disableTopLayerInteraction`,
+  called from both `closeTopLayer` and the `popstate` handler), not through Framer's
+  `exit`. **Two follow-on traps this creates, both required to close it fully:**
+  (1) if the overlay is `AnimatePresence`-rendered without a value-specific `key` (a
+  static string, or no `key` at all), a fast close-then-reopen before the exit
+  animation finishes reuses the same DOM node instead of mounting a fresh one — the
+  leftover inline `pointer-events: none` then silently disables the reopened overlay
+  *permanently*, worse than the bug being fixed. The open path must
+  `style.removeProperty('pointer-events')` on the same ref before setting state, not
+  just the close path set it. (2) if two stacked overlays' close buttons share the
+  exact same fixed screen position (as FeaturedProjects.jsx's project-detail and
+  lightbox close buttons deliberately do, so the × doesn't visually jump between
+  layers), a second tap in that same spot within the fade window now falls through
+  the newly-non-interactive top layer onto the close button of the layer underneath —
+  cascading one tap into closing two layers instead of one. Fixed with a short-lived
+  guard ref (`closeGuardRef`, ~350ms, cleared on next open) checked at the top of the
+  shared close handler, since both close buttons route through it regardless of which
+  one physically catches the click. IdeaTimeline.jsx's floor-plan lightbox had the
+  identical latent bug (same `AnimatePresence` + `exit={{opacity:0}}` + fixed-overlay
+  shape, just without the stacked-button case since it's the only overlay in that
+  component) and was fixed the same way. Check any future full-screen
+  `AnimatePresence` overlay — new lightbox, new modal — against all three parts of
+  this (disable on close, reset on open, guard against same-position click-through)
+  rather than just the first.
 
 ## Deploy
 

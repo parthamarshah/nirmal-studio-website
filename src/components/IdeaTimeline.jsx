@@ -58,6 +58,24 @@ export default function IdeaTimeline({ project }) {
   // the inline display size on a phone (Parth confirmed on a real device) —
   // holds { src, alt } for whichever stage's image is open, or null.
   const [lightboxImage, setLightboxImage] = useState(null)
+  // Framer's exit animation keeps this overlay mounted (and, by default,
+  // fully interactive) for its whole 0.25s fade after closing — without
+  // disabling pointer-events the instant it closes, a click landing in that
+  // window falls on the still-fading, now-invisible overlay instead of the
+  // page underneath. Same fix, and the same reason it must be reset again
+  // on open (AnimatePresence reuses this DOM node on a fast close-then-
+  // reopen since it isn't keyed by which stage/image is showing), as
+  // FeaturedProjects.jsx's project-detail/lightbox overlays — see CLAUDE.md's
+  // known-incident list.
+  const lightboxRef = useRef(null)
+  const closeLightbox = () => {
+    lightboxRef.current?.style.setProperty('pointer-events', 'none')
+    setLightboxImage(null)
+  }
+  const openLightbox = (image) => {
+    lightboxRef.current?.style.removeProperty('pointer-events')
+    setLightboxImage(image)
+  }
 
   const stages = STAGES.map((stage) =>
     stage.name === 'Drawings' && project?.drawings
@@ -182,7 +200,7 @@ export default function IdeaTimeline({ project }) {
   useEffect(() => {
     if (!lightboxImage) return
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape') setLightboxImage(null)
+      if (e.key === 'Escape') closeLightbox()
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
@@ -301,7 +319,7 @@ export default function IdeaTimeline({ project }) {
               <figure style={{ margin: 'var(--space-sm) 0 0' }}>
                 <button
                   type="button"
-                  onClick={() => setLightboxImage({ src: stage.image, alt: stage.imageCaption })}
+                  onClick={() => openLightbox({ src: stage.image, alt: stage.imageCaption })}
                   style={{
                     display: 'block',
                     width: '100%',
@@ -392,8 +410,9 @@ export default function IdeaTimeline({ project }) {
             // and closes the lightbox before the zoom ever registers,
             // defeating the one thing this overlay exists to let you do.
             onClick={(e) => {
-              if (e.target === e.currentTarget) setLightboxImage(null)
+              if (e.target === e.currentTarget) closeLightbox()
             }}
+            ref={lightboxRef}
             // Lenis (src/lib/scroll.js) installs a global wheel handler
             // that has no concept of nested scrollable elements — without
             // this attribute, a desktop mouse wheel over the overlay would
@@ -436,7 +455,7 @@ export default function IdeaTimeline({ project }) {
             />
             <button
               type="button"
-              onClick={() => setLightboxImage(null)}
+              onClick={closeLightbox}
               aria-label="Close"
               style={{
                 // fixed, not absolute — this overlay scrolls (that's the

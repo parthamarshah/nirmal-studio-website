@@ -5,12 +5,72 @@ live in `CLAUDE.md` — read that first if you're picking this up cold.
 
 ## Resume here
 
-**All sections in the original plan are now built** (Hero through Contact, Section
-1–11) — the "Not started yet" list below is now empty except the polish pass. Parth
-has deliberately deferred all verification/QA to one dedicated session rather than
-checking incrementally — see the checklist at the end of this note for exactly what
-that session needs to look at, since none of it is visible from a diff or from
-build/lint.
+**The deferred verification pass (see below) has now happened.** Claude-in-Chrome
+connected successfully this session (fourth attempt — needed a full Chrome quit/
+restart after install, not just a reload) and drove the live site directly. Findings:
+
+- **Pushed + redeployed first.** The live site had been 2 commits stale (missing
+  Studio/FOLD, Contact/Journal/Testimonials, and the back-button fix entirely) —
+  pushed `2efa57d`/`d66080f` and redeployed before testing anything, since testing a
+  stale build would have been pointless.
+- **Found and fixed a real bug via live DOM inspection, not just visual check**: closing
+  the Featured Projects takeover or its lightbox (Escape, backdrop, ×, or the browser/
+  mobile back button) cleared React state correctly, but the outgoing Framer Motion
+  overlay stayed `position: fixed`, full-viewport, and fully `pointer-events: auto`
+  for its whole 0.25–0.3s exit fade — invisible but still swallowing real clicks on the
+  page underneath. Caught with `document.elementFromPoint()` landing inside the
+  "closed" dialog, confirmed reproducible, not a one-off. Fixed in
+  `FeaturedProjects.jsx` (`disableTopLayerInteraction`, called from `closeTopLayer` and
+  the `popstate` handler) by setting `pointer-events: none` synchronously via a direct
+  DOM ref the instant any close begins, rather than waiting on Framer's `exit` (which
+  only applies non-animatable values *after* the animation finishes — doesn't help
+  here). Review agents (impact-tracker, ux-reviewer, edge-case-checker, run against
+  this specific fix) caught two follow-on bugs the fix itself introduced, both fixed
+  and re-verified live before commit:
+  - A fast close-then-reopen (before the exit fade finishes) reuses the same DOM node
+    (AnimatePresence isn't keyed by slug/image), so the leftover `pointer-events: none`
+    would otherwise silently and *permanently* disable the reopened overlay. Fixed by
+    resetting it (`removeProperty`) at the top of `openProject`/`openLightbox`.
+  - `.project-detail-close` and `.project-lightbox-close` sit at the exact same fixed
+    screen position by design (so the × doesn't jump between layers) — once the
+    lightbox stops intercepting clicks, a fast second tap in that same spot falls
+    through onto the detail panel's close button underneath, cascading one tap into
+    closing both layers. Fixed with a short-lived guard ref (`closeGuardRef`, ~350ms,
+    cleared on next open) at the top of the shared `closeTopLayer`, since both close
+    buttons route through it. Reproduced the exact click-through with
+    `elementFromPoint` before the fix, confirmed it lands on `project-detail-close`,
+    confirmed the panel now stays open after the fix.
+  - `IdeaTimeline.jsx`'s floor-plan lightbox had the identical latent pointer-events
+    bug (same `AnimatePresence` + `exit={{opacity:0}}` + fixed-overlay shape) — fixed
+    the same way pre-emptively, not yet reported by a user. Full writeup, and the
+    general "disable on close / reset on open / guard same-position click-through"
+    pattern, added to CLAUDE.md's known-incident list so the next new overlay gets
+    checked against all three, not just the first.
+- **Back-button checklist items 1–4 (single close, nested back-twice, double-tap race,
+  Tab-trap) all verified live and pass**, including after the fixes above.
+- **Studio/FOLD mobile sizing (item 6): measured, not just eyeballed** — at a 555px-wide
+  viewport, Tej's block rendered 958px tall, FOLD's rendered 1250px tall. FOLD is
+  ~30% *taller* than Tej's section, not ~75% of it — the brand-structure ratio is
+  inverted on mobile, not just "over the floor" as previously suspected. Confirmed via
+  `getBoundingClientRect()`, not a screenshot guess. Root cause: 3 stacked member
+  cards' worth of real text vs. Tej's one bio paragraph — the spacing trim already
+  applied (see the "Studio (Tej Shah) + Network (FOLD)" entry below) only accounts for
+  ~240px of the ~530px gap; the rest is genuinely the text itself, which CSS spacing
+  changes can't close. Worth noting for whoever reads this next: visually, Tej's block
+  is mostly centered whitespace around a short paragraph (spacious/editorial, reads as
+  primary) while FOLD is a dense information block (reads as reference/secondary) —
+  the *felt* hierarchy may still be correct even though the raw pixel ratio is
+  inverted, but this wasn't confirmed with Parth directly and is called out to him
+  separately rather than assumed. Not changed this session — the real fix (shortening
+  member bios) touches factual copy about three named people, which is his call per
+  CLAUDE.md, not something to unilaterally trim.
+- **Not covered this session, still genuinely open**: Process's own dedicated browser
+  check (pin/carousel/dot navigation across the 1024px breakpoint, reduced-motion
+  fallback — item 8 in the original checklist, three-plus sessions deferred now);
+  a general aesthetic/visual read of the Featured Projects grid and galleries beyond
+  the interaction-logic tests above; Contact's WhatsApp link opening a real
+  wa.me conversation. The font-flash fix (item 5) and Contact's content calls (item 7)
+  were already verified in a prior session and are unchanged.
 
 Landed this session, in order: the Loader font-flash fix (below), Studio/FOLD
 (Task #10), a back-button fix for Featured Projects' full-screen takeover, and
@@ -92,30 +152,6 @@ discover:
   launch or whether a persistent nav/jump-to-contact affordance belongs in the polish
   pass.
 
-**What the deferred verification session actually needs to check** (none of this is
-visible from a diff, and build/lint passing doesn't mean any of it works):
-1. Open a project card → press the browser/mobile back button → detail view closes,
-   you're still on the site (not navigated away).
-2. Open a project → open a gallery image → press back twice → lightbox closes, then
-   the detail view closes, still on the site.
-3. Open a project → **double-tap the × fast** → still on the site (this is the race
-   that was found and fixed; worth specifically trying to break it).
-4. Tab into an open lightbox → focus should stay trapped on its close button, unable
-   to reach the Prev/Next buttons in the project-detail panel behind it.
-5. The Loader font-flash fix (see below) — Slow 4G + disable cache + hard-reload,
-   watching whether "nirmal" ever shows in two different fonts (it shouldn't; it may
-   show in a plain fallback font on a slow connection, which is expected).
-6. Studio's FOLD section on an actual mobile device — the "~3/4 the space of Tej's
-   section" brand-structure rule was implemented as a floor (`min-height`), not a
-   guaranteed rendered ratio (real content on mobile can and does exceed it) — worth
-   a real look to judge whether it reads as clearly secondary in practice.
-7. Contact's WhatsApp link/prefilled message and the filled-CTA styling choice —
-   both are calls made this session, not previously agreed.
-8. Tasks #8 (Process) and #9 (Featured Projects) still haven't had their own
-   from-scratch browser check either — three-plus sessions running now where
-   Claude-in-Chrome wasn't connected. See their own entries below for what to look
-   at specifically.
-
 Also fixed this session, before Task #10: the Loader's "nirmal" wordmark briefly
 showed in two different fonts on first load (Google Fonts' `display=swap` let the
 fallback sans-serif paint first, then swapped to Syne mid-animation). **This took two
@@ -146,38 +182,25 @@ Studio section check, or a deploy-then-check-both approach, and said he'd rather
 finish fixing things one at a time than deploy yet — so nothing's been pushed to
 Cloudflare this session, just committed locally once done.
 
-Task #9 (Featured Projects) landed last session — see its "Done" entry below — but,
-like Task #8 before it, **wasn't visually verified in a real browser**: the
-Claude-in-Chrome extension wasn't connected that session either, so only `npm run
-build` + `npm run lint` + three review-agent passes (ux-reviewer, impact-tracker,
-edge-case-checker, each run once and again after fixes) confirmed it. The extension
-was unavailable *this* session too (third session running) — flagging again that
-it's worth checking the connection before the next one starts, rather than
-discovering it's down mid-session yet again. Parth should
-check `https://nirmal-studio-website.pages.dev` himself: (1) the new Featured Projects
-grid between Idea-to-Home and Process — 9 cards, tap one to open the full-screen story
-takeover (hero image, facts, concept/challenge/materials/construction copy, photo
-gallery); (2) gallery thumbnails open a fit-to-screen lightbox; Shimla/Nishee's floor
-plan opens the same pan/zoom lightbox IdeaTimeline uses, and their AI concept-art grid
-opens fit-to-screen with a visible "Concept visualization" label; (3) Prev/Next at the
-bottom of the takeover cycles between all 9 projects — confirm it actually lands
-scrolled to the top of the new project, not wherever the previous one was scrolled to;
-(4) on both desktop and mobile, confirm Escape and the backdrop both close things as
-expected, and tapping into a card, then Tab-ing on desktop, doesn't reach anything
-hidden behind the takeover.
+Task #9 (Featured Projects) landed two sessions ago — see its "Done" entry below.
+Its interaction logic (open/close, back-button, nested lightbox, Tab-trap, the
+pointer-events bug and its two follow-ons) is now verified live — see "Resume here"
+above. **Not yet done**: a general aesthetic/visual read of the grid and galleries
+themselves (card layout, image quality, gallery browsing feel) beyond the
+interaction-logic checks — worth a look, though lower risk than the interaction bugs
+already found and fixed.
 
-Task #8 (Process) also still needs its own from-scratch browser check — the "Resume
-here" checklist that described it got overwritten by the paragraph above, but the
-underlying ask hasn't been done yet: (1) desktop >=1024px — scroll into Process,
-confirm vertical scroll converts to horizontal card motion smoothly (pinned, no jank),
-progress dots + bar track correctly, clicking a dot jumps to that stage — this section
-now sits after Featured Projects instead of directly after Idea-to-Home, which changes
-how much scroll room is above it, so it's worth a fresh look rather than assuming the
-math still works the same way; (2) resize the browser across the 1024px breakpoint
-mid-scroll — confirm no leftover card/progress-bar jump when it falls back to mobile
-layout; (3) mobile/narrow width — confirm horizontal swipe-snap carousel, dots still
-work; (4) with OS-level "reduce motion" on — confirm it's the same swipe-snap fallback
-as mobile, not a broken pinned attempt.
+Task #8 (Process) still needs its own from-scratch browser check — genuinely not
+touched yet, three-plus sessions running now: (1) desktop >=1024px — scroll into
+Process, confirm vertical scroll converts to horizontal card motion smoothly (pinned,
+no jank), progress dots + bar track correctly, clicking a dot jumps to that stage —
+this section sits after Featured Projects instead of directly after Idea-to-Home,
+which changes how much scroll room is above it, so it's worth a fresh look rather than
+assuming the math still works the same way; (2) resize the browser across the 1024px
+breakpoint mid-scroll — confirm no leftover card/progress-bar jump when it falls back
+to mobile layout; (3) mobile/narrow width — confirm horizontal swipe-snap carousel,
+dots still work; (4) with OS-level "reduce motion" on — confirm it's the same
+swipe-snap fallback as mobile, not a broken pinned attempt.
 
 Also still needs Parth to re-verify the two phone fixes from an earlier session
 (floor-plan lightbox pan/zoom + close button, Philosophy's border-only pill badges) —
@@ -192,9 +215,14 @@ Idea-to-Home was); and — new this session — whether showing Shimla House's f
 at all is fine, since re-cropping it to match Nishee's (see below) means it's now used
 the same way.
 
-Everything below is committed and pushed to `main`
-(`github.com/parthamarshah/nirmal-studio-website`) and deployed at
-`nirmal-studio-website.pages.dev` as of the last session.
+Everything below is committed, pushed to `main`
+(`github.com/parthamarshah/nirmal-studio-website`), and deployed at
+`nirmal-studio-website.pages.dev` as of this session (pushed `2efa57d`/`d66080f` and
+redeployed at the start of this session — the live site had been 2 commits stale,
+missing Studio/FOLD, Contact/Journal/Testimonials, and the back-button fix entirely).
+The Claude-in-Chrome extension connected successfully this session (fourth attempt —
+needed a full Chrome restart after install) and was used to run the deferred
+verification pass — see "Resume here" above for what it found.
 
 ## Done
 

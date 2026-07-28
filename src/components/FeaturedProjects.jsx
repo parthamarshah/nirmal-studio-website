@@ -33,6 +33,7 @@ export default function FeaturedProjects() {
   // carries over untouched).
   const detailScrollRef = useRef(null)
   const detailCloseRef = useRef(null)
+  const lightboxRef = useRef(null)
   const lightboxCloseRef = useRef(null)
   // The card button that opened the dialog, so focus can return to it on
   // close instead of resetting to <body> and losing a keyboard user's place.
@@ -97,29 +98,66 @@ export default function FeaturedProjects() {
   // renders, not just a lint warning.
   const pushedLevelsRef = useRef(0)
   const closingRef = useRef(false)
+  // .project-detail-close and .project-lightbox-close sit at the exact same
+  // fixed screen position (top-right, same offset) — intentional, so the ×
+  // doesn't visually jump as you go a layer deeper. Once
+  // disableTopLayerInteraction makes the just-closed layer's close button
+  // stop intercepting clicks, a second tap landing in that same spot within
+  // the fade window falls straight through onto whichever close button is
+  // now exposed underneath, closing that layer too — cascading a single tap
+  // into closing both the lightbox and the whole project takeover. Both
+  // close buttons (and Escape, and both backdrops) route through this one
+  // closeTopLayer function, so a short guard here, cleared after slightly
+  // longer than the longest fade (0.3s), absorbs that accidental
+  // click-through as a no-op regardless of which element physically caught it.
+  const closeGuardRef = useRef(false)
+  const armCloseGuard = () => {
+    closeGuardRef.current = true
+    window.setTimeout(() => {
+      closeGuardRef.current = false
+    }, 350)
+  }
+
+  // Framer's exit animation keeps the outgoing dialog mounted (and, by
+  // default, fully interactive) for its whole 0.25s/0.3s fade — without
+  // this, a click landing in that window right after any close lands on
+  // the still-fading, now-invisible overlay instead of the page
+  // underneath, since opacity animating to 0 doesn't touch pointer-events.
+  // Setting it synchronously the instant state clears (rather than via
+  // Framer's exit prop, which only applies non-animatable values once the
+  // exit finishes) closes that gap immediately.
+  const disableTopLayerInteraction = useCallback(() => {
+    if (lightboxImage) lightboxRef.current?.style.setProperty('pointer-events', 'none')
+    else if (activeProject) detailScrollRef.current?.style.setProperty('pointer-events', 'none')
+    armCloseGuard()
+  }, [lightboxImage, activeProject])
 
   const closeTopLayer = useCallback(() => {
+    if (closeGuardRef.current) return
     if (pushedLevelsRef.current > 0) {
       if (closingRef.current) return
       closingRef.current = true
       window.history.back()
     } else if (lightboxImage) {
+      disableTopLayerInteraction()
       setLightboxImage(null)
     } else {
+      disableTopLayerInteraction()
       setActiveSlug(null)
     }
-  }, [lightboxImage])
+  }, [lightboxImage, disableTopLayerInteraction])
 
   useEffect(() => {
     const handlePopState = () => {
       closingRef.current = false
       pushedLevelsRef.current = Math.max(0, pushedLevelsRef.current - 1)
+      disableTopLayerInteraction()
       if (lightboxImage) setLightboxImage(null)
       else setActiveSlug(null)
     }
     window.addEventListener('popstate', handlePopState)
     return () => window.removeEventListener('popstate', handlePopState)
-  }, [lightboxImage])
+  }, [lightboxImage, disableTopLayerInteraction])
 
   useEffect(() => {
     if (!activeProject) return
@@ -178,12 +216,24 @@ export default function FeaturedProjects() {
     triggerRef.current = triggerEl
     pushedLevelsRef.current += 1
     window.history.pushState({ nirmalOverlay: 'project' }, '')
+    // AnimatePresence keys this dialog by a static string ("project-detail"),
+    // not by slug — closing and reopening fast enough that the previous
+    // exit fade hadn't finished yet reuses the same DOM node rather than
+    // mounting a fresh one, so disableTopLayerInteraction's leftover
+    // `pointer-events: none` from that close would otherwise survive onto
+    // the reopened dialog and leave it permanently click-dead.
+    detailScrollRef.current?.style.removeProperty('pointer-events')
+    closeGuardRef.current = false
     setActiveSlug(project.slug)
   }
 
   const openLightbox = (image) => {
     pushedLevelsRef.current += 1
     window.history.pushState({ nirmalOverlay: 'lightbox' }, '')
+    // Same static-key reuse risk as openProject above, for the lightbox's
+    // own "project-lightbox" key.
+    lightboxRef.current?.style.removeProperty('pointer-events')
+    closeGuardRef.current = false
     setLightboxImage(image)
   }
 
@@ -493,6 +543,7 @@ export default function FeaturedProjects() {
             // React renders a literal `false` as the string "false".
             data-lenis-prevent={lightboxImage.mode === 'pan' ? '' : undefined}
             className={`project-lightbox project-lightbox-${lightboxImage.mode}`}
+            ref={lightboxRef}
           >
             {lightboxImage.label && (
               <span className="project-lightbox-label">{lightboxImage.label}</span>
