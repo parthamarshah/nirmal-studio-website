@@ -159,6 +159,12 @@ export default function Process() {
       if (fillEl) {
         gsap.set(fillEl, { clearProps: 'width' })
       }
+      // The mobile/reduced-motion fallback's own scroll listener only fires
+      // on a native 'scroll' event — resizing down mid-pin (e.g. at stage 4)
+      // never fires one, so without this the dots/progress label would keep
+      // showing the pinned scroll's last stage while the carousel itself
+      // visually resets to panel 1 (its native scrollLeft starts at 0).
+      setActiveIndex(0)
     }
   }, [pinned])
 

@@ -64,13 +64,35 @@ restart after install, not just a reload) and drove the live site directly. Find
   separately rather than assumed. Not changed this session — the real fix (shortening
   member bios) touches factual copy about three named people, which is his call per
   CLAUDE.md, not something to unilaterally trim.
-- **Not covered this session, still genuinely open**: Process's own dedicated browser
-  check (pin/carousel/dot navigation across the 1024px breakpoint, reduced-motion
-  fallback — item 8 in the original checklist, three-plus sessions deferred now);
-  a general aesthetic/visual read of the Featured Projects grid and galleries beyond
-  the interaction-logic tests above; Contact's WhatsApp link opening a real
-  wa.me conversation. The font-flash fix (item 5) and Contact's content calls (item 7)
-  were already verified in a prior session and are unchanged.
+- **Process's own dedicated browser check finally happened this session** (three-plus
+  sessions deferred). Desktop pin/scrub, the progress bar, and dot-click navigation
+  were verified correct via live DOM/ScrollTrigger state inspection (programmatically
+  scrolled to the pin's midpoint and read back the track's actual transform, the active
+  dot, and the fill width — all consistent with scroll progress). Reduced-motion was
+  verified by code read rather than by toggling the OS setting live: `prefersReducedMotion()`
+  gates `pinned` before `gsap.matchMedia` ever registers, so a reduced-motion desktop
+  user never gets the pin and falls back to the exact same native scroll-snap code path
+  mobile uses — confirmed this is one shared code path, not two to separately maintain.
+  **Found and fixed a real bug**: resizing down from desktop to mobile mid-scroll (say,
+  stage 4 of 6) correctly cleared the leftover inline transform/width (the known-incident
+  pattern already documented in CLAUDE.md), but never reset the `activeIndex` React
+  state — so the progress dots and label kept showing "04 — Resolve the Detail" while
+  the carousel itself visually reset to panel 1 (its native `scrollLeft` starts at 0
+  on the mobile layout). Fixed in `Process.jsx` by resetting `activeIndex` to 0 in the
+  same cleanup that already clears the stale inline styles. **Not fully closed out**:
+  partway through this session the automated Chrome window lost OS-level screen focus
+  (`document.hidden` stayed `true` even after `hasFocus()` returned `true`), which
+  blanked every screenshot and silently no-opped `resize_window` (the tab never
+  received the resize — `window.innerWidth` stayed stuck at its pre-loss value even
+  though the OS-level window itself resized). This blocked a real visual/interactive
+  check of the resize-across-breakpoint case and the mobile swipe-snap carousel on an
+  actual narrow viewport — those were verified by code review only (the mobile carousel
+  runs the identical fallback logic just exercised via the reduced-motion path above,
+  so confidence is reasonably high, but a quick live visual pass is still worth doing
+  once Claude-in-Chrome's window is back in focus). A general aesthetic/visual read of
+  the Featured Projects grid and galleries, and Contact's WhatsApp link opening a real
+  wa.me conversation, remain open too. The font-flash fix (item 5) and Contact's content
+  calls (item 7) were already verified in a prior session and are unchanged.
 
 Landed this session, in order: the Loader font-flash fix (below), Studio/FOLD
 (Task #10), a back-button fix for Featured Projects' full-screen takeover, and
@@ -190,17 +212,14 @@ themselves (card layout, image quality, gallery browsing feel) beyond the
 interaction-logic checks — worth a look, though lower risk than the interaction bugs
 already found and fixed.
 
-Task #8 (Process) still needs its own from-scratch browser check — genuinely not
-touched yet, three-plus sessions running now: (1) desktop >=1024px — scroll into
-Process, confirm vertical scroll converts to horizontal card motion smoothly (pinned,
-no jank), progress dots + bar track correctly, clicking a dot jumps to that stage —
-this section sits after Featured Projects instead of directly after Idea-to-Home,
-which changes how much scroll room is above it, so it's worth a fresh look rather than
-assuming the math still works the same way; (2) resize the browser across the 1024px
-breakpoint mid-scroll — confirm no leftover card/progress-bar jump when it falls back
-to mobile layout; (3) mobile/narrow width — confirm horizontal swipe-snap carousel,
-dots still work; (4) with OS-level "reduce motion" on — confirm it's the same
-swipe-snap fallback as mobile, not a broken pinned attempt.
+Task #8 (Process) got its first real QA pass this session — see "Resume here" above
+for what was checked (desktop pin/scrub/dots/progress-bar, verified live via DOM/
+ScrollTrigger state), what was found and fixed (the `activeIndex` desync on a
+resize-down-mid-scroll), and what's still only code-reviewed rather than live-verified
+on an actual narrow viewport (resize-across-breakpoint visuals, mobile swipe-snap) —
+blocked mid-session by the automation browser losing screen focus, not by anything in
+the component itself. Worth a quick live visual confirmation once that's resolved,
+but not urgent.
 
 Also still needs Parth to re-verify the two phone fixes from an earlier session
 (floor-plan lightbox pan/zoom + close button, Philosophy's border-only pill badges) —
