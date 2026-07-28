@@ -79,8 +79,24 @@ restart after install, not just a reload) and drove the live site directly. Find
   state — so the progress dots and label kept showing "04 — Resolve the Detail" while
   the carousel itself visually reset to panel 1 (its native `scrollLeft` starts at 0
   on the mobile layout). Fixed in `Process.jsx` by resetting `activeIndex` to 0 in the
-  same cleanup that already clears the stale inline styles. **Not fully closed out**:
-  partway through this session the automated Chrome window lost OS-level screen focus
+  same cleanup that already clears the stale inline styles. Review agents (impact-tracker,
+  ux-reviewer, edge-case-checker, run against this specific fix) independently caught two
+  more real gaps in the same class, both fixed and re-verified via lint/build before commit:
+  - The fix only covered desktop→mobile; the mirror direction (resizing mobile→desktop
+    mid-carousel, e.g. a tablet rotating past 1024px) had no equivalent correction — the
+    dots/label could keep showing wherever the mobile scroll listener last left them,
+    relying on ScrollTrigger's `onUpdate` happening to fire at the right moment rather
+    than guaranteeing it. Fixed by explicitly deriving `activeIndex` from the new
+    ScrollTrigger's actual `.progress` right after the existing rAF-deferred
+    `ScrollTrigger.refresh()` call, instead of assuming `onUpdate` fires on creation.
+  - Independently of this fix: `.process-progress-fill` (the bronze progress bar) was
+    only ever updated inside the desktop-pinned effect — on mobile/reduced-motion it sat
+    frozen at its CSS default (0%) through an entire 6-stage swipe, even though the dots
+    and label beside it correctly advanced. Pre-existing, not introduced by this session's
+    fix, but exposed by contrast with it. Fixed by updating the fill width inside the same
+    mobile `handleScroll` listener that already derives `activeIndex` from `scrollLeft`.
+  **Not fully closed out**: partway through this session the automated Chrome window
+  lost OS-level screen focus
   (`document.hidden` stayed `true` even after `hasFocus()` returned `true`), which
   blanked every screenshot and silently no-opped `resize_window` (the tab never
   received the resize — `window.innerWidth` stayed stuck at its pre-loss value even

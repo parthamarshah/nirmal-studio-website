@@ -138,7 +138,20 @@ export default function Process() {
     // pin setup can still shift layout (it inserts a pin-spacer). One
     // rAF-deferred refresh re-settles start/end against the final DOM, same
     // defensive pattern as scroll.js's fonts.ready → refresh() hook.
-    const raf = requestAnimationFrame(() => ScrollTrigger.refresh())
+    // Also derives activeIndex from the just-settled progress here, rather
+    // than assuming onUpdate fires the instant the trigger is (re)created —
+    // this is the mobile-to-desktop mirror of the resize-down fix below: on
+    // a resize-up mid-carousel (e.g. a tablet rotating past 1024px), this is
+    // what corrects the dots/label from whatever the mobile scroll listener
+    // last set to what the new pin's actual scroll position implies.
+    const raf = requestAnimationFrame(() => {
+      ScrollTrigger.refresh()
+      const st = tween.scrollTrigger
+      if (st) {
+        const raw = Math.round(st.progress * (STAGES.length - 1))
+        setActiveIndex(Math.min(STAGES.length - 1, Math.max(0, raw)))
+      }
+    })
 
     return () => {
       cancelAnimationFrame(raf)
@@ -190,6 +203,18 @@ export default function Process() {
       // whole app (no error boundary anywhere in this codebase).
       const raw = Math.round(track.scrollLeft / step)
       setActiveIndex(Math.min(STAGES.length - 1, Math.max(0, raw)))
+
+      // The desktop pin drives progressFillRef itself (see the pinned
+      // effect above), but that effect is entirely skipped on mobile/
+      // reduced-motion — without updating it here too, the fill bar would
+      // stay frozen at its CSS default (0%) through a full swipe of all 6
+      // stages while the dots/label beside it correctly advance.
+      const fillEl = progressFillRef.current
+      if (fillEl) {
+        const maxScroll = track.scrollWidth - track.clientWidth
+        const progress = maxScroll > 0 ? Math.min(1, Math.max(0, track.scrollLeft / maxScroll)) : 0
+        fillEl.style.width = `${progress * 100}%`
+      }
     }
 
     track.addEventListener('scroll', handleScroll, { passive: true })
