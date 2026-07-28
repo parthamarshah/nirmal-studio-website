@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { initScroll, destroyScroll } from './lib/scroll'
 import Loader from './components/Loader'
+import Nav from './components/Nav'
 import Hero from './components/Hero'
 import Statement from './components/Statement'
 import FocusImage from './components/FocusImage'
@@ -30,6 +31,7 @@ function App() {
   return (
     <>
       <Loader />
+      <Nav />
       <main>
         <Hero project={heroProject} />
         <Statement />

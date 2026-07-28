@@ -5,6 +5,49 @@ live in `CLAUDE.md` — read that first if you're picking this up cold.
 
 ## Resume here
 
+**Local-SEO + site-essentials pass landed this session** (nav, favicon, OG/meta
+tags, robots.txt/sitemap, JSON-LD structured data, social-links plumbing, Contact's
+real address + map) — full detail in the matching "Done" entry below. Two things
+Parth needs to see, not just discover:
+
+- **A real brand-identity mismatch surfaced this session.** Parth shared the actual
+  Nirmal Studio logo (`Nirmal Studio Logo.png` / `Business Card - Front.psd`) while
+  this work was in progress — it uses a different typeface and different colors
+  than what's implemented site-wide: "nirmal" in a bold rounded sans, olive/grey-green
+  (`#6C705D`), "studio" in a script-style font, rust/terracotta (`#A94424`). The live
+  site uses Syne (bold "nirmal" + regular "studio") in the bronze/cream palette —
+  a deliberate choice from an earlier session's live font comparison (see CLAUDE.md).
+  Only the new favicon was built from the real logo this session (cropped the actual
+  "n" glyph, real colors, on the site's cream background) — nothing else was
+  changed to match it, since reconciling the whole site's type/color to the real
+  brand mark is a real scope decision, not something to decide unilaterally.
+  **Needs Parth's call**: keep the site's current Syne/bronze direction as an
+  intentional web-specific divergence, or bring fonts/colors in line with the
+  actual logo. `public/icons/` has the cropped "n" asset if that helps him judge.
+- **Google Business Profile**: Parth said he can create one now (he has a real
+  address: `201, Second Floor, Tilakraj Complex, Panchavati 1st Lane, Ambavadi,
+  Ahmedabad, Gujarat 380006`, now live on the Contact section and in the JSON-LD).
+  This is flagged as the single highest-leverage action for his stated goal
+  (ranking for "architect in Ahmedabad" etc.) — bigger than anything code-side —
+  but it's a self-serve external action on his Google account, not something done
+  in this repo. Walk him through it next session if he hasn't already.
+- **Nav's mobile layout and the smooth-scroll-on-click behavior are unverified
+  live** — Claude-in-Chrome hit the exact same environment bug already documented
+  below (`document.hidden` stuck `true`, `resize_window` silently no-opping,
+  screenshots showing stale frames) that blocked Process.jsx's mobile check in an
+  earlier session. Verified everything possible via direct DOM/computed-style
+  JS calls instead (z-index stacking against FeaturedProjects' takeover, the
+  takeover's Tab-trap not leaking to nav links, mobile menu open/close/Escape/
+  click-outside state logic) — real interactive/visual confirmation on an actual
+  narrow viewport is still owed once that environment issue clears.
+- Domain: `nirmalstudio.com` is still not attached to the Pages project (unchanged
+  this session) — all new SEO tags (canonical, OG, sitemap, robots.txt) already
+  point at `https://nirmalstudio.com` on the assumption it goes live within a day
+  or two, per Parth. Attaching it is still the one step requiring his explicit
+  go-ahead immediately before running it, per CLAUDE.md.
+
+---
+
 **The deferred verification pass (see below) has now happened.** Claude-in-Chrome
 connected successfully this session (fourth attempt — needed a full Chrome quit/
 restart after install, not just a reload) and drove the live site directly. Findings:
@@ -522,6 +565,66 @@ first fix). Both pushed and redeployed — live at
   a two-session-old stale TODO comment. **Not visually verified in a real browser
   this session** — see the explicit checklist in "Resume here" for what the deferred
   verification session needs to look at.
+- **Local-SEO + site-essentials pass** (`Nav.jsx` new; `index.html`, `Contact.jsx`,
+  `Hero.jsx`, `tokens.css` edited; `social.js`, `robots.txt`, `sitemap.xml`,
+  `public/icons/*` new) — driven by Parth's stated priority: rank for "architect"
+  searches in Ahmedabad/Indore/Udaipur/Surat/Gandhinagar and the three states.
+  **Nav** (`Nav.jsx`): persistent fixed bar, transparent/white text over Hero,
+  swaps to solid cream + dark text once Hero scrolls out of view via a
+  `ScrollTrigger` boundary on `#hero` (new id added to Hero.jsx) — a discrete
+  onEnter/onLeaveBack toggle, not a scrub, so intentionally not gated behind
+  `prefersReducedMotion()` the way this codebase's other ScrollTrigger effects
+  are (hiding it would leave nav text illegible over light body content for
+  reduced-motion users). Links route through `scrollTo()`, Journal's link uses
+  the same emptiness check as `App.jsx`. Mobile menu is a plain CSS class toggle
+  (opacity/max-height transition, `pointer-events` set directly not animated),
+  deliberately not Framer/AnimatePresence — sidesteps the pointer-events-during-
+  exit-fade bug class this codebase already hit twice (FeaturedProjects,
+  IdeaTimeline). `--z-nav: 80` added to `tokens.css`, below `--z-overlay: 90` so
+  FeaturedProjects' takeover still visually covers the nav — confirmed via
+  `document.elementFromPoint()`, not just code reading. SSR-rendered `Nav.jsx`
+  (react-dom/server + a `window.matchMedia` stub) to catch the TDZ-declaration-
+  order bug class that hit FeaturedProjects before; rendered clean. Three
+  review-agent passes (impact-tracker, ux-reviewer, edge-case-checker) caught
+  real issues, all fixed: nav text/hamburger bars had no `text-shadow`/
+  `drop-shadow` contrast floor over Hero (same fix class as Hero's own H1/CTA);
+  `SOCIAL_ICONS[platform]` could silently render an empty icon slot for a
+  future unmatched `social.js` key (now filtered); a stale doc comment in
+  `social.js` claimed `Nav.jsx` consumed it when only `Contact.jsx` does.
+  **Favicon** (`public/icons/*`): started as a hand-drawn geometric "N" (no
+  logo file was available yet), then Parth shared the real logo mid-session
+  (`Nirmal Studio Logo.png`) — replaced with the actual "n" glyph cropped from
+  that file, real color (`#6C705D` olive) on the site's cream background;
+  `favicon.svg` embeds the same raster crop (no vector source exists) so all
+  favicon delivery paths show the same real mark, not a mismatched invented one.
+  **This surfaced a real brand-identity question — see "Resume here" above,
+  not resolved this session.**
+  **Meta/OG/structured data** (`index.html`): canonical + OG + Twitter tags,
+  title/description honestly scoped (names Ahmedabad/Indore/Udaipur, where
+  real projects/address exist; "serving Gujarat, Rajasthan & Madhya Pradesh"
+  service-area language for the rest — no visible claim of built work in
+  Surat/Gandhinagar, which have zero projects in `projects.js`). JSON-LD
+  `schema.org/Architect` block with the real address, `areaServed` listing
+  all 8 target cities/states (the legitimate place for the full list, since
+  it's a service-area claim not a portfolio claim), and `sameAs` deliberately
+  hardcoded (not read from `social.js` at runtime) so it's guaranteed present
+  in the raw HTML for crawlers.
+  **Contact.jsx**: added the real address (Parth supplied it mid-session:
+  `201, Second Floor, Tilakraj Complex, Panchavati 1st Lane, Ambavadi,
+  Ahmedabad, Gujarat 380006`) and a Google Maps embed — converted to
+  click-to-load after ux-reviewer flagged an always-loaded iframe on the
+  page's last section as needless weight on an already perf-heavy site, not
+  left as `loading="lazy"` alone (which only defers *when*, not *whether*).
+  Social-icon row wired to new `social.js` (all null right now, same
+  hide-until-real-content pattern as Journal/Testimonials).
+  **`robots.txt`/`sitemap.xml`**: added, single-URL sitemap since this is a
+  one-page app with in-page anchors, not separate indexable routes. A
+  Cloudflare Pages `_headers`-based noindex for per-deploy preview URLs was
+  considered and dropped — Pages' `_headers` matches by path only, not
+  hostname, so it can't distinguish the real domain from `*.pages.dev` on a
+  single static deploy; the canonical tag is the actual mitigation here.
+  **Not visually verified live** — see "Resume here" for the exact
+  environment blocker (same `document.hidden`-stuck-true bug as before).
 
 ## Not started yet
 
@@ -533,8 +636,11 @@ first fix). Both pushed and redeployed — live at
   rather than self-hosted. A Slow-4G test mid-session showed ~7.1MB transferred / 40
   requests / ~40s to finish — heavy for the mobile-first target this project is
   built for.
-- Deciding whether the site needs a persistent nav (Contact is currently reachable
-  only by scrolling the entire page from the top).
+- Whether to bring the site's implemented fonts/colors (Syne wordmark, bronze
+  palette) in line with the real logo Parth shared this session (different
+  typeface, olive/rust colors) — see "Resume here" above. Not decided yet.
+- Setting up a Google Business Profile for local search (Parth has a real
+  address now and said he can do this) — see "Resume here" above.
 - Journal/Testimonials sections exist (`Journal.jsx`/`Testimonials.jsx`) but stay
   hidden until real content is added to their data files — this is the deliberate
   "hide entirely, no coming-soon placeholder" behavior per CLAUDE.md, not

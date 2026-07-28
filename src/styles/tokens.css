@@ -38,4 +38,8 @@
   /* Z-index scale */
   --z-loader: 100;
   --z-overlay: 90;
+  /* Below --z-overlay on purpose: FeaturedProjects' full-screen takeover
+     (and its lightbox, --z-overlay + 1) must visually cover the nav, not
+     sit behind it, when open. */
+  --z-nav: 80;
 }

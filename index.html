@@ -3,11 +3,118 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Title/description are tuned for local search: Ahmedabad named first
+         since that's where Tej is based and where the real address + most
+         projects are. Indore/Udaipur get named because real projects exist
+         there. Surat/Gandhinagar are deliberately NOT named here — no
+         project or presence there yet, so "serving clients across Gujarat,
+         Rajasthan & Madhya Pradesh" carries the broader region honestly as
+         a service-area claim rather than a fabricated portfolio claim (see
+         CLAUDE.md's content rules). The full target-city list still lives
+         in the JSON-LD `areaServed` field below, which is the legitimate
+         place for it. -->
+    <title>Nirmal Studio — Architects in Ahmedabad | Tej Shah</title>
     <meta
       name="description"
-      content="Nirmal Studio — Tej Shah. Designing Spaces. Crafting Experiences."
+      content="Tej Shah's architecture, interior & landscape design studio based in Ahmedabad. Projects in Indore & Udaipur; serving Gujarat, Rajasthan & Madhya Pradesh."
     />
-    <title>Nirmal Studio</title>
+    <link rel="canonical" href="https://nirmalstudio.com/" />
+
+    <!-- Open Graph / social preview -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Nirmal Studio" />
+    <meta property="og:locale" content="en_IN" />
+    <meta property="og:url" content="https://nirmalstudio.com/" />
+    <meta property="og:title" content="Nirmal Studio — Architects in Ahmedabad | Tej Shah" />
+    <meta
+      property="og:description"
+      content="Tej Shah's architecture, interior & landscape design studio based in Ahmedabad. Projects in Indore & Udaipur; serving Gujarat, Rajasthan & Madhya Pradesh."
+    />
+    <!-- Reuses the Citadel Tower render already used as the site's Hero
+         image — the strongest, most polished asset on the site, and real
+         project photography (not conceptArt, which CLAUDE.md forbids as a
+         load-bearing representative image). Native size 1024x547; close
+         enough to OG's ideal 1.91:1 (1200x630) that platforms crop/scale it
+         cleanly without a dedicated re-export. -->
+    <meta property="og:image" content="https://nirmalstudio.com/images/citadel-tower/exterior-landscape.jpg" />
+    <meta property="og:image:width" content="1024" />
+    <meta property="og:image:height" content="547" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Nirmal Studio — Architects in Ahmedabad | Tej Shah" />
+    <meta
+      name="twitter:description"
+      content="Tej Shah's architecture, interior & landscape design studio based in Ahmedabad. Projects in Indore & Udaipur; serving Gujarat, Rajasthan & Madhya Pradesh."
+    />
+    <meta name="twitter:image" content="https://nirmalstudio.com/images/citadel-tower/exterior-landscape.jpg" />
+
+    <!-- Favicon set. Cropped from Parth's real logo file (the lowercase "n"
+         glyph from "Nirmal Studio Logo.png" / Business Card - Front.psd),
+         not hand-drawn — colors are the logo's actual olive (#6C705D) on the
+         site's cream background, not the site's bronze palette, since that's
+         what the real mark uses. See the note flagged to Parth this session:
+         the real logo's typeface/colors (olive "nirmal" + rust "studio")
+         differ from what's implemented site-wide (Syne wordmark, bronze
+         palette) — this favicon alone doesn't resolve that, it just uses the
+         real asset for the one piece (the favicon) that had no site-wide
+         palette commitment yet. favicon.svg embeds the same raster crop (no
+         vector source exists for the real logo), so it matches the PNG
+         fallbacks exactly rather than looking like a different mark. -->
+    <link rel="icon" type="image/svg+xml" href="/icons/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
+    <meta name="theme-color" content="#7a5236" />
+
+    <!-- Structured data — schema.org Architect (a LocalBusiness subtype).
+         areaServed is the honest place to name the full target-city/state
+         list: it's a service-area claim, not a claim of built work in every
+         city. Surat and Gandhinagar have no project in src/data/projects.js
+         (Ahmedabad has 4, Indore 3, Udaipur 2) — they appear only here, never
+         in visible copy, per CLAUDE.md's rule against misrepresenting the
+         practice's actual work. -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Architect",
+        "name": "Nirmal Studio",
+        "founder": {
+          "@type": "Person",
+          "name": "Tej Shah"
+        },
+        "description": "Tej Shah's architecture, interior & landscape design studio based in Ahmedabad, India.",
+        "url": "https://nirmalstudio.com/",
+        "image": "https://nirmalstudio.com/images/citadel-tower/exterior-landscape.jpg",
+        "logo": "https://nirmalstudio.com/icons/icon-512.png",
+        "telephone": "+91-9106998434",
+        "email": "tej@nirmalstudio.com",
+        "address": {
+          "@type": "PostalAddress",
+          "streetAddress": "201, Second Floor, Tilakraj Complex, Panchavati 1st Lane, Ambavadi",
+          "addressLocality": "Ahmedabad",
+          "addressRegion": "Gujarat",
+          "postalCode": "380006",
+          "addressCountry": "IN"
+        },
+        "areaServed": [
+          "Ahmedabad",
+          "Indore",
+          "Udaipur",
+          "Surat",
+          "Gandhinagar",
+          "Gujarat",
+          "Rajasthan",
+          "Madhya Pradesh"
+        ],
+        "sameAs": []
+      }
+    </script>
+    <!-- sameAs is deliberately hardcoded here, not read from
+         src/data/social.js at runtime: this script tag needs to exist in the
+         raw HTML response for crawlers (same reasoning as the click-gated
+         FeaturedProjects content finding — anything client-rendered risks
+         never being seen). When a real Instagram/social URL is added to
+         social.js, add the same URL into the array above by hand. -->
+
     <!-- Fraunces (headings) + Syne (wordmark), chosen via Task #4's comparison
          pass. Self-hosting these is a later polish-pass item, not blocking now. -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
