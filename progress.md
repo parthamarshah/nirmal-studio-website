@@ -5,6 +5,15 @@ live in `CLAUDE.md` — read that first if you're picking this up cold.
 
 ## Resume here
 
+**Session status: working tree clean, everything committed and pushed to
+`main` (latest: `5846abc`), nothing at risk from a `/clear`. One open question
+Parth hasn't answered yet** (asked directly in chat at the end of this
+session, not yet responded to): does he want Cloudflare's AI-crawler block on
+`nirmalstudio.com` (GPTBot/ClaudeBot/Google-Extended/etc.) turned off, given
+his stated discoverability goal? See the dedicated entry just below for the
+full context — check with him before doing anything about it, don't assume
+either direction.
+
 **`nirmalstudio.com` is now live** (same session, after the WebP/SEO work below).
 Parth explicitly confirmed the go-ahead in chat first, per CLAUDE.md's one
 mandatory-confirmation step. The `wrangler pages domain add` CLI command
