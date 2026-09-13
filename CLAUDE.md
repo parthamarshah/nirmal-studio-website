@@ -21,10 +21,10 @@ better than that, not a marginal improvement.
 
 - **GitHub**: this repo is pushed to `github.com/parthamarshah/nirmal-studio-website`
   and `git push`/`git pull` work directly, no `gh` CLI needed.
-- **Cloudflare**: Wrangler CLI is authenticated (`npx wrangler whoami` confirms it)
-  against the "Gurjar" account, with a `pages:write` scope. The `nirmal-studio-website`
-  Pages project exists and deploys work via `npx wrangler pages deploy dist
-  --project-name nirmal-studio-website`.
+- **Cloudflare**: the `nirmal-studio` Pages project (Gurjar account) is Git-connected
+  to this repo — **pushing to `main` is the deploy**; no wrangler step needed. Wrangler
+  CLI is also authenticated, but its OAuth token has **no DNS-edit scope**, so DNS
+  record changes must go through the dashboard. See the Deploy section.
 - **Do not ask Parth to do GitHub or Cloudflare dashboard steps** (creating things,
   pushing, deploying) — just do it directly, dashboard included if Claude-in-Chrome
   is connected and already logged into the Gurjar account (confirmed working this
@@ -306,23 +306,39 @@ against them rather than rediscovering them by chance:
   "Gurjar" account (where `nirmalstudio.com`'s DNS actually lives — OAuth via
   `wrangler login` needs `dangerouslyDisableSandbox: true` on the Bash call, since the
   loopback callback server otherwise isn't reachable from the real browser).
-- **Pages project**: `nirmal-studio-website`, already created, live at
-  `https://nirmal-studio-website.pages.dev`. Deploy mechanism is direct CLI, not git
-  integration: `npm run build && npx wrangler pages deploy dist --project-name
-  nirmal-studio-website`. Run this after each build phase lands, alongside the git
-  commit/push.
-- **`nirmalstudio.com` is attached and live**, confirmed with Parth's explicit
-  go-ahead first per the rule above. The DNS swap (4 old `A` records pointing at
-  Lovable's GitHub Pages placeholder → 1 `CNAME` to
-  `nirmal-studio-website.pages.dev`) was done via the Cloudflare dashboard's
-  Custom domains tab (Workers & Pages → nirmal-studio-website → Custom domains),
-  **not** `wrangler pages domain add` — that CLI subcommand doesn't exist in the
-  installed wrangler (4.114.0; `wrangler pages --help` lists no `domain`
-  command as of this writing). If a future wrangler version restores it, that's
-  a fine shortcut, but don't assume the CLI command works without checking
-  `--help` first — this file said it existed for a while after it had already
-  been removed. If the domain ever needs to be reattached (e.g. a new Pages
-  project), the same dashboard flow works and is quick.
+- **Pages project**: `nirmal-studio` (live at `https://nirmal-studio.pages.dev`),
+  **Git-connected** to this repo since 2026-09-13: every push to `main` builds and
+  deploys automatically (`npm run build` → `dist`, Node version read from
+  `.node-version` — deliberately *no* `NODE_VERSION` env var in the dashboard, so the
+  repo file stays the single source of truth). Deploy = commit + push; confirm the
+  new deployment in the dashboard (Workers & Pages → nirmal-studio → Deployments).
+  The Cloudflare GitHub app has repo access granted via GitHub.
+- **Old project `nirmal-studio-website`** (direct CLI upload, can't be converted to
+  Git) now has no custom domains — kept briefly as a rollback, to be deleted later
+  with Parth's OK. Don't deploy to it.
+- **Both `nirmalstudio.com` AND `www.nirmalstudio.com` are custom domains on
+  `nirmal-studio`**, each a proxied CNAME → `nirmal-studio.pages.dev`. **Apex and www
+  are separate DNS records — any domain/DNS/project change must handle both.** The
+  original go-live only moved the apex; `www` stayed a DNS-only CNAME to
+  `sagarvora.github.io` (Parth's friend's GitHub Pages — the old "coming soon"
+  placeholder, *not* Lovable as this file used to say) for ~2 months, so visitors
+  typing `www` saw the old site. Fixed 2026-09-13.
+- **After any DNS, custom-domain, or deploy change, run `npm run check:domains`** —
+  it asserts both hostnames return 200, `server: cloudflare`, and the real page
+  title. Checking only the apex is how the www bug went unnoticed.
+- **Moving a custom domain between Pages projects**: remove it from the old project
+  (this deletes its CNAME), then add it to the new one. For `www` the dashboard
+  recreated the CNAME automatically; for the apex it did **not** — the site returned
+  Cloudflare 522 until the apex CNAME was manually pointed at the new
+  `*.pages.dev` target in DNS → Records. Expect that and have the DNS tab ready.
+- **DNS records that must never be touched during site work**: MX
+  `mx1/mx2.efwd.spaceship.net` + SPF TXT (live email forwarding for
+  `tej@nirmalstudio.com`), and CNAME `erp` → `nirmal-erp.onrender.com` (a separate
+  ERP app). Parth has a full zone export from 2026-09-13
+  (`~/Downloads/nirmalstudio.com.txt`, pre-fix) if anything goes missing.
+- Custom domains are managed via the dashboard (Workers & Pages → project → Custom
+  domains); `wrangler pages domain add` doesn't exist in wrangler 4.114.0 — check
+  `--help` before assuming a CLI path.
 - **Cloudflare's own zone-level "AI Crawl Control" injects extra `robots.txt`
   rules on `nirmalstudio.com`** (not present on the `.pages.dev` URL, confirmed
   by comparing both — so it's an account/zone setting, not anything in this

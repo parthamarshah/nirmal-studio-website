@@ -5,14 +5,51 @@ live in `CLAUDE.md` — read that first if you're picking this up cold.
 
 ## Resume here
 
-**Session status: working tree clean, everything committed and pushed to
-`main` (latest: `5846abc`), nothing at risk from a `/clear`. One open question
+**2026-09-13 — www bug fixed + site now auto-deploys from GitHub.** Parth noticed
+`www.nirmalstudio.com` showed the old "coming soon" page while the bare domain showed
+the real site. Cause: `www` was still a DNS-only CNAME to `sagarvora.github.io` (his
+friend's GitHub Pages) — the go-live had only moved the apex. Parth did the dashboard
+steps himself, guided by screenshot: deleted that record, created a new Git-connected
+Pages project **`nirmal-studio`**, and moved both `nirmalstudio.com` and `www` onto
+it (apex had ~2–3 min of Cloudflare 522 during the move because its CNAME had to be
+repointed by hand). Added `npm run check:domains` (asserts both hostnames serve the
+real site via Cloudflare) and rewrote CLAUDE.md's Deploy section — **deploys are now
+just `git push` to `main`**, no wrangler step. Open follow-ups, none urgent: (1) delete
+the old `nirmal-studio-website` Pages project after ~1–2 weeks once confident (ask
+Parth first); (2) optionally tighten the Cloudflare GitHub app back to "only select
+repositories" if "All repositories" was chosen; (3) optionally ask Sagar to remove
+`www.nirmalstudio.com` from his GitHub Pages repo settings (harmless now, just tidy).
+
+**Earlier session status: everything committed and pushed to
+`main` (latest: `5846abc`). One open question
 Parth hasn't answered yet** (asked directly in chat at the end of this
 session, not yet responded to): does he want Cloudflare's AI-crawler block on
 `nirmalstudio.com` (GPTBot/ClaudeBot/Google-Extended/etc.) turned off, given
 his stated discoverability goal? See the dedicated entry just below for the
 full context — check with him before doing anything about it, don't assume
 either direction.
+
+**This session (2026-08-04) was discussion-only — no code changed**, working tree
+still clean at `5846abc`. Parth shared an Instagram reel (@realkushdesai) promoting
+two Claude Code add-ons and asked whether to install them: the `ui-ux-pro-max-skill`
+GitHub skill (a local database of UI styles/palettes/font pairings meant to give
+Claude "taste") and 21st.dev's Magic MCP (pulls from a 10,000+-component shadcn/
+Tailwind catalog via a hosted API). Verified both are real, legitimate open-source
+projects, not scam links — but recommended **skipping both for this repo
+specifically**: the "generic AI output" problem they solve was already solved
+manually for this site through the multi-session design process now baked into this
+file and `CLAUDE.md` (Fraunces/Syne, bronze/cream, the GSAP/Lenis/Framer split), and
+Magic MCP's shadcn/Tailwind output doesn't match this project's plain-CSS/
+data-driven component stack — installing either risks Claude drifting back toward
+generic defaults on future work instead of staying consistent with what's already
+locked in. Suggested UI-UX Pro Max only be installed at Parth's **user** level
+(`~/.claude/skills`), not this project's `.claude/`, if he wants it available for
+other/future projects. Proposed a more concretely useful next step instead: a small
+`sharp`-based script to auto-generate missing `.webp` siblings from `public/images/`
+during `npm run build`, directly targeting the recurring "`<picture>` doesn't fall
+back on a 404" incident already in `CLAUDE.md`'s known-incident list. **Parth hasn't
+said yet whether to build it — that's the open thread for next session, nothing
+started.**
 
 **`nirmalstudio.com` is now live** (same session, after the WebP/SEO work below).
 Parth explicitly confirmed the go-ahead in chat first, per CLAUDE.md's one
