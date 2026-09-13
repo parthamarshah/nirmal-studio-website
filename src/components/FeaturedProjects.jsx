@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { gsap, prefersReducedMotion } from '../lib/scroll'
-import { projects } from '../data/projects'
-import { webp } from '../lib/images'
+import { projects } from '../lib/content'
+import Img from './Img'
+import LoadingHint from './LoadingHint'
 
 // Section 6 of the brief: Featured Projects, immersive per-project
 // storytelling. A grid index (each card self-identifies with what kind of
@@ -20,6 +21,8 @@ import { webp } from '../lib/images'
 // horizontal pin/scrub; a third distinct scroll mechanic here would compete
 // rather than add. The takeover itself is a Framer Motion mount/exit only
 // (never scroll-linked, per the motion-library split in CLAUDE.md).
+const THUMB_SIZES = '(min-width: 1024px) 240px, (min-width: 760px) 360px, 50vw'
+
 export default function FeaturedProjects() {
   const cardRefs = useRef([])
   const [activeSlug, setActiveSlug] = useState(null)
@@ -324,15 +327,14 @@ export default function FeaturedProjects() {
             onClick={(e) => openProject(project, e.currentTarget)}
           >
             {cardImage(project) && (
-              <picture>
-                {!cardIsDrawing(project) && <source type="image/webp" srcSet={webp(cardImage(project))} />}
-                <img
-                  src={cardImage(project)}
-                  alt={cardAlt(project)}
-                  loading="lazy"
-                  className="project-card-image"
-                />
-              </picture>
+              <Img
+                media={cardImage(project)}
+                sizes="(min-width: 1024px) 400px, (min-width: 640px) 50vw, 100vw"
+                placeholder={!cardIsDrawing(project)}
+                alt={cardAlt(project)}
+                loading="lazy"
+                className="project-card-image"
+              />
             )}
             {cardIsDrawing(project) && <span className="project-card-tag">Floor plan</span>}
             <span className="project-card-scrim" aria-hidden="true" />
@@ -378,10 +380,7 @@ export default function FeaturedProjects() {
 
               {activeProject.heroImage && (
                 <div className="project-detail-hero">
-                  <picture>
-                    <source type="image/webp" srcSet={webp(activeProject.heroImage)} />
-                    <img src={activeProject.heroImage} alt={activeProject.name} loading="lazy" />
-                  </picture>
+                  <Img media={activeProject.heroImage} sizes="(min-width: 760px) 760px, 100vw" alt={activeProject.name} />
                 </div>
               )}
 
@@ -433,17 +432,14 @@ export default function FeaturedProjects() {
                   <div className="project-detail-block">
                     <h4>Gallery</h4>
                     <div className="project-detail-gallery">
-                      {activeProject.gallery.map((src) => (
+                      {activeProject.gallery.map((media) => (
                         <button
-                          key={src}
+                          key={media.src}
                           type="button"
                           className="project-detail-thumb"
-                          onClick={() => openLightbox({ src, alt: activeProject.name, mode: 'fit' })}
+                          onClick={() => openLightbox({ src: media, alt: activeProject.name, mode: 'fit' })}
                         >
-                          <picture>
-                            <source type="image/webp" srcSet={webp(src)} />
-                            <img src={src} alt="" aria-hidden="true" loading="lazy" />
-                          </picture>
+                          <Img media={media} sizes={THUMB_SIZES} alt="" aria-hidden="true" loading="lazy" />
                         </button>
                       ))}
                     </div>
@@ -464,7 +460,13 @@ export default function FeaturedProjects() {
                         })
                       }
                     >
-                      <img src={activeProject.drawings} alt={`${activeProject.name}, ground floor plan`} loading="lazy" />
+                      <Img
+                        media={activeProject.drawings}
+                        sizes="(min-width: 760px) 760px, 100vw"
+                        placeholder={false}
+                        alt={`${activeProject.name}, ground floor plan`}
+                        loading="lazy"
+                      />
                       <span className="project-detail-drawing-hint">Tap to enlarge</span>
                     </button>
                   </div>
@@ -479,24 +481,21 @@ export default function FeaturedProjects() {
                       projects, not tied to specific rooms in this one.
                     </p>
                     <div className="project-detail-gallery">
-                      {activeProject.conceptArt.map((src) => (
+                      {activeProject.conceptArt.map((media) => (
                         <button
-                          key={src}
+                          key={media.src}
                           type="button"
                           className="project-detail-thumb is-concept"
                           onClick={() =>
                             openLightbox({
-                              src,
+                              src: media,
                               alt: `${activeProject.name} concept visualization`,
                               mode: 'fit',
                               label: 'Concept visualization',
                             })
                           }
                         >
-                          <picture>
-                            <source type="image/webp" srcSet={webp(src)} />
-                            <img src={src} alt="" aria-hidden="true" loading="lazy" />
-                          </picture>
+                          <Img media={media} sizes={THUMB_SIZES} alt="" aria-hidden="true" loading="lazy" />
                           <span className="project-detail-thumb-label">Concept</span>
                         </button>
                       ))}
@@ -568,15 +567,25 @@ export default function FeaturedProjects() {
             {lightboxImage.label && (
               <span className="project-lightbox-label">{lightboxImage.label}</span>
             )}
-            <picture>
-              {/* 'pan' mode is always the floor-plan drawing (see openLightbox
-                  call sites above) — never given a webp source, same reason
-                  drawings were excluded from this session's webp conversion. */}
-              {lightboxImage.mode === 'fit' && (
-                <source type="image/webp" srcSet={webp(lightboxImage.src)} />
-              )}
-              <img src={lightboxImage.src} alt={lightboxImage.alt} />
-            </picture>
+            {/* 'pan' mode is always a floor-plan drawing: shown at its own full
+                pixel size (full resolution, quality-95 JPEG) so dimension text stays
+                legible while panning. 'fit' mode lets the browser pick a size;
+                no width/height attributes, which would fight max-width/max-height. */}
+            <LoadingHint />
+            {lightboxImage.mode === 'pan' ? (
+              <img src={lightboxImage.src.src} alt={lightboxImage.alt} style={{ position: 'relative', zIndex: 1 }} />
+            ) : (
+              <Img
+                media={lightboxImage.src}
+                // Never wider than the image's own pixels — small renders show at
+                // their real size instead of being stretched to fill the screen.
+                sizes={`(max-width: ${lightboxImage.src.width}px) 100vw, ${lightboxImage.src.width}px`}
+                intrinsic={false}
+                placeholder={false}
+                alt={lightboxImage.alt}
+                style={{ position: 'relative', zIndex: 1 }}
+              />
+            )}
             <button
               type="button"
               ref={lightboxCloseRef}

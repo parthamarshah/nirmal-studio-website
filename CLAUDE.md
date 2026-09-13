@@ -55,7 +55,7 @@ Tagline: "Designing Spaces. Crafting Experiences."
 
 ## Content rules
 
-- **Featured Projects**: the confirmed list in `src/data/projects.js` has **9** entries.
+- **Featured Projects**: the confirmed list in `content/projects/*.json` has **9** entries.
   7 are the "Ongoing" projects from `/Users/parth/Downloads/Fold Architects_2.pdf` —
   everything else in that PDF is prior-firm work (@UA Lab, @Terrafirma, @Studio CC,
   @Stapati, @R+R) done by the four architects at their previous employers,
@@ -63,20 +63,22 @@ Tagline: "Designing Spaces. Crafting Experiences."
   renders/plans, not finished-building photography. The other 2 — **Shimla House** and
   **Nishee House** — came direct from Parth (not the PDF), confirmed as genuine current
   Nirmal Studio work; their construction status isn't confirmed, so don't assert
-  "ongoing" or "complete" for either. Both are backed by a real floor-plan drawing
-  (`drawings` field) rather than renders.
-- **AI-generated concept art (`conceptArt` field, Shimla House / Nishee House only)**:
-  11 images Parth generated to visualize these two projects — **not real Nirmal Studio
-  design output or photography**. Never merge into `gallery` or use as `heroImage`,
-  both of which every other project treats as real project imagery. Any component
-  rendering `conceptArt` must carry a visible label (e.g. "Concept visualization") —
-  no exceptions, and don't put it in a section's most load-bearing/payoff frame (e.g.
-  don't use it to represent a finished building). The same 11 images are shared across
-  both projects since there's no reliable way to tell which room belongs to which
-  house from the files themselves — if Parth ever clarifies the split, update
-  `SHIMLA_NISHEE_CONCEPT_ART` in `projects.js` accordingly.
+  "ongoing" or "complete" for either (their `facts.status` stays `null` until Parth sets
+  it). Both are backed by a real floor-plan drawing (a `drawing`-type image in their
+  "Drawings" section) rather than renders.
+- **AI-generated concept art (Shimla House / Nishee House)**: 11 images Parth generated
+  to visualize these two projects — **not real Nirmal Studio design output or
+  photography**. **Rule changed by Parth on 2026-09-13 (v1 planning):** they become
+  ordinary `render`-type images (type tags off by default), but **each image may be used
+  on only one of the two houses** — never duplicated across both. Since the files can't
+  be reliably matched to a house, they currently live unassigned in
+  `content/unsorted.json` (`aiGenerated: true`); Parth assigns each to one house in the
+  backend. **Transitional (Phase 0 only):** `src/lib/content.js`'s
+  `LEGACY_CONCEPT_ART_SLUGS` keeps showing them, labelled "Concept visualization", on
+  both houses exactly as before, so the live site doesn't change until the v1 section
+  renderer replaces the takeover's legacy fields. Remove that shim then.
 - **Founder bios**: deep bio copy only for Tej Shah. The other three FOLD members use
-  the PDF facts as-is (`src/data/founders.js`). Never invent years of experience,
+  the PDF facts as-is (`content/founders.json`). (v1 changes this — see the v1 plan: Parth writes all four bios via the backend.) Never invent years of experience,
   favourite material, or favourite architect for any of the four — not real facts we
   have, and these are real named people.
 - **Journal & Testimonials**: no real content yet. Sections **hide entirely** from the
@@ -121,15 +123,31 @@ Tagline: "Designing Spaces. Crafting Experiences."
     mask reveals, split-text, image sequences. Synced to Lenis in the same file.
   - **Framer Motion** — mount/exit transitions and micro-interactions only (hover
     states, mount/exit transitions). Never scroll-linked.
-- **Content-as-data pattern**: components read from `src/data/*.js`. Adding/editing
-  real content later should be a data edit, not a component rewrite.
-- **Image paths go in `public/images/<slug>/...`, never `src/assets/`.** Files in
-  `public/` are copied to the build output as-is, so a plain root-relative string path
-  in a data file (e.g. `/images/citadel-tower/hero.jpg`) resolves correctly in both
-  `npm run dev` and the production build. A path under `src/` works in dev (which
-  serves all of `src/`) but silently 404s after `npm run build`, since Vite only
-  bundles files that are actually `import`ed somewhere — a data file holding a bare
-  string path never triggers that. Don't reintroduce `src/assets/images`.
+- **Content lives in `content/` (JSON + original images), not in components.**
+  `content/site.json` (contact, socials, homepage image spots, section on/off),
+  `content/founders.json`, `content/projects/<slug>.json`, `content/unsorted.json`,
+  and original images under `content/media/`. The v1 `/admin` backend edits these
+  files by committing to `main`. `scripts/build-content.mjs` runs before every
+  `npm run dev`/`npm run build` (`predev`/`prebuild`): it **validates** everything
+  (a problem fails the build with a plain-English list, so a broken publish never
+  replaces the live site), generates every image size into `public/_media/`
+  (gitignored, hashed file names, cached a year via `public/_headers`), and writes
+  `src/generated/content.js` + `meta.json` (gitignored). Components import content only
+  through `src/lib/content.js` and render images only through `src/components/Img.jsx`
+  (media objects with srcset/width/height/blur placeholder — never bare path strings).
+  Run `npm run content` after hand-editing `content/` while the dev server is running.
+  `src/data/journal.js` / `testimonials.js` are the two not yet migrated.
+- **Never reference image files by path.** Add the original to
+  `content/media/projects/<slug>/` and a `pool` entry in that project's JSON; the build
+  produces the files. `public/images/` and hand-made `.webp` siblings are gone — don't
+  reintroduce either, or `src/assets/images` (bare string paths under `src/` 404 after
+  build). Drawings are kept as quality-95 JPEG at full resolution (up to 4000px wide, EXIF
+  stripped) because their dimension text is barely legible even uncompressed.
+- **Each homepage section is wrapped in `SectionBoundary`** (`App.jsx`) — a section that
+  throws hides itself instead of blanking the page. Still guard `find()` results (the
+  boundary is a backstop, not a license to skip guards).
+- **If backend-published commits land on `main`, `git pull` before starting code work**,
+  and don't hand-edit `content/` while a backend draft may be open.
 - **In-page navigation goes through `scrollTo()`** (`src/lib/scroll.js`), never a
   native anchor jump or `element.scrollIntoView()` directly — those bypass Lenis and
   desync it from ScrollTrigger. `scrollTo()` accepts a CSS selector, a DOM element, or
@@ -283,20 +301,12 @@ against them rather than rediscovering them by chance:
   `AnimatePresence` overlay — new lightbox, new modal — against all three parts of
   this (disable on close, reset on open, guard against same-position click-through)
   rather than just the first.
-- **A `<picture>`'s `<source>` does not fall back to the `<img>` on a 404 — only on
-  a genuinely unsupported `type`/`media`.** If a `<source srcSet>` points at a file
-  that doesn't exist, the browser treats that source as "selected but broken," not
-  "unavailable, try the next one" — the image just shows broken, in exactly the
-  browsers (modern, WebP-supporting) most likely to be used for testing. This
-  matters here because `src/lib/images.js`'s `webp()` helper derives a `.webp`
-  sibling path by string substitution with no existence check — every image's
-  `<picture>` (`Hero.jsx`, `FocusImage.jsx`, `Philosophy.jsx`, `FeaturedProjects.jsx`)
-  trusts that a same-named `.webp` file actually exists on disk next to the
-  `.jpg`/`.jpeg` `projects.js` points at. Adding a new project's image to
-  `projects.js` without generating its `.webp` sibling silently breaks that image
-  for most real visitors, not just missing an optimization. Check any future image
-  addition against this before assuming "no `.webp` yet" just means "slightly
-  bigger download."
+- **(Closed by the Phase 0 image pipeline, kept as background.)** A `<picture>`'s
+  `<source>` does not fall back to the `<img>` on a 404 — only on an unsupported
+  `type`/`media`. The old `webp()` helper derived `.webp` sibling paths with no existence
+  check, so an image added without its hand-made `.webp` showed broken for most
+  visitors. `Img.jsx` now only points at files `build-content.mjs` verifiably produced.
+  If anything ever reintroduces a path derived by string substitution, this comes back.
 
 ## Deploy
 

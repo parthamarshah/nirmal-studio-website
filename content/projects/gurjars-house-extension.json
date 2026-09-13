@@ -1,0 +1,189 @@
+{
+  "slug": "gurjars-house-extension",
+  "previousSlugs": [],
+  "order": 7,
+  "hidden": false,
+  "deleted": false,
+  "name": "Gurjar's House Extension",
+  "facts": {
+    "type": "Residential Interior",
+    "city": "Udaipur",
+    "status": "under-construction",
+    "siteArea": null,
+    "builtUpArea": "2,500 sqft",
+    "custom": []
+  },
+  "cover": {
+    "image": "interior-bedroom",
+    "crop": null,
+    "phoneImage": null,
+    "phoneCrop": null
+  },
+  "sections": [
+    {
+      "id": "concept",
+      "heading": "Concept",
+      "body": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "An ongoing residential extension in Udaipur."
+              }
+            ]
+          }
+        ]
+      },
+      "images": []
+    },
+    {
+      "id": "challenge",
+      "heading": "Challenge",
+      "body": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Extending a lived-in family home without it reading as an addition — the new 2,500 sqft had to feel like it always belonged."
+              }
+            ]
+          }
+        ]
+      },
+      "images": []
+    },
+    {
+      "id": "materials",
+      "heading": "Materials",
+      "body": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Materials matched and continued from the existing house, rather than introduced as a visibly newer layer."
+              }
+            ]
+          }
+        ]
+      },
+      "images": []
+    },
+    {
+      "id": "construction",
+      "heading": "Construction",
+      "body": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Currently under construction."
+              }
+            ]
+          }
+        ]
+      },
+      "images": []
+    },
+    {
+      "id": "gallery",
+      "heading": "Gallery",
+      "body": null,
+      "images": [
+        {
+          "image": "gallery-1",
+          "shape": "original"
+        },
+        {
+          "image": "gallery-2",
+          "shape": "original"
+        },
+        {
+          "image": "gallery-3",
+          "shape": "original"
+        },
+        {
+          "image": "gallery-4",
+          "shape": "original"
+        },
+        {
+          "image": "gallery-5",
+          "shape": "original"
+        }
+      ]
+    }
+  ],
+  "pool": [
+    {
+      "id": "interior-bedroom",
+      "file": "interior-bedroom.jpg",
+      "type": "render",
+      "caption": "",
+      "rotation": 0,
+      "crop": null,
+      "hidden": false,
+      "showTag": false
+    },
+    {
+      "id": "gallery-1",
+      "file": "gallery-1.jpg",
+      "type": "render",
+      "caption": "",
+      "rotation": 0,
+      "crop": null,
+      "hidden": false,
+      "showTag": false
+    },
+    {
+      "id": "gallery-2",
+      "file": "gallery-2.jpg",
+      "type": "render",
+      "caption": "",
+      "rotation": 0,
+      "crop": null,
+      "hidden": false,
+      "showTag": false
+    },
+    {
+      "id": "gallery-3",
+      "file": "gallery-3.jpg",
+      "type": "render",
+      "caption": "",
+      "rotation": 0,
+      "crop": null,
+      "hidden": false,
+      "showTag": false
+    },
+    {
+      "id": "gallery-4",
+      "file": "gallery-4.jpg",
+      "type": "render",
+      "caption": "",
+      "rotation": 0,
+      "crop": null,
+      "hidden": false,
+      "showTag": false
+    },
+    {
+      "id": "gallery-5",
+      "file": "gallery-5.jpg",
+      "type": "render",
+      "caption": "",
+      "rotation": 0,
+      "crop": null,
+      "hidden": false,
+      "showTag": false
+    }
+  ]
+}

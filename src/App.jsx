@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { initScroll, destroyScroll } from './lib/scroll'
+import { homepageProject, isSectionOn } from './lib/content'
 import Loader from './components/Loader'
 import Nav from './components/Nav'
 import Hero from './components/Hero'
@@ -13,37 +14,39 @@ import Process from './components/Process'
 import Journal from './components/Journal'
 import Testimonials from './components/Testimonials'
 import Contact from './components/Contact'
-import { projects } from './data/projects'
+import SectionBoundary from './components/SectionBoundary'
 
-// Sections are added here one at a time as each build phase (Tasks #5–#13)
-// lands — this file stays intentionally minimal until then.
+// Each section sits in its own SectionBoundary: a section that fails to render
+// hides itself instead of blanking the whole page. Which project image each
+// homepage section shows, and whether a section is shown at all, come from
+// content/site.json (editable in the backend).
 function App() {
   useEffect(() => {
     initScroll()
     return () => destroyScroll()
   }, [])
 
-  const heroProject = projects.find((p) => p.slug === 'citadel-tower')
-  const focusProject = projects.find((p) => p.slug === 'terra-row-houses')
-  const philosophyProject = projects.find((p) => p.slug === 'dolomite-factory-office')
-  const timelineProject = projects.find((p) => p.slug === 'nishee-house')
+  const section = (key, name, element) =>
+    key === null || isSectionOn(key) ? <SectionBoundary name={name}>{element}</SectionBoundary> : null
 
   return (
     <>
       <Loader />
-      <Nav />
+      <SectionBoundary name="Nav">
+        <Nav />
+      </SectionBoundary>
       <main>
-        <Hero project={heroProject} />
-        <Statement />
-        <FocusImage project={focusProject} />
-        <Philosophy project={philosophyProject} />
-        <IdeaTimeline project={timelineProject} />
-        <FeaturedProjects />
-        <Studio />
-        <Process />
-        <Journal />
-        <Testimonials />
-        <Contact />
+        {section(null, 'Hero', <Hero project={homepageProject('hero')} />)}
+        {section('statement', 'Statement', <Statement />)}
+        {section('focusImage', 'Focus image', <FocusImage project={homepageProject('focus')} />)}
+        {section('philosophy', 'Philosophy', <Philosophy project={homepageProject('philosophy')} />)}
+        {section('ideaTimeline', 'Idea timeline', <IdeaTimeline project={homepageProject('timeline')} />)}
+        {section('featuredProjects', 'Featured projects', <FeaturedProjects />)}
+        {section('studio', 'Studio', <Studio />)}
+        {section('process', 'Process', <Process />)}
+        {section(null, 'Journal', <Journal />)}
+        {section(null, 'Testimonials', <Testimonials />)}
+        {section('contact', 'Contact', <Contact />)}
       </main>
     </>
   )

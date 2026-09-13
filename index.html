@@ -30,22 +30,20 @@
       property="og:description"
       content="Tej Shah's architecture, interior & landscape design studio based in Ahmedabad. Projects in Indore & Udaipur; serving Gujarat, Rajasthan & Madhya Pradesh."
     />
-    <!-- Reuses the Citadel Tower render already used as the site's Hero
-         image — the strongest, most polished asset on the site, and real
-         project photography (not conceptArt, which CLAUDE.md forbids as a
-         load-bearing representative image). Native size 1024x547; close
-         enough to OG's ideal 1.91:1 (1200x630) that platforms crop/scale it
-         cleanly without a dedicated re-export. -->
-    <meta property="og:image" content="https://nirmalstudio.com/images/citadel-tower/exterior-landscape.jpg" />
-    <meta property="og:image:width" content="1024" />
-    <meta property="og:image:height" content="547" />
+    <!-- Share image: picked in content/site.json (homepage.shareImage, the
+         Citadel Tower render by default) and exported by
+         scripts/build-content.mjs as a 1200x630 JPEG — OG's ideal size, and
+         JPEG because not every link-preview crawler accepts WebP. -->
+    <meta property="og:image" content="__NIRMAL_SHARE_IMAGE__" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Nirmal Studio — Architects in Ahmedabad | Tej Shah" />
     <meta
       name="twitter:description"
       content="Tej Shah's architecture, interior & landscape design studio based in Ahmedabad. Projects in Indore & Udaipur; serving Gujarat, Rajasthan & Madhya Pradesh."
     />
-    <meta name="twitter:image" content="https://nirmalstudio.com/images/citadel-tower/exterior-landscape.jpg" />
+    <meta name="twitter:image" content="__NIRMAL_SHARE_IMAGE__" />
 
     <!-- Favicon set. Cropped from Parth's real logo file (the lowercase "n"
          glyph from "Nirmal Studio Logo.png" / Business Card - Front.psd),
@@ -68,7 +66,7 @@
     <!-- Structured data — schema.org Architect (a LocalBusiness subtype).
          areaServed is the honest place to name the full target-city/state
          list: it's a service-area claim, not a claim of built work in every
-         city. Surat and Gandhinagar have no project in src/data/projects.js
+         city. Surat and Gandhinagar have no project in content/projects/
          (Ahmedabad has 4, Indore 3, Udaipur 2) — they appear only here, never
          in visible copy, per CLAUDE.md's rule against misrepresenting the
          practice's actual work. -->
@@ -83,7 +81,7 @@
         },
         "description": "Tej Shah's architecture, interior & landscape design studio based in Ahmedabad, India.",
         "url": "https://nirmalstudio.com/",
-        "image": "https://nirmalstudio.com/images/citadel-tower/exterior-landscape.jpg",
+        "image": "__NIRMAL_SHARE_IMAGE__",
         "logo": "https://nirmalstudio.com/icons/icon-512.png",
         "telephone": "+91-9106998434",
         "email": "tej@nirmalstudio.com",
@@ -105,15 +103,13 @@
           "Rajasthan",
           "Madhya Pradesh"
         ],
-        "sameAs": []
+        "sameAs": __NIRMAL_SAME_AS__
       }
     </script>
-    <!-- sameAs is deliberately hardcoded here, not read from
-         src/data/social.js at runtime: this script tag needs to exist in the
-         raw HTML response for crawlers (same reasoning as the click-gated
-         FeaturedProjects content finding — anything client-rendered risks
-         never being seen). When a real Instagram/social URL is added to
-         social.js, add the same URL into the array above by hand. -->
+    <!-- The share-image and sameAs placeholders are filled in at build
+         time by vite.config.js from src/generated/meta.json (built from
+         content/site.json), so the share image and social links in this raw
+         HTML — which crawlers read — always match what the backend publishes. -->
 
     <!-- Fraunces (headings) + Syne (wordmark), chosen via Task #4's comparison
          pass. Self-hosting these is a later polish-pass item, not blocking now. -->

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { gsap, prefersReducedMotion } from '../lib/scroll'
-import { webp } from '../lib/images'
+import Img from './Img'
 
 // Section 3 of the brief: a quiet, full-bleed photography beat between the
 // Statement and Philosophy sections — minimal text, a slow scroll-scrubbed
@@ -56,17 +56,10 @@ export default function FocusImage({ project }) {
       }}
     >
       {hasImage && (
-        <picture>
-          {project.heroImageMobile && (
-            <source media="(max-width: 640px)" type="image/webp" srcSet={webp(project.heroImageMobile)} />
-          )}
-          {project.heroImageMobile && (
-            <source media="(max-width: 640px)" srcSet={project.heroImageMobile} />
-          )}
-          <source type="image/webp" srcSet={webp(project.heroImage)} />
-          <img
-            ref={imageRef}
-            src={project.heroImage}
+        <Img
+            media={project.heroImage}
+            mobile={project.heroImageMobile}
+            imgRef={imageRef}
             alt=""
             aria-hidden="true"
             loading="lazy"
@@ -81,7 +74,6 @@ export default function FocusImage({ project }) {
               willChange: 'transform',
             }}
           />
-        </picture>
       )}
 
       {/* Same strength/stops as Hero's scrim, not the lighter one this

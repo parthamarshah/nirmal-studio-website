@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { ScrollTrigger, prefersReducedMotion, scrollTo } from '../lib/scroll'
 import { journalPosts } from '../data/journal'
+import { isSectionOn } from '../lib/content'
 
 // Persistent nav — previously the site had none, so Contact was reachable
 // only by scrolling the full page. Transparent/light-text over Hero's dark
@@ -24,11 +25,11 @@ import { journalPosts } from '../data/journal'
 // unmount/remount cycle to create the "reused DOM node keeps stale
 // pointer-events" or same-position click-through follow-on bugs either.
 const NAV_LINKS = [
-  { label: 'Work', href: '#projects' },
-  { label: 'Studio', href: '#studio' },
-  { label: 'Process', href: '#process' },
+  { label: 'Work', href: '#projects', section: 'featuredProjects' },
+  { label: 'Studio', href: '#studio', section: 'studio' },
+  { label: 'Process', href: '#process', section: 'process' },
   { label: 'Journal', href: '#journal', requiresJournal: true },
-  { label: 'Contact', href: '#contact' },
+  { label: 'Contact', href: '#contact', section: 'contact' },
 ]
 
 export default function Nav() {
@@ -91,7 +92,11 @@ export default function Nav() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [menuOpen])
 
-  const links = NAV_LINKS.filter((link) => !link.requiresJournal || journalPosts.length > 0)
+  // A link only shows if its section is switched on in content/site.json —
+  // otherwise it would scroll to nothing.
+  const links = NAV_LINKS.filter(
+    (link) => (!link.requiresJournal || journalPosts.length > 0) && (!link.section || isSectionOn(link.section)),
+  )
 
   const handleLinkClick = (e, href) => {
     e.preventDefault()

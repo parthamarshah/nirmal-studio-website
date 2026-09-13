@@ -1,0 +1,126 @@
+{
+  "note": "Uploaded images not yet assigned to a project. The AI-generated concept images below must each be assigned to only one house.",
+  "pool": [
+    {
+      "id": "concept-1",
+      "file": "concept-1.jpg",
+      "type": "render",
+      "caption": "",
+      "rotation": 0,
+      "crop": null,
+      "hidden": false,
+      "showTag": false,
+      "aiGenerated": true
+    },
+    {
+      "id": "concept-2",
+      "file": "concept-2.jpg",
+      "type": "render",
+      "caption": "",
+      "rotation": 0,
+      "crop": null,
+      "hidden": false,
+      "showTag": false,
+      "aiGenerated": true
+    },
+    {
+      "id": "concept-3",
+      "file": "concept-3.jpg",
+      "type": "render",
+      "caption": "",
+      "rotation": 0,
+      "crop": null,
+      "hidden": false,
+      "showTag": false,
+      "aiGenerated": true
+    },
+    {
+      "id": "concept-4",
+      "file": "concept-4.jpg",
+      "type": "render",
+      "caption": "",
+      "rotation": 0,
+      "crop": null,
+      "hidden": false,
+      "showTag": false,
+      "aiGenerated": true
+    },
+    {
+      "id": "concept-5",
+      "file": "concept-5.jpg",
+      "type": "render",
+      "caption": "",
+      "rotation": 0,
+      "crop": null,
+      "hidden": false,
+      "showTag": false,
+      "aiGenerated": true
+    },
+    {
+      "id": "concept-6",
+      "file": "concept-6.jpg",
+      "type": "render",
+      "caption": "",
+      "rotation": 0,
+      "crop": null,
+      "hidden": false,
+      "showTag": false,
+      "aiGenerated": true
+    },
+    {
+      "id": "concept-7",
+      "file": "concept-7.jpg",
+      "type": "render",
+      "caption": "",
+      "rotation": 0,
+      "crop": null,
+      "hidden": false,
+      "showTag": false,
+      "aiGenerated": true
+    },
+    {
+      "id": "concept-8",
+      "file": "concept-8.jpg",
+      "type": "render",
+      "caption": "",
+      "rotation": 0,
+      "crop": null,
+      "hidden": false,
+      "showTag": false,
+      "aiGenerated": true
+    },
+    {
+      "id": "concept-9",
+      "file": "concept-9.jpg",
+      "type": "render",
+      "caption": "",
+      "rotation": 0,
+      "crop": null,
+      "hidden": false,
+      "showTag": false,
+      "aiGenerated": true
+    },
+    {
+      "id": "concept-10",
+      "file": "concept-10.jpg",
+      "type": "render",
+      "caption": "",
+      "rotation": 0,
+      "crop": null,
+      "hidden": false,
+      "showTag": false,
+      "aiGenerated": true
+    },
+    {
+      "id": "concept-11",
+      "file": "concept-11.jpg",
+      "type": "render",
+      "caption": "",
+      "rotation": 0,
+      "crop": null,
+      "hidden": false,
+      "showTag": false,
+      "aiGenerated": true
+    }
+  ]
+}

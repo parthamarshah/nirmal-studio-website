@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { gsap, prefersReducedMotion } from '../lib/scroll'
-import { tejShah, foldNetwork } from '../data/founders'
+import { tejShah, foldNetwork } from '../lib/content'
 
 // Section 7 of the brief: Studio (Tej Shah) + Network (FOLD). Nirmal Studio
 // is Tej's personal practice, not a multi-founder firm — FOLD is a separate,

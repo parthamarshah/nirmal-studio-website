@@ -1,0 +1,58 @@
+{
+  "contact": {
+    "phoneDisplay": "910 699 8434",
+    "phone": "+919106998434",
+    "whatsapp": "919106998434",
+    "whatsappGreeting": "Hi Tej, I'd like to talk about a project.",
+    "email": "tej@nirmalstudio.com",
+    "address": "201, Second Floor, Tilakraj Complex, Panchavati 1st Lane, Ambavadi, Ahmedabad, Gujarat 380006",
+    "hours": null,
+    "replyTime": null
+  },
+  "socials": {
+    "facebook": {
+      "url": null,
+      "on": false
+    },
+    "instagram": {
+      "url": null,
+      "on": false
+    },
+    "whatsapp": {
+      "url": null,
+      "on": false
+    },
+    "linkedin": {
+      "url": null,
+      "on": false
+    }
+  },
+  "homepage": {
+    "hero": {
+      "project": "citadel-tower"
+    },
+    "focus": {
+      "project": "terra-row-houses"
+    },
+    "philosophy": {
+      "project": "dolomite-factory-office"
+    },
+    "timeline": {
+      "project": "nishee-house"
+    },
+    "shareImage": {
+      "project": "citadel-tower",
+      "image": "exterior-landscape"
+    }
+  },
+  "sections": {
+    "statement": true,
+    "focusImage": true,
+    "philosophy": true,
+    "ideaTimeline": true,
+    "featuredProjects": true,
+    "studio": true,
+    "process": true,
+    "contact": true
+  }
+}

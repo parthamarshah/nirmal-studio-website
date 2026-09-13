@@ -1,0 +1,161 @@
+{
+  "slug": "law-office",
+  "previousSlugs": [],
+  "order": 5,
+  "hidden": false,
+  "deleted": false,
+  "name": "Law Office",
+  "facts": {
+    "type": "Office Interior",
+    "city": "Ahmedabad",
+    "status": "under-construction",
+    "siteArea": null,
+    "builtUpArea": "350 sqft",
+    "custom": []
+  },
+  "cover": {
+    "image": "gallery-3",
+    "crop": null,
+    "phoneImage": null,
+    "phoneCrop": null
+  },
+  "sections": [
+    {
+      "id": "concept",
+      "heading": "Concept",
+      "body": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "An ongoing office interior in Ahmedabad."
+              }
+            ]
+          }
+        ]
+      },
+      "images": []
+    },
+    {
+      "id": "challenge",
+      "heading": "Challenge",
+      "body": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "A small legal practice's office needed to feel unhurried and private in 350 sqft, without losing the working efficiency a busy practice depends on."
+              }
+            ]
+          }
+        ]
+      },
+      "images": []
+    },
+    {
+      "id": "materials",
+      "heading": "Materials",
+      "body": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Timber screening and warm, textured finishes soften what could otherwise read as a purely transactional office."
+              }
+            ]
+          }
+        ]
+      },
+      "images": []
+    },
+    {
+      "id": "construction",
+      "heading": "Construction",
+      "body": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Fit-out currently underway."
+              }
+            ]
+          }
+        ]
+      },
+      "images": []
+    },
+    {
+      "id": "gallery",
+      "heading": "Gallery",
+      "body": null,
+      "images": [
+        {
+          "image": "gallery-1",
+          "shape": "original"
+        },
+        {
+          "image": "gallery-2",
+          "shape": "original"
+        },
+        {
+          "image": "gallery-4",
+          "shape": "original"
+        }
+      ]
+    }
+  ],
+  "pool": [
+    {
+      "id": "gallery-3",
+      "file": "gallery-3.jpg",
+      "type": "render",
+      "caption": "",
+      "rotation": 0,
+      "crop": null,
+      "hidden": false,
+      "showTag": false
+    },
+    {
+      "id": "gallery-1",
+      "file": "gallery-1.jpg",
+      "type": "render",
+      "caption": "",
+      "rotation": 0,
+      "crop": null,
+      "hidden": false,
+      "showTag": false
+    },
+    {
+      "id": "gallery-2",
+      "file": "gallery-2.jpg",
+      "type": "render",
+      "caption": "",
+      "rotation": 0,
+      "crop": null,
+      "hidden": false,
+      "showTag": false
+    },
+    {
+      "id": "gallery-4",
+      "file": "gallery-4.jpg",
+      "type": "render",
+      "caption": "",
+      "rotation": 0,
+      "crop": null,
+      "hidden": false,
+      "showTag": false
+    }
+  ]
+}

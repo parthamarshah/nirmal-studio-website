@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { gsap, prefersReducedMotion, ScrollTrigger } from '../lib/scroll'
+import Img from './Img'
+import LoadingHint from './LoadingHint'
 
 // Section 5 of the brief: Idea→Sketch→Model→Drawings→Construction→Finished
 // Home. Per Parth (no real sketch/model photography exists, same situation
@@ -330,22 +332,16 @@ export default function IdeaTimeline({ project }) {
                     position: 'relative',
                   }}
                 >
-                  <img
-                    src={stage.image}
+                  <Img
+                    media={stage.image}
+                    sizes="(min-width: 784px) 720px, calc(100vw - 64px)"
+                    placeholder={false}
                     alt={stage.imageCaption}
                     loading="lazy"
                     onLoad={handleDrawingLoad}
-                    // width/height are the Nishee crop's own pixel
-                    // dimensions — only a CLS-reservation hint (browsers
-                    // derive an intrinsic ratio from these before load, then
-                    // the real image ratio takes over once decoded).
-                    // Deliberately NOT also set as a CSS aspect-ratio, which
-                    // would force this exact ratio permanently — this
-                    // component is data-driven (project.drawings), and
-                    // Shimla House's own drawing is a different shape; a
-                    // hardcoded CSS ratio would distort it.
-                    width={1584}
-                    height={1548}
+                    // width/height come from the drawing's real pixel size
+                    // (media object), so space is reserved before load for
+                    // whichever project's drawing this is.
                     style={{
                       width: '100%',
                       height: 'auto',
@@ -442,8 +438,9 @@ export default function IdeaTimeline({ project }) {
               padding: 'var(--space-md)',
             }}
           >
+            <LoadingHint />
             <img
-              src={lightboxImage.src}
+              src={lightboxImage.src.src}
               alt={lightboxImage.alt}
               // No width/height/maxWidth here, deliberately — an
               // unconstrained <img> renders at its own intrinsic pixel
@@ -451,7 +448,7 @@ export default function IdeaTimeline({ project }) {
               // drawing this data-driven src points to. A hardcoded pixel
               // width (even one matching Nishee's own crop) would misrender
               // a differently-sized drawing.
-              style={{ display: 'block', margin: '0 auto' }}
+              style={{ display: 'block', margin: '0 auto', position: 'relative', zIndex: 1 }}
             />
             <button
               type="button"

@@ -7,7 +7,10 @@
     "node": ">=20.19.0"
   },
   "scripts": {
+    "content": "node scripts/build-content.mjs",
+    "predev": "node scripts/build-content.mjs",
     "dev": "vite",
+    "prebuild": "node scripts/build-content.mjs",
     "build": "vite build",
     "lint": "oxlint",
     "preview": "vite preview",
@@ -25,6 +28,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
     "oxlint": "^1.71.0",
+    "sharp": "^0.34.5",
     "vite": "^8.1.1"
   }
 }

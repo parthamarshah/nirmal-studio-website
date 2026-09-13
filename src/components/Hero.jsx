@@ -1,11 +1,12 @@
 import { useEffect, useRef } from 'react'
 import { gsap, prefersReducedMotion, scrollTo } from '../lib/scroll'
-import { webp } from '../lib/images'
+import Img from './Img'
+import { isSectionOn } from '../lib/content'
 
 // Section 1 (cinematic hero) of the brief. No real project video exists yet
 // (all 7 confirmed projects are under construction) — uses a slow Ken
 // Burns-style pan/zoom on the Citadel Tower render instead, per plan. Media
-// is a data-driven asset (see src/data/projects.js), so swapping in real
+// is a data-driven asset (content/site.json homepage.hero), so swapping in real
 // video later is a prop change, not a rebuild.
 export default function Hero({ project }) {
   const imageRef = useRef(null)
@@ -42,19 +43,13 @@ export default function Hero({ project }) {
       }}
     >
       {hasImage && (
-        <picture>
-          {project.heroImageMobile && (
-            <source media="(max-width: 640px)" type="image/webp" srcSet={webp(project.heroImageMobile)} />
-          )}
-          {project.heroImageMobile && (
-            <source media="(max-width: 640px)" srcSet={project.heroImageMobile} />
-          )}
-          <source type="image/webp" srcSet={webp(project.heroImage)} />
-          <img
-            ref={imageRef}
-            src={project.heroImage}
+        <Img
+            media={project.heroImage}
+            mobile={project.heroImageMobile}
+            imgRef={imageRef}
             alt=""
             aria-hidden="true"
+            fetchPriority="high"
             style={{
               position: 'absolute',
               inset: 0,
@@ -65,7 +60,6 @@ export default function Hero({ project }) {
               willChange: 'transform',
             }}
           />
-        </picture>
       )}
 
       {/* Legibility gradient — text sits in the bottom third over the darkest part */}
@@ -120,28 +114,30 @@ export default function Hero({ project }) {
             is "projects". href is a real in-page anchor so it still works
             if JS fails; the click handler routes through Lenis so scroll
             state doesn't desync. */}
-        <a
-          href="#projects"
-          onClick={(e) => {
-            e.preventDefault()
-            scrollTo('#projects')
-          }}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            minHeight: 44,
-            fontFamily: 'var(--font-body)',
-            fontSize: '0.95rem',
-            letterSpacing: '0.04em',
-            textTransform: 'uppercase',
-            textDecoration: 'none',
-            textShadow: '0 1px 16px rgba(0,0,0,0.6)',
-          }}
-        >
-          <span style={{ borderBottom: '1px solid var(--color-warm-white)', paddingBottom: 4 }}>
-            Explore Our Work
-          </span>
-        </a>
+        {isSectionOn('featuredProjects') && (
+          <a
+            href="#projects"
+            onClick={(e) => {
+              e.preventDefault()
+              scrollTo('#projects')
+            }}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              minHeight: 44,
+              fontFamily: 'var(--font-body)',
+              fontSize: '0.95rem',
+              letterSpacing: '0.04em',
+              textTransform: 'uppercase',
+              textDecoration: 'none',
+              textShadow: '0 1px 16px rgba(0,0,0,0.6)',
+            }}
+          >
+            <span style={{ borderBottom: '1px solid var(--color-warm-white)', paddingBottom: 4 }}>
+              Explore Our Work
+            </span>
+          </a>
+        )}
       </div>
     </section>
   )

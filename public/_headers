@@ -1,0 +1,5 @@
+# Cloudflare Pages response headers.
+# Generated images carry a content hash in their file name (scripts/build-content.mjs),
+# so a changed image always gets a new URL — safe for browsers to cache for a year.
+/_media/*
+  Cache-Control: public, max-age=31536000, immutable

@@ -1,0 +1,143 @@
+{
+  "slug": "terra-row-houses",
+  "previousSlugs": [],
+  "order": 2,
+  "hidden": false,
+  "deleted": false,
+  "name": "Terra Row Houses",
+  "facts": {
+    "type": "Residential",
+    "city": "Indore",
+    "status": "under-construction",
+    "siteArea": "3,000 sqft",
+    "builtUpArea": "5,300 sqft",
+    "custom": []
+  },
+  "cover": {
+    "image": "exterior-landscape",
+    "crop": null,
+    "phoneImage": "exterior-portrait",
+    "phoneCrop": null
+  },
+  "sections": [
+    {
+      "id": "concept",
+      "heading": "Concept",
+      "body": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "An ongoing row-house development in Indore."
+              }
+            ]
+          }
+        ]
+      },
+      "images": []
+    },
+    {
+      "id": "challenge",
+      "heading": "Challenge",
+      "body": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Fitting genuinely private, full-sized homes into a row-house format — shared party walls without the compressed, look-alike feel row housing often falls into."
+              }
+            ]
+          }
+        ]
+      },
+      "images": []
+    },
+    {
+      "id": "materials",
+      "heading": "Materials",
+      "body": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Materials chosen to give each unit its own identity within a consistent street rhythm — warm textures rather than one finish repeated across every façade."
+              }
+            ]
+          }
+        ]
+      },
+      "images": []
+    },
+    {
+      "id": "construction",
+      "heading": "Construction",
+      "body": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Currently under construction."
+              }
+            ]
+          }
+        ]
+      },
+      "images": []
+    },
+    {
+      "id": "gallery",
+      "heading": "Gallery",
+      "body": null,
+      "images": [
+        {
+          "image": "gallery-1",
+          "shape": "original"
+        }
+      ]
+    }
+  ],
+  "pool": [
+    {
+      "id": "exterior-landscape",
+      "file": "exterior-landscape.jpg",
+      "type": "render",
+      "caption": "",
+      "rotation": 0,
+      "crop": null,
+      "hidden": false,
+      "showTag": false
+    },
+    {
+      "id": "exterior-portrait",
+      "file": "exterior-portrait.jpg",
+      "type": "render",
+      "caption": "",
+      "rotation": 0,
+      "crop": null,
+      "hidden": false,
+      "showTag": false
+    },
+    {
+      "id": "gallery-1",
+      "file": "gallery-1.jpg",
+      "type": "render",
+      "caption": "",
+      "rotation": 0,
+      "crop": null,
+      "hidden": false,
+      "showTag": false
+    }
+  ]
+}

@@ -5,31 +5,63 @@ live in `CLAUDE.md` — read that first if you're picking this up cold.
 
 ## Resume here
 
-**2026-09-13 — www bug fixed + site now auto-deploys from GitHub.** Parth noticed
-`www.nirmalstudio.com` showed the old "coming soon" page while the bare domain showed
-the real site. Cause: `www` was still a DNS-only CNAME to `sagarvora.github.io` (his
-friend's GitHub Pages) — the go-live had only moved the apex. Parth did the dashboard
-steps himself, guided by screenshot: deleted that record, created a new Git-connected
-Pages project **`nirmal-studio`**, and moved both `nirmalstudio.com` and `www` onto
-it (apex had ~2–3 min of Cloudflare 522 during the move because its CNAME had to be
-repointed by hand). Added `npm run check:domains` (asserts both hostnames serve the
-real site via Cloudflare) and rewrote CLAUDE.md's Deploy section — **deploys are now
-just `git push` to `main`**, no wrangler step. Open follow-ups, none urgent: (1) delete
-the old `nirmal-studio-website` Pages project after ~1–2 weeks once confident (ask
-Parth first); (2) optionally tighten the Cloudflare GitHub app back to "only select
-repositories" if "All repositories" was chosen; (3) optionally ask Sagar to remove
-`www.nirmalstudio.com` from his GitHub Pages repo settings (harmless now, just tidy).
+**v1 build started (2026-09-13, later session).** The full, Parth-approved v1 plan is in
+`/Users/parth/.claude-personal/plans/let-s-start-working-on-jolly-fern.md` (phases 0–4:
+content foundation → public site v1 → `/admin` backend foundation → backend editors →
+launch), with clickable mockups at
+https://claude.ai/code/artifact/a55baa12-f794-4828-81ba-b1febcf47009. Decisions made there
+override older CLAUDE.md rules where they conflict (founders layout, AI concept images) —
+CLAUDE.md is being updated phase by phase.
 
-**Earlier session status: everything committed and pushed to
+**Phase 0 (content foundation) — done:** content moved to `content/` JSON + original
+images in `content/media/`; `scripts/build-content.mjs` validates content and generates
+all image sizes (sharp) before every dev/build; `src/lib/content.js` adapter +
+`Img.jsx` + per-section `SectionBoundary`; share image/JSON-LD `sameAs` injected from
+content. Site intended to look identical — verified by side-by-side headless-Chrome
+screenshots of old vs new builds at 390px and 1440px (same heights, 13/13 images OK, no
+console errors, overlays close cleanly) and a deliberately broken content file failing
+the build. This closes the old "`sharp` WebP script" open thread below. Known leftovers
+for Phase 1: legacy concept-art shim in `content.js`; "Nine commissions" subtitle
+hardcoded in `FeaturedProjects.jsx`; generated content adds ~9KB gzip to the single JS
+bundle (code-splitting is Phase 1). Local-network note: this machine's npm downloads were
+~2.5KB/s this session — sharp's libvips binary was fetched by hand and verified against
+the lockfile's sha512.
+
+**Previous session status (2026-09-13, earlier — www/Git-deploy session):** that
+session was infra-only (no site code changed) and ended at `b28beb0`; the www/Git-deploy
+fix is logged in full as the last "Done" entry below. Its `progress.md` handoff notes
+were committed together with v1 Phase 0.
+
+**How deploys work now (changed this session):** push to `main` → Cloudflare Pages
+project **`nirmal-studio`** builds and deploys automatically (verified end-to-end
+with commit `b28beb0`). No wrangler step. Both `nirmalstudio.com` and
+`www.nirmalstudio.com` are attached to it. Run `npm run check:domains` after any
+DNS/domain/deploy change. Older entries below that mention `wrangler pages deploy`
+or the `nirmal-studio-website` project describe the previous setup.
+
+**Open follow-ups from this session (none urgent, all need Parth):**
+1. Delete the old `nirmal-studio-website` Pages project (no domains attached any
+   more, kept only as rollback) — around 2026-09-20 to 09-27, **ask Parth first**.
+2. Optionally narrow the Cloudflare Pages GitHub app's repo access on GitHub —
+   `nirmal-erp` appeared in Cloudflare's repo picker, which suggests "All
+   repositories" may have been selected. Unconfirmed.
+3. Optionally ask Sagar (Parth's friend, built the old placeholder) to remove
+   `www.nirmalstudio.com` from his GitHub Pages repo settings — harmless now.
+
+**Still-open thread carried forward from earlier sessions — don't assume it's
+resolved:** the AI-crawler block question (detailed just below). (The `sharp`
+WebP-generation offer is done — delivered by v1 Phase 0.)
+
+**Earlier session status (pre-2026-09-13): everything committed and pushed to
 `main` (latest: `5846abc`). One open question
-Parth hasn't answered yet** (asked directly in chat at the end of this
+Parth hasn't answered yet** (asked directly in chat at the end of that
 session, not yet responded to): does he want Cloudflare's AI-crawler block on
 `nirmalstudio.com` (GPTBot/ClaudeBot/Google-Extended/etc.) turned off, given
 his stated discoverability goal? See the dedicated entry just below for the
 full context — check with him before doing anything about it, don't assume
 either direction.
 
-**This session (2026-08-04) was discussion-only — no code changed**, working tree
+**The 2026-08-04 session was discussion-only — no code changed**, working tree
 still clean at `5846abc`. Parth shared an Instagram reel (@realkushdesai) promoting
 two Claude Code add-ons and asked whether to install them: the `ui-ux-pro-max-skill`
 GitHub skill (a local database of UI styles/palettes/font pairings meant to give
@@ -60,10 +92,12 @@ instead via the Cloudflare dashboard directly (Claude-in-Chrome was already
 logged into the Gurjar account, so this was self-serve, not handed to Parth as
 manual steps): Workers & Pages → nirmal-studio-website → Custom domains → Set
 up a custom domain → entered `nirmalstudio.com` → confirmed the DNS swap
-(4 old `A` records pointing at Lovable's GitHub Pages IPs → 1 `CNAME` to
+(4 old `A` records pointing at GitHub Pages IPs → 1 `CNAME` to
 `nirmal-studio-website.pages.dev`) → Activate. SSL provisioned fast (already
 on Cloudflare DNS, same account). Verified live via `curl`: `https://
-nirmalstudio.com` and `www.nirmalstudio.com` both 200, correct `<title>`,
+nirmalstudio.com` and `www.nirmalstudio.com` both 200 [**correction, 2026-09-13:
+the www 200 was the old GitHub Pages placeholder, not this site — www was never
+moved; see the last Done entry**], correct `<title>`,
 correct canonical tag, favicon and a `.webp` image both serving correctly.
 **This CLAUDE.md instruction is now stale and should be updated**: "the
 `nirmalstudio.com` custom domain is intentionally NOT yet attached" is no
@@ -496,7 +530,8 @@ first fix). Both pushed and redeployed — live at
   `github.com/parthamarshah/nirmal-studio-website`. Wrangler CLI authenticated against
   the "Gurjar" Cloudflare account. Pages project `nirmal-studio-website` created and
   verified live at `nirmal-studio-website.pages.dev` (deploy via `npx wrangler pages
-  deploy dist --project-name nirmal-studio-website` after each build phase).
+  deploy dist --project-name nirmal-studio-website` after each build phase —
+  **superseded 2026-09-13**: now Git-connected project `nirmal-studio`, push = deploy).
   `nirmalstudio.com` custom domain is deliberately NOT yet attached — still showing
   Parth's Lovable placeholder until Hero is ready.
 - **Fonts chosen** — Fraunces (heading), Syne (wordmark), via a live visual comparison
@@ -796,6 +831,37 @@ first fix). Both pushed and redeployed — live at
   single static deploy; the canonical tag is the actual mitigation here.
   **Not visually verified live** — see "Resume here" for the exact
   environment blocker (same `document.hidden`-stuck-true bug as before).
+- **www domain fix + Git-connected auto-deploy (2026-09-13, `b28beb0`)** — Parth
+  noticed `www.nirmalstudio.com` showed the old dark "coming soon" page while the
+  bare domain showed the real site. `dig`/`curl` showed why: `www` was a DNS-only
+  CNAME to `sagarvora.github.io` (his friend Sagar's GitHub Pages — the old
+  placeholder, last-modified Dec 2024; *not* Lovable, as earlier notes said). The
+  go-live had only swapped the apex; www was never moved, and the go-live `curl`
+  check mistook GitHub's 200 for success. Also meant an outside GitHub account
+  controlled what www showed. Chrome extension wasn't connected and wrangler's OAuth
+  token has no DNS-edit scope, so Parth did the dashboard clicks himself, one step
+  per screenshot (his preference — faster than Claude-in-Chrome). Sequence: exported
+  the zone (6 records; `~/Downloads/nirmalstudio.com.txt`) → deleted the www CNAME →
+  attached www to the old project (instant fix) → confirmed the old direct-upload
+  project can't be Git-connected, so created new Pages project **`nirmal-studio`**
+  via "Continue to Pages" (legacy Pages flow, not Workers — kept identical to what
+  already worked), granted the Cloudflare Pages GitHub app access to this repo,
+  preset React (Vite) / `npm run build` / `dist`. Parth questioned hardcoding a
+  `NODE_VERSION` env var — agreed and dropped it, so `.node-version` (24) in the repo
+  is the single source of truth. Verified the new build matched live (identical
+  index.html + asset hashes, no untracked files in `public/`) → moved www (dashboard
+  recreated its CNAME automatically) → moved apex (it did **not**: ~2–3 min of
+  Cloudflare 522 until Parth repointed the apex CNAME to `nirmal-studio.pages.dev`
+  by hand). Caught two near-misses from screenshots: a leftover "1 selected / Delete
+  1 record" bulk selection on the DNS page, and the apex's Remove dialog opened
+  instead of www's. MX/SPF (Spaceship email forwarding) and `erp` CNAME untouched,
+  confirmed after. Parth chose to serve the site on both hostnames rather than
+  redirect www → apex (canonical tag already points at the apex, so fine for SEO).
+  Added `scripts/check-domains.sh` / `npm run check:domains` (both hosts must return
+  200 + `server: cloudflare` + real title; negative-tested against the GitHub host),
+  rewrote CLAUDE.md's Deploy section. Pushed; auto-deploy of `b28beb0` confirmed in
+  the dashboard. Skipped impact-tracker/ux-reviewer/edge-case-checker for the commit
+  — docs + one shell script + one `package.json` script line, no site code.
 
 ## Not started yet
 

@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { gsap, prefersReducedMotion } from '../lib/scroll'
-import { tejShah } from '../data/founders'
-import { social } from '../data/social'
+import { site, social, tejShah } from '../lib/content'
 
 // Section 11 of the brief, and — until Journal/Testimonials have real
 // content — the last section on the page, so its ScrollTrigger uses
@@ -26,13 +25,15 @@ import { social } from '../data/social'
 // this is the site's one conversion action, and an empty compose box is a
 // real point of hesitation ("what do I even say?") right before someone
 // would otherwise reach out.
-const WHATSAPP_URL = `https://wa.me/919106998434?text=${encodeURIComponent(
-  "Hi Tej, I'd like to talk about a project.",
-)}`
-const PHONE_DISPLAY = '910 699 8434'
-const PHONE_TEL = 'tel:+919106998434'
-const EMAIL = 'tej@nirmalstudio.com'
-const ADDRESS = '201, Second Floor, Tilakraj Complex, Panchavati 1st Lane, Ambavadi, Ahmedabad, Gujarat 380006'
+//
+// All of these now come from content/site.json (editable in the backend).
+const WHATSAPP_URL = `https://wa.me/${site.contact.whatsapp}${
+  site.contact.whatsappGreeting ? `?text=${encodeURIComponent(site.contact.whatsappGreeting)}` : ''
+}`
+const PHONE_DISPLAY = site.contact.phoneDisplay
+const PHONE_TEL = `tel:${site.contact.phone}`
+const EMAIL = site.contact.email
+const ADDRESS = site.contact.address
 // Google's no-API-key embed form (maps.google.com/maps?q=...&output=embed) —
 // deliberately not the Maps JavaScript SDK, which would need an API key and
 // billing setup for a single static pin.

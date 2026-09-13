@@ -1,0 +1,66 @@
+{
+  "slug": "nishee-house",
+  "previousSlugs": [],
+  "order": 9,
+  "hidden": false,
+  "deleted": false,
+  "name": "Nishee House",
+  "facts": {
+    "type": "Residential",
+    "city": "Ahmedabad",
+    "status": null,
+    "siteArea": null,
+    "builtUpArea": null,
+    "custom": []
+  },
+  "cover": {
+    "image": null,
+    "crop": null,
+    "phoneImage": null,
+    "phoneCrop": null
+  },
+  "sections": [
+    {
+      "id": "concept",
+      "heading": "Concept",
+      "body": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "A residential home in Ahmedabad."
+              }
+            ]
+          }
+        ]
+      },
+      "images": []
+    },
+    {
+      "id": "drawings",
+      "heading": "Drawings",
+      "body": null,
+      "images": [
+        {
+          "image": "drawings-ground-floor",
+          "shape": "original"
+        }
+      ]
+    }
+  ],
+  "pool": [
+    {
+      "id": "drawings-ground-floor",
+      "file": "drawings-ground-floor.jpg",
+      "type": "drawing",
+      "caption": "",
+      "rotation": 0,
+      "crop": null,
+      "hidden": false,
+      "showTag": false
+    }
+  ]
+}
