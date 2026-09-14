@@ -11,7 +11,7 @@
     "predev": "node scripts/build-content.mjs",
     "dev": "vite",
     "prebuild": "node scripts/build-content.mjs",
-    "build": "vite build",
+    "build": "vite build && node scripts/prerender.mjs",
     "lint": "oxlint",
     "preview": "vite preview",
     "check:domains": "bash scripts/check-domains.sh"

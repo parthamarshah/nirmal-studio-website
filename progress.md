@@ -13,6 +13,21 @@ https://claude.ai/code/artifact/a55baa12-f794-4828-81ba-b1febcf47009. Decisions 
 override older CLAUDE.md rules where they conflict (founders layout, AI concept images) —
 CLAUDE.md is being updated phase by phase.
 
+**Phase 1a (shareable project pages) — done (2026-09-14):** every visible project has a
+pre-rendered page at `/projects/<slug>/` (own title, description, canonical, WhatsApp/
+social preview image — cover, or the floor plan letterboxed for Shimla/Nishee) that
+hydrates in the browser; homepage takeover kept (Parth chose option a) and now renders
+the same `ProjectStory` (sections from content, Status fact, "Share" button). Project
+pages load ~78KB gzip JS vs ~178KB for the homepage (separate chunks; no GSAP/Lenis/
+Framer on project pages). `Nav` split into presentational `Nav` + `HomeNav`. Sitemap is
+generated (10 URLs). Review fixes applied: FocusImage caption regression (adapter dropped
+type/city), "Concept" label ambiguity ("AI visualization" tag, "In design" status), back
+gesture closes the project-page image viewer, pannable floor plans on phones, trailing-
+slash URLs, heading outline, share feedback. AI concept images stay takeover-only (not on
+public project pages) until Parth assigns them in the Phase 3 backend — **ask him if he'd
+rather remove them from the takeover too.** Edge-case agent stalled; equivalent checks run
+by hand (escaping, `javascript:` links, hidden images, rotated/cropped cover, redirects).
+
 **Phase 0 (content foundation) — done:** content moved to `content/` JSON + original
 images in `content/media/`; `scripts/build-content.mjs` validates content and generates
 all image sizes (sharp) before every dev/build; `src/lib/content.js` adapter +
@@ -20,10 +35,8 @@ all image sizes (sharp) before every dev/build; `src/lib/content.js` adapter +
 content. Site intended to look identical — verified by side-by-side headless-Chrome
 screenshots of old vs new builds at 390px and 1440px (same heights, 13/13 images OK, no
 console errors, overlays close cleanly) and a deliberately broken content file failing
-the build. This closes the old "`sharp` WebP script" open thread below. Known leftovers
-for Phase 1: legacy concept-art shim in `content.js`; "Nine commissions" subtitle
-hardcoded in `FeaturedProjects.jsx`; generated content adds ~9KB gzip to the single JS
-bundle (code-splitting is Phase 1). Local-network note: this machine's npm downloads were
+the build. This closes the old "`sharp` WebP script" open thread below. Leftovers from Phase 0
+are handled in 1a except the concept-art shim (now takeover-only, see above). Local-network note: this machine's npm downloads were
 ~2.5KB/s this session — sharp's libvips binary was fetched by hand and verified against
 the lockfile's sha512.
 

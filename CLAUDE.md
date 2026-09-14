@@ -73,10 +73,12 @@ Tagline: "Designing Spaces. Crafting Experiences."
   on only one of the two houses** — never duplicated across both. Since the files can't
   be reliably matched to a house, they currently live unassigned in
   `content/unsorted.json` (`aiGenerated: true`); Parth assigns each to one house in the
-  backend. **Transitional (Phase 0 only):** `src/lib/content.js`'s
-  `LEGACY_CONCEPT_ART_SLUGS` keeps showing them, labelled "Concept visualization", on
-  both houses exactly as before, so the live site doesn't change until the v1 section
-  renderer replaces the takeover's legacy fields. Remove that shim then.
+  backend. **Transitional (until the Phase 3 backend lets Parth assign them):**
+  `src/lib/content.js`'s `legacyConceptArt()` keeps showing them, labelled, **only in the
+  homepage takeover** for both houses (as they were before v1). They are deliberately
+  NOT rendered on the public, shareable `/projects/<slug>/` pages
+  (`ProjectStory`'s `showLegacyConceptArt` is off there). Remove the shim once each
+  image is assigned to one house.
 - **Founder bios**: deep bio copy only for Tej Shah. The other three FOLD members use
   the PDF facts as-is (`content/founders.json`). (v1 changes this — see the v1 plan: Parth writes all four bios via the backend.) Never invent years of experience,
   favourite material, or favourite architect for any of the four — not real facts we
@@ -104,8 +106,14 @@ Tagline: "Designing Spaces. Crafting Experiences."
 ## Tech stack & architecture
 
 - **Vite + React, plain JavaScript** (not TypeScript) — Parth is an "advanced vibe
-  coder," not a professional dev; keep tooling friction low. Single-page app, all
-  sections on one scrollable home route for now.
+  coder," not a professional dev; keep tooling friction low. Two kinds of page (`src/main.jsx` picks one per URL, each its own code
+  chunk): the homepage (`App.jsx`, all sections, rendered in the browser) and
+  `/projects/<slug>/` (`ProjectPage.jsx`, **pre-rendered at build** by
+  `scripts/prerender.mjs` and hydrated). Anything rendered on project pages —
+  `ProjectStory`, `Nav`, `Img`, `RichText`, `ImageViewer` — must not read browser APIs
+  (window, matchMedia, `prefersReducedMotion()`) during render, or hydration fails.
+  Project pages don't load GSAP/Lenis/Framer; keep it that way. Always link to project
+  pages with a trailing slash (`projectPath()`), since Pages serves the directory index there.
 - **Mobile-first, not desktop-first-then-adapt.** Mobile is the primary "ultra smooth"
   target; desktop can be comparatively subdued but must feel equally polished. Build
   each section's mobile layout/interaction first, then layer desktop-only enhancements
@@ -301,6 +309,11 @@ against them rather than rediscovering them by chance:
   `AnimatePresence` overlay — new lightbox, new modal — against all three parts of
   this (disable on close, reset on open, guard against same-position click-through)
   rather than just the first.
+- **When rewriting or narrowing a data adapter (`src/lib/content.js`), grep every
+  consumer's reads (`project?.x`, `project.x`) against the new return shape.** v1
+  Phase 1a's rewrite dropped `type`/`location` from the homepage shape; FocusImage's
+  caption silently lost them. Screenshot, page-height and image-count comparisons all
+  passed — they don't catch lost text inside an element that still renders.
 - **(Closed by the Phase 0 image pipeline, kept as background.)** A `<picture>`'s
   `<source>` does not fall back to the `<img>` on a 404 — only on an unsupported
   `type`/`media`. The old `webp()` helper derived `.webp` sibling paths with no existence

@@ -27,3 +27,4 @@ dist-ssr
 public/_media
 src/generated
 public/_redirects
+public/sitemap.xml

@@ -118,7 +118,8 @@ export default function FocusImage({ project }) {
             textShadow: '0 1px 16px rgba(0,0,0,0.6)',
           }}
         >
-          {[project?.type, project?.location, 'Ongoing'].filter(Boolean).join(' · ')}
+          {/* Status comes from the project's own facts — never assumed (CLAUDE.md). */}
+          {[project?.type, project?.location, project?.status].filter(Boolean).join(' · ')}
         </p>
       </div>
     </section>

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { gsap, prefersReducedMotion, ScrollTrigger } from '../lib/scroll'
 import Img from './Img'
 import LoadingHint from './LoadingHint'
+import { panImageStyle } from '../lib/viewer'
 
 // Section 5 of the brief: Idea→Sketch→Model→Drawings→Construction→Finished
 // Home. Per Parth (no real sketch/model photography exists, same situation
@@ -448,7 +449,7 @@ export default function IdeaTimeline({ project }) {
               // drawing this data-driven src points to. A hardcoded pixel
               // width (even one matching Nishee's own crop) would misrender
               // a differently-sized drawing.
-              style={{ display: 'block', margin: '0 auto', position: 'relative', zIndex: 1 }}
+              style={panImageStyle(lightboxImage.src)}
             />
             <button
               type="button"

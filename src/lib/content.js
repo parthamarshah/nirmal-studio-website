@@ -1,65 +1,99 @@
 // The one place components get content from. Reads src/generated/content.js
 // (built from content/ by scripts/build-content.mjs) and exposes it in the
-// shapes the current sections expect.
+// shapes components need.
 //
 // Image fields are media objects ({ src, srcSet, width, height, placeholder,
 // kind }), not path strings — render them with <Img> (src/components/Img.jsx).
-//
-// Phase 0 note: the legacy project shape below (heroImage / gallery / drawings
-// / concept / challenge …) keeps today's takeover rendering identical. Phase 1
-// renders a project's `sections` generically and most of this adapter goes away.
+// Everything the build validates (facts, sections, cover, founders' Tej entry…)
+// can be read here without guards; anything optional is guarded.
 import { site, founders, projects as allProjects, unsorted } from '../generated/content.js'
 
 export { site }
 
-const plainText = (doc) =>
-  doc?.content
-    ?.map((block) => (block.content || []).map((n) => n.text || '').join(''))
+export const STATUS_LABELS = {
+  concept: 'In design',
+  'under-construction': 'Under construction',
+  completed: 'Completed',
+}
+
+export const IMAGE_TYPE_LABELS = {
+  render: 'Render',
+  drawing: 'Drawing',
+  photograph: 'Photograph',
+  'site-progress': 'Site progress',
+  other: 'Other',
+}
+
+// ---------------------------------------------------------------- projects (story model)
+
+// Projects in site order, including hidden ones (hidden = not in the grid, no page).
+const storyProjects = allProjects
+
+// Visible projects, in order — the grid, project pages, prev/next.
+export const visibleProjects = storyProjects.filter((p) => !p.hidden)
+
+export const findVisibleProject = (slug) => visibleProjects.find((p) => p.slug === slug) ?? null
+
+// Resolves a section's image references to pool entries (hidden images are
+// already absent from the generated pool, so they simply drop out).
+export const sectionImages = (project, section) =>
+  section.images
+    .map((ref) => {
+      const img = project.pool.find((i) => i.id === ref.image)
+      return img ? { ...img, shape: ref.shape } : null
+    })
     .filter(Boolean)
-    .join('\n\n') || null
 
-// Transitional (until Parth assigns each AI concept image to one house in the
-// backend): the unsorted AI images keep showing, labelled, where they showed
-// before. Phase 1's section renderer drops this — unassigned images show nowhere.
+// Transitional, until Parth assigns each AI concept image to exactly one house
+// in the backend (Phase 3): the unassigned AI images keep showing, labelled, in
+// the homepage takeover for the two houses where they showed before. NOT on the
+// standalone project pages (ProjectStory's `showLegacyConceptArt`), which are
+// public, shareable and in the sitemap — his rule is each image on one house only.
 const LEGACY_CONCEPT_ART_SLUGS = ['shimla-house', 'nishee-house']
+export const legacyConceptArt = (slug) =>
+  LEGACY_CONCEPT_ART_SLUGS.includes(slug) ? unsorted.filter((img) => img.aiGenerated) : []
 
-function toLegacy(p) {
-  const image = (id) => p.pool.find((img) => img.id === id)?.media ?? null
-  const section = (id) => p.sections.find((s) => s.id === id)
-  const sectionImages = (id) => (section(id)?.images || []).map((ref) => image(ref.image)).filter(Boolean)
+// The picture that represents a project on cards: its cover, else its first drawing.
+export function cardImage(project) {
+  if (project.coverMedia.desktop) return { media: project.coverMedia.desktop, isDrawing: false }
+  for (const section of project.sections) {
+    const drawing = sectionImages(project, section).find((img) => img.type === 'drawing')
+    if (drawing) return { media: drawing.media, isDrawing: true }
+  }
+  return null
+}
+
+// ---------------------------------------------------------------- homepage sections
+
+// The shape Hero / FocusImage / Philosophy / IdeaTimeline were written against.
+function toHomeShape(p, imageOverride) {
+  const firstDrawing = p.sections.flatMap((s) => sectionImages(p, s)).find((img) => img.type === 'drawing')
   return {
     slug: p.slug,
     name: p.name,
-    hidden: p.hidden,
     type: p.facts.type,
     location: p.facts.city,
-    siteArea: p.facts.siteArea,
-    builtUpArea: p.facts.builtUpArea,
-    concept: plainText(section('concept')?.body),
-    heroImage: image(p.cover?.image),
-    heroImageMobile: image(p.cover?.phoneImage),
-    gallery: sectionImages('gallery'),
-    challenge: plainText(section('challenge')?.body),
-    drawings: sectionImages('drawings')[0] ?? null,
-    materials: plainText(section('materials')?.body),
-    construction: plainText(section('construction')?.body),
-    conceptArt: LEGACY_CONCEPT_ART_SLUGS.includes(p.slug)
-      ? unsorted.filter((img) => img.aiGenerated).map((img) => img.media)
-      : [],
+    status: STATUS_LABELS[p.facts.status] ?? null,
+    heroImage: imageOverride ?? p.coverMedia.desktop,
+    heroImageMobile: imageOverride ? null : p.coverMedia.phone,
+    drawings: firstDrawing?.media ?? null,
   }
 }
 
-const legacyProjects = allProjects.map(toLegacy)
-
-// Projects shown in the Featured Projects grid (hidden ones stay out).
-export const projects = legacyProjects.filter((p) => !p.hidden)
-
-// Homepage image spots ('hero' | 'focus' | 'philosophy' | 'timeline'). Can be
-// null if the picked project was removed — every caller already guards for that.
-export const homepageProject = (spot) =>
-  legacyProjects.find((p) => p.slug === site.homepage?.[spot]?.project) ?? null
+// Homepage image spots ('hero' | 'focus' | 'philosophy' | 'timeline'). A spot can
+// name a specific image of the project; otherwise it uses the project's cover.
+// Null if the picked project was removed — every caller guards for that.
+export const homepageProject = (spot) => {
+  const pick = site.homepage?.[spot]
+  const p = storyProjects.find((x) => x.slug === pick?.project)
+  if (!p) return null
+  const override = pick.image ? p.pool.find((img) => img.id === pick.image)?.media : null
+  return toHomeShape(p, override)
+}
 
 export const isSectionOn = (key) => site.sections?.[key] !== false
+
+// ---------------------------------------------------------------- people & contact
 
 // The build puts Tej (id "tej-shah") first and fails if he's missing, so the
 // founder is never decided by list order alone.
@@ -73,3 +107,9 @@ export const social = Object.fromEntries(
     .filter(([key]) => key !== 'whatsapp')
     .map(([key, v]) => [key, v.on && v.url ? v.url : null]),
 )
+
+export const SITE_URL = 'https://nirmalstudio.com'
+// Trailing slash: the pre-rendered file is projects/<slug>/index.html, and
+// Cloudflare Pages serves directory pages at the slashed address.
+export const projectPath = (slug) => `/projects/${slug}/`
+export const projectUrl = (slug) => `${SITE_URL}${projectPath(slug)}`

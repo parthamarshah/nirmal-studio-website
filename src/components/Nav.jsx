@@ -1,15 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { ScrollTrigger, prefersReducedMotion, scrollTo } from '../lib/scroll'
 import { journalPosts } from '../data/journal'
 import { isSectionOn } from '../lib/content'
 
-// Persistent nav — previously the site had none, so Contact was reachable
-// only by scrolling the full page. Transparent/light-text over Hero's dark
-// image, swaps to a solid cream bar with dark text once Hero scrolls out of
-// view (a ScrollTrigger boundary on #hero, not a scrub/pin, so it isn't
-// gated behind prefersReducedMotion() the way this codebase's other
-// ScrollTrigger effects are — hiding this from reduced-motion users would
-// leave nav text illegible against light body content instead).
+// Persistent nav, used on every page. Transparent/light-text over the Hero
+// image until `scrolled` (driven by HomeNav.jsx's #hero ScrollTrigger on the
+// homepage; always true on other pages), then a solid cream bar.
 //
 // Journal's link is the same emptiness check App.jsx already uses to decide
 // whether to render <Journal /> at all — a hardcoded link here would point
@@ -32,27 +27,20 @@ const NAV_LINKS = [
   { label: 'Contact', href: '#contact', section: 'contact' },
 ]
 
-export default function Nav() {
-  const [scrolled, setScrolled] = useState(false)
+// Presentational + menu behaviour only, so project pages can use it without
+// pulling in GSAP/Lenis. On the homepage, HomeNav.jsx supplies `scrolled` (from
+// a ScrollTrigger on #hero) and `onNavigate` (smooth in-page scroll via Lenis).
+// On other pages (`onNavigate` omitted) links are plain navigations to "/#…"
+// and the bar is always solid.
+//
+// No render-time browser reads (e.g. prefersReducedMotion()) — project pages
+// are pre-rendered and hydrated. Reduced motion is handled by index.css's
+// global transition override.
+export default function Nav({ scrolled = true, onNavigate }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const navRef = useRef(null)
   const menuRef = useRef(null)
   const toggleRef = useRef(null)
-
-  useEffect(() => {
-    // Depends on Hero.jsx rendering <section id="hero"> unconditionally
-    // (App.jsx mounts Nav before Hero, so it exists by the time this effect
-    // runs) — if a future page-order change or a conditional Hero unmount
-    // ever removes #hero, ScrollTrigger no-ops quietly (a console warning,
-    // not a crash) and the nav just never swaps to its scrolled state.
-    const trigger = ScrollTrigger.create({
-      trigger: '#hero',
-      start: 'bottom top',
-      onEnter: () => setScrolled(true),
-      onLeaveBack: () => setScrolled(false),
-    })
-    return () => trigger.kill()
-  }, [])
 
   const closeMenu = () => {
     setMenuOpen(false)
@@ -98,28 +86,33 @@ export default function Nav() {
     (link) => (!link.requiresJournal || journalPosts.length > 0) && (!link.section || isSectionOn(link.section)),
   )
 
+  const onHome = Boolean(onNavigate)
+  const linkHref = (href) => (onHome ? href : `/${href}`)
+
   const handleLinkClick = (e, href) => {
-    e.preventDefault()
     setMenuOpen(false)
-    scrollTo(href)
+    if (!onHome) return
+    e.preventDefault()
+    onNavigate(href)
   }
 
   const handleWordmarkClick = (e) => {
-    e.preventDefault()
     setMenuOpen(false)
-    scrollTo(0)
+    if (!onHome) return
+    e.preventDefault()
+    onNavigate(0)
   }
 
   return (
     <nav ref={navRef} className={`site-nav${scrolled ? ' site-nav--scrolled' : ''}`} aria-label="Primary">
-      <a href="#hero" className="site-nav-wordmark" onClick={handleWordmarkClick}>
+      <a href={onHome ? '#hero' : '/'} className="site-nav-wordmark" onClick={handleWordmarkClick}>
         <span style={{ fontFamily: 'var(--font-wordmark)', fontWeight: 800 }}>nirmal</span>
         <span style={{ fontFamily: 'var(--font-wordmark)', fontWeight: 400 }}> studio</span>
       </a>
 
       <div className="site-nav-links">
         {links.map((link) => (
-          <a key={link.href} href={link.href} className="site-nav-link" onClick={(e) => handleLinkClick(e, link.href)}>
+          <a key={link.href} href={linkHref(link.href)} className="site-nav-link" onClick={(e) => handleLinkClick(e, link.href)}>
             {link.label}
           </a>
         ))}
@@ -146,7 +139,7 @@ export default function Nav() {
         {links.map((link) => (
           <a
             key={link.href}
-            href={link.href}
+            href={linkHref(link.href)}
             className="site-nav-menu-link"
             onClick={(e) => handleLinkClick(e, link.href)}
           >
@@ -167,7 +160,7 @@ export default function Nav() {
           justify-content: space-between;
           padding: var(--space-sm) var(--space-md);
           background: transparent;
-          transition: background ${prefersReducedMotion() ? '0s' : '0.3s'} ease, backdrop-filter ${prefersReducedMotion() ? '0s' : '0.3s'} ease;
+          transition: background 0.3s ease, backdrop-filter 0.3s ease;
         }
         .site-nav--scrolled {
           background: rgba(246, 244, 239, 0.92);
@@ -188,7 +181,7 @@ export default function Nav() {
              nav sits in that same unprotected zone, so it needs the same
              contrast floor independent of whatever hero image is in play. */
           text-shadow: 0 1px 12px rgba(0, 0, 0, 0.5);
-          transition: color ${prefersReducedMotion() ? '0s' : '0.3s'} ease;
+          transition: color 0.3s ease;
         }
         .site-nav--scrolled .site-nav-wordmark {
           color: var(--color-text);
@@ -208,7 +201,7 @@ export default function Nav() {
           display: inline-flex;
           align-items: center;
           text-shadow: 0 1px 12px rgba(0, 0, 0, 0.5);
-          transition: color ${prefersReducedMotion() ? '0s' : '0.3s'} ease;
+          transition: color 0.3s ease;
         }
         .site-nav--scrolled .site-nav-link {
           color: var(--color-text);
@@ -232,7 +225,7 @@ export default function Nav() {
           height: 1.5px;
           background: var(--color-warm-white);
           filter: drop-shadow(0 1px 6px rgba(0, 0, 0, 0.5));
-          transition: background ${prefersReducedMotion() ? '0s' : '0.3s'} ease;
+          transition: background 0.3s ease;
         }
         .site-nav--scrolled .site-nav-toggle-bar {
           background: var(--color-text);
@@ -251,7 +244,7 @@ export default function Nav() {
           overflow: hidden;
           opacity: 0;
           pointer-events: none;
-          transition: max-height ${prefersReducedMotion() ? '0s' : '0.3s'} ease, opacity ${prefersReducedMotion() ? '0s' : '0.2s'} ease;
+          transition: max-height 0.3s ease, opacity 0.2s ease;
         }
         .site-nav-menu--open {
           max-height: 320px;

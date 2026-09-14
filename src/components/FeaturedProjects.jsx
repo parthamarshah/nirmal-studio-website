@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { gsap, prefersReducedMotion } from '../lib/scroll'
-import { projects } from '../lib/content'
+import { visibleProjects as projects, cardImage as cardImageOf } from '../lib/content'
 import Img from './Img'
+import ProjectStory from './ProjectStory'
+import { panImageStyle } from '../lib/viewer'
 import LoadingHint from './LoadingHint'
 
 // Section 6 of the brief: Featured Projects, immersive per-project
@@ -21,7 +23,8 @@ import LoadingHint from './LoadingHint'
 // horizontal pin/scrub; a third distinct scroll mechanic here would compete
 // rather than add. The takeover itself is a Framer Motion mount/exit only
 // (never scroll-linked, per the motion-library split in CLAUDE.md).
-const THUMB_SIZES = '(min-width: 1024px) 240px, (min-width: 760px) 360px, 50vw'
+const NUMBER_WORDS = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve']
+const countWord = (n) => NUMBER_WORDS[n] ?? String(n)
 
 export default function FeaturedProjects() {
   const cardRefs = useRef([])
@@ -272,16 +275,14 @@ export default function FeaturedProjects() {
     }
   }
 
-  const cardImage = (project) => project.heroImage || project.drawings
-  const cardIsDrawing = (project) => !project.heroImage && Boolean(project.drawings)
   // Drawing cards must say so — the visible "Floor plan" tag already tells a
   // sighted user this isn't project photography; an alt describing it as a
   // photo of the building would give a screen-reader user a materially
   // different, inaccurate picture of the same card.
-  const cardAlt = (project) =>
-    cardIsDrawing(project)
+  const cardAlt = (project, isDrawing) =>
+    isDrawing
       ? `${project.name}, floor plan`
-      : `${project.name}, ${project.type} in ${project.location}`
+      : [project.name, [project.facts.type, project.facts.city].filter(Boolean).join(' in ')].filter(Boolean).join(', ')
 
   return (
     <section
@@ -311,12 +312,14 @@ export default function FeaturedProjects() {
             margin: '0 auto',
           }}
         >
-          Nine commissions across Western and Central India.
+          {countWord(projects.length)} commissions across Western and Central India.
         </p>
       </div>
 
       <div className="projects-grid">
-        {projects.map((project, i) => (
+        {projects.map((project, i) => {
+          const card = cardImageOf(project)
+          return (
           <button
             key={project.slug}
             type="button"
@@ -326,26 +329,27 @@ export default function FeaturedProjects() {
             className="project-card"
             onClick={(e) => openProject(project, e.currentTarget)}
           >
-            {cardImage(project) && (
+            {card && (
               <Img
-                media={cardImage(project)}
+                media={card.media}
                 sizes="(min-width: 1024px) 400px, (min-width: 640px) 50vw, 100vw"
-                placeholder={!cardIsDrawing(project)}
-                alt={cardAlt(project)}
+                placeholder={!card.isDrawing}
+                alt={cardAlt(project, card.isDrawing)}
                 loading="lazy"
                 className="project-card-image"
               />
             )}
-            {cardIsDrawing(project) && <span className="project-card-tag">Floor plan</span>}
+            {card?.isDrawing && <span className="project-card-tag">Floor plan</span>}
             <span className="project-card-scrim" aria-hidden="true" />
             <span className="project-card-info">
               <span className="project-card-meta">
-                {project.type} — {project.location}
+                {[project.facts.type, project.facts.city].filter(Boolean).join(' — ')}
               </span>
               <span className="project-card-name">{project.name}</span>
             </span>
           </button>
-        ))}
+          )
+        })}
       </div>
 
       <AnimatePresence>
@@ -378,131 +382,7 @@ export default function FeaturedProjects() {
                 &times;
               </button>
 
-              {activeProject.heroImage && (
-                <div className="project-detail-hero">
-                  <Img media={activeProject.heroImage} sizes="(min-width: 760px) 760px, 100vw" alt={activeProject.name} />
-                </div>
-              )}
-
-              <div className="project-detail-body">
-                <span className="project-detail-meta">
-                  {activeProject.type} — {activeProject.location}
-                </span>
-                <h3 className="project-detail-name">{activeProject.name}</h3>
-
-                {(activeProject.siteArea || activeProject.builtUpArea) && (
-                  <dl className="project-detail-facts">
-                    {activeProject.siteArea && (
-                      <div>
-                        <dt>Site Area</dt>
-                        <dd>{activeProject.siteArea}</dd>
-                      </div>
-                    )}
-                    {activeProject.builtUpArea && (
-                      <div>
-                        <dt>Built-up Area</dt>
-                        <dd>{activeProject.builtUpArea}</dd>
-                      </div>
-                    )}
-                  </dl>
-                )}
-
-                <p className="project-detail-copy">{activeProject.concept}</p>
-
-                {activeProject.challenge && (
-                  <div className="project-detail-block">
-                    <h4>Challenge</h4>
-                    <p className="project-detail-copy">{activeProject.challenge}</p>
-                  </div>
-                )}
-                {activeProject.materials && (
-                  <div className="project-detail-block">
-                    <h4>Materials</h4>
-                    <p className="project-detail-copy">{activeProject.materials}</p>
-                  </div>
-                )}
-                {activeProject.construction && (
-                  <div className="project-detail-block">
-                    <h4>Construction</h4>
-                    <p className="project-detail-copy">{activeProject.construction}</p>
-                  </div>
-                )}
-
-                {activeProject.gallery?.length > 0 && (
-                  <div className="project-detail-block">
-                    <h4>Gallery</h4>
-                    <div className="project-detail-gallery">
-                      {activeProject.gallery.map((media) => (
-                        <button
-                          key={media.src}
-                          type="button"
-                          className="project-detail-thumb"
-                          onClick={() => openLightbox({ src: media, alt: activeProject.name, mode: 'fit' })}
-                        >
-                          <Img media={media} sizes={THUMB_SIZES} alt="" aria-hidden="true" loading="lazy" />
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {activeProject.drawings && (
-                  <div className="project-detail-block">
-                    <h4>Drawings</h4>
-                    <button
-                      type="button"
-                      className="project-detail-drawing"
-                      onClick={() =>
-                        openLightbox({
-                          src: activeProject.drawings,
-                          alt: `${activeProject.name}, ground floor plan`,
-                          mode: 'pan',
-                        })
-                      }
-                    >
-                      <Img
-                        media={activeProject.drawings}
-                        sizes="(min-width: 760px) 760px, 100vw"
-                        placeholder={false}
-                        alt={`${activeProject.name}, ground floor plan`}
-                        loading="lazy"
-                      />
-                      <span className="project-detail-drawing-hint">Tap to enlarge</span>
-                    </button>
-                  </div>
-                )}
-
-                {activeProject.conceptArt?.length > 0 && (
-                  <div className="project-detail-block">
-                    <h4>Concept Visualization</h4>
-                    <p className="project-detail-concept-note">
-                      AI-generated imagery to help visualize the space — not real photography or
-                      final design output. This image set is shared illustratively across related
-                      projects, not tied to specific rooms in this one.
-                    </p>
-                    <div className="project-detail-gallery">
-                      {activeProject.conceptArt.map((media) => (
-                        <button
-                          key={media.src}
-                          type="button"
-                          className="project-detail-thumb is-concept"
-                          onClick={() =>
-                            openLightbox({
-                              src: media,
-                              alt: `${activeProject.name} concept visualization`,
-                              mode: 'fit',
-                              label: 'Concept visualization',
-                            })
-                          }
-                        >
-                          <Img media={media} sizes={THUMB_SIZES} alt="" aria-hidden="true" loading="lazy" />
-                          <span className="project-detail-thumb-label">Concept</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
+              <ProjectStory project={activeProject} onOpenImage={openLightbox} showLegacyConceptArt />
 
               <div className="project-detail-nav">
                 <button type="button" onClick={() => goToProject(-1)}>
@@ -573,7 +453,7 @@ export default function FeaturedProjects() {
                 no width/height attributes, which would fight max-width/max-height. */}
             <LoadingHint />
             {lightboxImage.mode === 'pan' ? (
-              <img src={lightboxImage.src.src} alt={lightboxImage.alt} style={{ position: 'relative', zIndex: 1 }} />
+              <img src={lightboxImage.src.src} alt={lightboxImage.alt} style={panImageStyle(lightboxImage.src)} />
             ) : (
               <Img
                 media={lightboxImage.src}
@@ -712,155 +592,6 @@ export default function FeaturedProjects() {
           line-height: 1;
           cursor: pointer;
           z-index: 1;
-        }
-        .project-detail-hero {
-          position: relative;
-          margin: 0 0 var(--space-md);
-          border-radius: 4px;
-          overflow: hidden;
-          /* Reserves space before the image loads (avoids a layout jump on
-             first open) — every current heroImage is a landscape render, so
-             16:9 is a reasonable default; object-fit:cover below means a
-             slightly different source ratio crops rather than distorts. */
-          aspect-ratio: 16 / 9;
-          background: var(--color-beige);
-        }
-        .project-detail-hero img {
-          position: absolute;
-          inset: 0;
-          display: block;
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-        }
-        .project-detail-meta {
-          display: block;
-          font-family: var(--font-body);
-          font-size: 0.75rem;
-          letter-spacing: 0.08em;
-          text-transform: uppercase;
-          color: var(--color-bronze-darker);
-          margin-bottom: var(--space-xs);
-        }
-        .project-detail-name {
-          font-family: var(--font-heading);
-          font-size: clamp(1.6rem, 4vw, 2.25rem);
-          margin: 0 0 var(--space-sm);
-        }
-        .project-detail-facts {
-          display: flex;
-          flex-wrap: wrap;
-          gap: var(--space-md);
-          margin: 0 0 var(--space-md);
-          padding-bottom: var(--space-md);
-          border-bottom: 1px solid var(--color-beige);
-        }
-        .project-detail-facts dt {
-          font-family: var(--font-body);
-          font-size: 0.7rem;
-          letter-spacing: 0.06em;
-          text-transform: uppercase;
-          color: var(--color-stone-dark);
-        }
-        .project-detail-facts dd {
-          margin: 2px 0 0;
-          font-family: var(--font-heading);
-          font-size: 1.1rem;
-        }
-        .project-detail-copy {
-          font-family: var(--font-body);
-          font-size: 0.95rem;
-          line-height: 1.7;
-          color: var(--color-text);
-          max-width: 60ch;
-        }
-        .project-detail-block {
-          margin-top: var(--space-md);
-        }
-        .project-detail-block h4 {
-          font-family: var(--font-body);
-          font-size: 0.75rem;
-          letter-spacing: 0.1em;
-          text-transform: uppercase;
-          color: var(--color-bronze-darker);
-          margin: 0 0 var(--space-xs);
-        }
-        .project-detail-concept-note {
-          font-family: var(--font-body);
-          font-size: 0.8rem;
-          line-height: 1.6;
-          color: var(--color-stone-dark);
-          max-width: 60ch;
-          margin: 0 0 var(--space-sm);
-        }
-        .project-detail-gallery {
-          display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: var(--space-xs);
-        }
-        .project-detail-thumb {
-          position: relative;
-          padding: 0;
-          border: none;
-          border-radius: 4px;
-          overflow: hidden;
-          cursor: zoom-in;
-          aspect-ratio: 4 / 3;
-        }
-        .project-detail-thumb img {
-          display: block;
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-        }
-        /* Concept-art thumbnails read visually softer/desaturated against
-           real gallery photography, on top of the "Concept" text badge —
-           two cues, not just one, that this isn't real project imagery. */
-        .project-detail-thumb.is-concept img {
-          filter: saturate(0.7) brightness(0.96);
-        }
-        .project-detail-thumb.is-concept {
-          border: 1px dashed var(--color-stone);
-        }
-        .project-detail-thumb-label {
-          position: absolute;
-          right: 6px;
-          bottom: 6px;
-          padding: 3px 8px;
-          border-radius: 999px;
-          background: rgba(17, 17, 17, 0.75);
-          color: var(--color-warm-white);
-          font-family: var(--font-body);
-          font-size: 0.65rem;
-          letter-spacing: 0.06em;
-          text-transform: uppercase;
-        }
-        .project-detail-drawing {
-          position: relative;
-          display: block;
-          width: 100%;
-          padding: 0;
-          border: 1px solid var(--color-beige);
-          background: none;
-          cursor: zoom-in;
-        }
-        .project-detail-drawing img {
-          display: block;
-          width: 100%;
-          height: auto;
-        }
-        .project-detail-drawing-hint {
-          position: absolute;
-          right: 8px;
-          bottom: 8px;
-          padding: 4px 10px;
-          border-radius: 999px;
-          background: rgba(17, 17, 17, 0.7);
-          color: var(--color-warm-white);
-          font-family: var(--font-body);
-          font-size: 0.7rem;
-          letter-spacing: 0.04em;
-          text-transform: uppercase;
         }
         .project-detail-nav {
           display: flex;

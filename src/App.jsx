@@ -1,8 +1,8 @@
 import { useEffect } from 'react'
-import { initScroll, destroyScroll } from './lib/scroll'
+import { initScroll, destroyScroll, scrollTo } from './lib/scroll'
 import { homepageProject, isSectionOn } from './lib/content'
 import Loader from './components/Loader'
-import Nav from './components/Nav'
+import HomeNav from './components/HomeNav'
 import Hero from './components/Hero'
 import Statement from './components/Statement'
 import FocusImage from './components/FocusImage'
@@ -23,7 +23,15 @@ import SectionBoundary from './components/SectionBoundary'
 function App() {
   useEffect(() => {
     initScroll()
-    return () => destroyScroll()
+    // Arriving from another page via a link like "/#projects" (project pages'
+    // nav and "All projects"): the section didn't exist when the browser tried
+    // to jump, so scroll there once the page has laid out.
+    const hash = window.location.hash
+    const timer = hash.length > 1 ? window.setTimeout(() => scrollTo(hash), 600) : null
+    return () => {
+      if (timer) window.clearTimeout(timer)
+      destroyScroll()
+    }
   }, [])
 
   const section = (key, name, element) =>
@@ -33,7 +41,7 @@ function App() {
     <>
       <Loader />
       <SectionBoundary name="Nav">
-        <Nav />
+        <HomeNav />
       </SectionBoundary>
       <main>
         {section(null, 'Hero', <Hero project={homepageProject('hero')} />)}
