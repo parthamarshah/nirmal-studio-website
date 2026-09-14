@@ -1,16 +1,24 @@
 import { useEffect, useRef } from 'react'
 import { gsap, prefersReducedMotion } from '../lib/scroll'
-import { tejShah, foldNetwork } from '../lib/content'
+import { tejShah, foldNetwork, foundersReady } from '../lib/content'
+import Founders from './Founders'
 
-// Section 7 of the brief: Studio (Tej Shah) + Network (FOLD). Nirmal Studio
+// v1 (plan Phase 1b): the new founders section (Founders.jsx) replaces this one
+// only once all four people have a real photo and bio in content/founders.json —
+// the live site never shows placeholder portraits or empty bios. Until then the
+// pre-v1 layout below stays.
+export default function Studio() {
+  return foundersReady ? <Founders /> : <LegacyStudio />
+}
+
+// Pre-v1 section: Studio (Tej Shah) + Network (FOLD). Nirmal Studio
 // is Tej's personal practice, not a multi-founder firm — FOLD is a separate,
 // informal, non-legal network of four architects (Tej among them) who
 // collaborate project-by-project for added scale/expertise/geography. Tej
 // gets primary billing (a full 100svh block); FOLD gets a real, substantial
 // secondary block sized to ~3/4 that height (75svh) — present and detailed,
-// but never framed as co-founders of Nirmal Studio itself. See CLAUDE.md's
-// brand-structure section for why this split is non-negotiable.
-export default function Studio() {
+// but never framed as co-founders of Nirmal Studio itself.
+function LegacyStudio() {
   const tejRef = useRef(null)
   const foldRef = useRef(null)
 
@@ -198,7 +206,8 @@ export default function Studio() {
                     color: 'var(--color-text)',
                   }}
                 >
-                  {member.background} {member.expertise}
+                  {/* `previously` is what the backend edits; same wording as the older `background` field. */}
+                  {member.previously ? `Worked at ${member.previously}.` : member.background} {member.expertise}
                 </p>
               </li>
             ))}
@@ -216,8 +225,8 @@ export default function Studio() {
           than Tej's (space-lg vs. space-xl): on mobile the three stacked
           member cards already add real height on top of it, and letting the
           padding be as generous as Tej's block pushed FOLD's rendered
-          height past Tej's — the opposite of CLAUDE.md's "~3/4 the space of
-          the Tej section." min-height alone can't guarantee that ratio once
+          height past Tej's — the opposite of the pre-v1 rule that FOLD gets ~3/4
+          the space of the Tej section. min-height alone can't guarantee that ratio once
           content exceeds the floor, so the fix is trimming what's actually
           inflating it. Desktop doesn't have this problem — 3 columns
           collapses the card stack — so it keeps the fuller padding. */}

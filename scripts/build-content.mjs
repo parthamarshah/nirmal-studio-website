@@ -44,11 +44,15 @@ const HOMEPAGE_SPOTS = ['hero', 'focus', 'philosophy', 'timeline', 'shareImage']
 const SOCIALS = ['facebook', 'instagram', 'whatsapp', 'linkedin']
 const CONTACTS = ['whatsapp', 'email', 'linkedin', 'instagram']
 const FOUNDER_ID = 'tej-shah' // Nirmal Studio's founder — always shown first, never inferred from order
+const BIO_WORDS = { founder: [70, 100], others: [50, 80] }
+const PHOTO_FILTERS = ['original', 'warm', 'bw']
 const ID_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/
 const FILE_RE = /^[A-Za-z0-9][A-Za-z0-9._-]*\.(jpe?g|png|webp)$/i
 
 const errors = []
+const warnings = [] // printed, but never fail the build
 const fail = (where, msg) => errors.push(`${where}: ${msg}`)
+const countWords = (s) => s.trim().split(/\s+/).filter(Boolean).length
 const stop = (list) => {
   console.error(`\n✗ Content check failed — ${list.length} problem${list.length > 1 ? 's' : ''}. The live site is unchanged.\n`)
   list.forEach((e) => console.error('  • ' + e))
@@ -200,6 +204,7 @@ if (unsorted) validatePool('content/unsorted.json', unsorted.pool, path.join(MED
 if (founders) {
   const where = 'content/founders.json'
   if (!isObj(founders.intro)) fail(where, '"intro" is missing')
+  else for (const k of ['nirmal', 'fold']) if (!isNullableStr(founders.intro[k])) fail(where, `intro.${k} must be text`)
   if (!Array.isArray(founders.people) || founders.people.length === 0) fail(where, 'needs at least one person')
   else {
     const ids = new Set()
@@ -210,12 +215,23 @@ if (founders) {
       else if (ids.has(f.id)) fail(at, 'duplicate id')
       ids.add(f.id)
       if (!isStr(f.name)) fail(at, 'name is empty')
-      for (const k of ['role', 'basedIn', 'background', 'expertise', 'bio']) if (!isNullableStr(f[k])) fail(at, `${k} must be text`)
+      for (const k of ['role', 'basedIn', 'previously', 'background', 'expertise', 'bio']) if (!isNullableStr(f[k])) fail(at, `${k} must be text`)
+      // Same limits the backend's word counter enforces: too long blocks, too short only warns.
+      if (typeof f.bio === 'string' && !f.bio.trim()) warnings.push(`${at}: bio is blank — the new founders section stays off until everyone has one`)
+      if (isStr(f.bio)) {
+        const [min, max] = f.id === FOUNDER_ID ? BIO_WORDS.founder : BIO_WORDS.others
+        const n = countWords(f.bio)
+        if (n > max) fail(at, `bio is ${n} words — keep it to ${max} or fewer`)
+        else if (n < min) warnings.push(`${at}: bio is ${n} words — ${min}–${max} keeps the cards even`)
+      }
       if (f.photo != null) {
         if (!isObj(f.photo)) fail(at, 'photo must be an object')
         else {
           validateFile(`${at} → photo`, path.join(MEDIA_SRC, 'founders'), f.photo.file)
           validateCrop(`${at} → photo`, f.photo.crop)
+          if (f.photo.filter != null && !PHOTO_FILTERS.includes(f.photo.filter)) fail(at, `photo filter must be one of ${PHOTO_FILTERS.join(', ')}`)
+          // zoom is only the editor's slider position — the crop already reflects it.
+          if (f.photo.zoom != null && !(typeof f.photo.zoom === 'number' && f.photo.zoom >= 1 && f.photo.zoom <= 4)) fail(at, 'photo zoom must be a number from 1 to 4')
         }
       }
       for (const k of CONTACTS) {
@@ -223,9 +239,15 @@ if (founders) {
         if (!isObj(c) || typeof c.on !== 'boolean') fail(at, `contacts.${k} needs an on/off switch`)
         else if (c.on && !isStr(c.value)) fail(at, `contacts.${k} is switched on but empty`)
         else if (c.on && ['linkedin', 'instagram'].includes(k) && !isHttps(c.value)) fail(at, `contacts.${k} must be a full https:// link`)
+        else if (c.on && k === 'whatsapp' && !/^\d{8,15}$/.test(c.value)) fail(at, 'contacts.whatsapp must be digits only, with country code (e.g. 919106998434)')
+        else if (c.on && k === 'email' && !/^[^\s@?&]+@[^\s@?&]+\.[^\s@?&]+$/.test(c.value)) fail(at, `contacts.email "${c.value}" doesn't look like an email address`)
       }
     })
     if (!ids.has(FOUNDER_ID)) fail(where, `Tej Shah (id "${FOUNDER_ID}") must be in the list`)
+    // Say why the v1 section is still off once someone has started adding photos/bios.
+    const missing = founders.people.filter((f) => isObj(f) && !(f.photo && isStr(f.bio)))
+    if (missing.length && founders.people.some((f) => isObj(f) && f.photo))
+      warnings.push(`${where}: new founders section stays off until these have a photo and bio: ${missing.map((f) => f.name).join(', ')}`)
   }
 }
 
@@ -265,6 +287,7 @@ if (site) {
 }
 
 if (errors.length) stop(errors)
+warnings.forEach((w) => console.warn('  ! ' + w))
 
 // ---------------------------------------------------------------- images
 fs.mkdirSync(MEDIA_OUT, { recursive: true })
@@ -273,10 +296,21 @@ const jobs = []
 const hashOf = (file, params) =>
   crypto.createHash('sha1').update(fs.readFileSync(file)).update(JSON.stringify({ params, PIPELINE_VERSION })).digest('hex').slice(0, 10)
 
+// Changing these numbers? Bump PIPELINE_VERSION, or cached files keep the old look.
+// Founder photo filters, as colour matrices (3 channels in, 3 out) plus a
+// contrast/brightness line — so portraits from different phones read as a set.
+const lerpMatrix = (m, a) => m.map((row, r) => row.map((v, c) => (r === c ? 1 - a : 0) + a * v))
+const SEPIA = [[0.393, 0.769, 0.189], [0.349, 0.686, 0.168], [0.272, 0.534, 0.131]]
+const LUMA = [0.2126, 0.7152, 0.0722]
+const FILTER_OPS = {
+  warm: (img) => img.recomb(lerpMatrix(SEPIA, 0.3)).modulate({ saturation: 1.12, brightness: 1.02 }),
+  bw: (img) => img.recomb([LUMA, LUMA, LUMA]).linear(1.08, -128 * 0.08),
+}
+
 // Decodes once to raw pixels (so nothing is compressed twice), applying phone
-// EXIF orientation, then rotation, then crop — the admin's crop tool must measure
-// crops in that same orientation. Transparent areas become white.
-async function decoded(file, { rotation = 0, crop = null }) {
+// EXIF orientation, then rotation, then crop, then filter — the admin's crop tool
+// must measure crops in that same orientation. Transparent areas become white.
+async function decoded(file, { rotation = 0, crop = null, filter = null }) {
   let img = sharp(file, { failOn: 'error' }).autoOrient()
   if (rotation) img = img.rotate(rotation)
   let { data, info } = await img.flatten({ background: '#ffffff' }).raw().toBuffer({ resolveWithObject: true })
@@ -286,6 +320,9 @@ async function decoded(file, { rotation = 0, crop = null }) {
     const width = Math.max(1, Math.min(info.width - left, Math.round(crop.w * info.width)))
     const height = Math.max(1, Math.min(info.height - top, Math.round(crop.h * info.height)))
     ;({ data, info } = await sharp(data, { raw: info }).extract({ left, top, width, height }).raw().toBuffer({ resolveWithObject: true }))
+  }
+  if (FILTER_OPS[filter]) {
+    ;({ data, info } = await FILTER_OPS[filter](sharp(data, { raw: info })).raw().toBuffer({ resolveWithObject: true }))
   }
   return { data, info }
 }
@@ -305,6 +342,7 @@ const mediaCache = new Map()
 function media(file, scope, id, opts = {}) {
   const kind = opts.kind === 'drawing' ? 'drawing' : 'photo'
   const params = { rotation: opts.rotation ?? 0, crop: opts.crop ?? null, kind }
+  if (opts.filter && opts.filter !== 'original') params.filter = opts.filter // absent otherwise, so existing hashes don't change
   const base = `${scope}/${id}.${hashOf(file, params)}`
   if (mediaCache.has(base)) return mediaCache.get(base)
   const result = { kind }
@@ -413,7 +451,9 @@ const outFounders = {
   ...founders,
   people: people.map((f) => ({
     ...f,
-    photo: f.photo ? { ...f.photo, media: media(path.join(MEDIA_SRC, 'founders', f.photo.file), 'founders', f.id, { crop: f.photo.crop }) } : null,
+    photo: f.photo
+      ? { ...f.photo, media: media(path.join(MEDIA_SRC, 'founders', f.photo.file), 'founders', f.id, { crop: f.photo.crop, filter: f.photo.filter }) }
+      : null,
   })),
 }
 

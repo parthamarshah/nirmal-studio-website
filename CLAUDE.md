@@ -45,10 +45,15 @@ better than that, not a marginal improvement.
 Rachit Sinvhal, Tej Shah, Hardik Maheshwari) who collaborate project-by-project for
 added scale/expertise/geography. Tej is a member of both.
 
-On this site: Tej/Nirmal Studio gets primary billing. FOLD gets a real, substantial
-secondary section (~3/4 the space of the Tej section) — but the other three FOLD
-members must **never** be framed as co-founders of Nirmal Studio itself. That would
-misrepresent the actual legal/brand structure.
+On this site: Tej/Nirmal Studio gets primary billing — the other three FOLD members
+must **never** be framed as co-founders of Nirmal Studio itself. That would
+misrepresent the actual legal/brand structure. **v1 founders layout (decided
+2026-09-13, built in `Founders.jsx`):** Tej first; desktop = one band per person with
+Tej's ~18% larger; phone = one carousel of four equal cards (Embla; native scroll-snap
+under reduced motion). It is **gated**: `Studio.jsx` shows it only when every person in
+`content/founders.json` has a photo and a bio (`foundersReady`) — until then the pre-v1
+layout (Tej block + FOLD block at ~3/4 its height, `LegacyStudio`) stays live. Don't
+add placeholder portraits/bios to switch it on.
 
 Services: Architecture, Interior Design, Landscape Design.
 Tagline: "Designing Spaces. Crafting Experiences."
@@ -79,10 +84,13 @@ Tagline: "Designing Spaces. Crafting Experiences."
   NOT rendered on the public, shareable `/projects/<slug>/` pages
   (`ProjectStory`'s `showLegacyConceptArt` is off there). Remove the shim once each
   image is assigned to one house.
-- **Founder bios**: deep bio copy only for Tej Shah. The other three FOLD members use
-  the PDF facts as-is (`content/founders.json`). (v1 changes this — see the v1 plan: Parth writes all four bios via the backend.) Never invent years of experience,
-  favourite material, or favourite architect for any of the four — not real facts we
-  have, and these are real named people.
+- **Founder bios**: Parth (or Tej) writes all four bios — never Claude. Until they exist,
+  the three FOLD members show only the PDF facts (`previously` + `expertise`; both layouts read
+  `previously`, the legacy one falls back to the older `background` field). Word limits are
+  enforced by the build: Tej ≤100 (warns under 70), others ≤80 (warns under 50). Never
+  invent bios, years of experience, favourite material, or favourite architect for any
+  of the four — not real facts we have, and these are real named people. Photo filters
+  (`original`/`warm`/`bw`) are applied at build by `build-content.mjs`, not CSS.
 - **Journal & Testimonials**: no real content yet. Sections **hide entirely** from the
   site/nav when their data array is empty (`src/data/journal.js`,
   `src/data/testimonials.js`) — no "coming soon" placeholder. This was a deliberate
@@ -112,7 +120,7 @@ Tagline: "Designing Spaces. Crafting Experiences."
   `scripts/prerender.mjs` and hydrated). Anything rendered on project pages —
   `ProjectStory`, `Nav`, `Img`, `RichText`, `ImageViewer` — must not read browser APIs
   (window, matchMedia, `prefersReducedMotion()`) during render, or hydration fails.
-  Project pages don't load GSAP/Lenis/Framer; keep it that way. Always link to project
+  Project pages don't load GSAP/Lenis/Framer/Embla (Embla = the homepage founders carousel only); keep it that way. Always link to project
   pages with a trailing slash (`projectPath()`), since Pages serves the directory index there.
 - **Mobile-first, not desktop-first-then-adapt.** Mobile is the primary "ultra smooth"
   target; desktop can be comparatively subdued but must feel equally polished. Build

@@ -17,6 +17,7 @@
     "check:domains": "bash scripts/check-domains.sh"
   },
   "dependencies": {
+    "embla-carousel-react": "^8.6.0",
     "framer-motion": "^12.42.2",
     "gsap": "^3.15.0",
     "lenis": "^1.3.25",

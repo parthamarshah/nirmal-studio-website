@@ -101,6 +101,24 @@ const legacyPerson = (f) => ({ ...f, title: f.role })
 export const tejShah = legacyPerson(founders.people.find((f) => f.id === 'tej-shah'))
 export const foldNetwork = founders.people.filter((f) => f.id !== 'tej-shah').map(legacyPerson)
 
+// The v1 founders section (Founders.jsx): everyone, Tej first (the build sorts).
+export const people = founders.people
+export const foundersIntro = founders.intro
+// No placeholders on the live site: the new section only switches on once every
+// person has a real photo and bio. Until then Studio.jsx keeps the older layout.
+export const foundersReady = people.length > 0 && people.every((p) => p.photo?.media && p.bio?.trim())
+
+// A person's switched-on contact links, in display order.
+export const personContacts = (p) =>
+  [
+    ['whatsapp', 'WhatsApp', (v) => `https://wa.me/${v.replace(/\D/g, '')}`],
+    ['email', 'Email', (v) => `mailto:${v}`],
+    ['linkedin', 'LinkedIn', (v) => v],
+    ['instagram', 'Instagram', (v) => v],
+  ]
+    .filter(([key]) => p.contacts?.[key]?.on && p.contacts[key].value)
+    .map(([key, label, href]) => ({ key, label, href: href(p.contacts[key].value) }))
+
 // Studio social links, only the switched-on ones (url or null per platform).
 export const social = Object.fromEntries(
   Object.entries(site.socials || {})

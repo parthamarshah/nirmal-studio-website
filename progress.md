@@ -5,6 +5,64 @@ live in `CLAUDE.md` — read that first if you're picking this up cold.
 
 ## Resume here
 
+**Session status (2026-09-14, later session): Phase 1b committed + pushed on top of
+`4290acc` (see block below); live site looks unchanged because the new founders section
+is gated off.**
+
+**Phase 1b (founders section) — built 2026-09-14, switched OFF on the live site by design.**
+`src/components/Founders.jsx`: desktop bands (Tej's photo/name ~18% larger, photos
+alternate sides), phone Embla carousel of 4 equal cards with dots, "1 / 4" and a swipe
+hint, reduced-motion = native scroll-snap (`data-lenis-prevent` only then). `Studio.jsx`
+renders it only when `foundersReady` (all four have photo + bio); otherwise the old layout
+(`LegacyStudio`). Build now validates `previously`, intros, word limits (fail above max,
+warn below min), photo `filter` (applied at build: warm/bw) and `zoom`. Founder photos go
+in `content/media/founders/<file>` + `photo: {file, crop, filter}`. Verified in headless
+Chrome with temporary test photos/filler bios (reverted, not committed): 390/820/1440px,
+dots, touch swipe, desktop↔phone resize, reduced motion, validation errors; production
+build still shows the old section. Intro text falls back to built-in wording while
+`founders.json` `intro` is empty. **To go live it needs:** 4 photos + bios for Bhumika,
+Rachit, Hardik (Tej's existing 81-word bio fits; it's first-person — the others should
+match voice). Reviews (impact, edge-case, UX) run and fixes applied: WhatsApp/email
+contact validation, blank-bio warning + "section stays off until…" warning, snap↔carousel
+switch keeps the card, controls above the phone cards, 44px dots/icons, focus outlines,
+desktop intro top-aligned. **Not applied, for Parth:** roles read "Ar. — Founding Partner,
+FOLD" (UX review suggests "Founding Partner, FOLD" — content wording, his call); optional
+small "FOLD network" divider before person 2 so skimmers don't read all four as studio team.
+
+**Next up — rest of Phase 1 (Parth already said "go" for all of Stage 1):**
+1. **1c Talk to Tej** — nav button on every page (Nav is shared by homepage + project pages),
+   choice panel, first-message helper, desktop QR; `content/site.json` needs `replyTime`,
+   helper options. Project pages must stay free of Framer/GSAP (use a plain overlay like
+   `ImageViewer.jsx`) and render-time-browser-API-free (hydration).
+2. **1d Lighter** — self-host fonts, review Framer usage, measure before/after (Embla now ships in the homepage chunk even while 1b is gated off — consider lazy-loading it).
+Then Phase 2 (backend foundation) — needs Parth to create a GitHub fine-grained token and a
+Cloudflare API token (walk him through one step at a time; he prefers doing dashboard clicks
+himself).
+
+**Open questions waiting on Parth (asked in chat, not yet answered):**
+- AI concept images: currently still shown (labelled) in the homepage takeover for
+  Shimla/Nishee, deliberately NOT on the public project pages. Remove from the takeover too
+  now, or keep until he assigns each to one house in the Phase 3 backend?
+- Real founder photos + bios for all four (needed before 1b can go live, not before it's built).
+- Hero render (Citadel `exterior-landscape.jpg`) is only 1024px wide — soft on big screens; a
+  larger export from the renders would fix it.
+- Still open from earlier: Cloudflare AI-crawler block; deleting old `nirmal-studio-website`
+  Pages project (~2026-09-20+, ask first).
+
+**Deferred UX ideas from reviews (not decided, not built):** next/prev inside the image
+viewer; soft 404 for unknown `/projects/<slug>/` (currently homepage shell + "isn't
+available" message, HTTP 200); unify takeover vs page prev/next style; enlarge hint on single
+photos. A project-page "Talk to Tej" CTA was suggested but conflicts with Parth's decision
+(nav button only) — don't add.
+
+**Verification tooling note:** Claude-in-Chrome was not connected this session; browser checks
+were done by driving the installed Chrome headlessly over the DevTools protocol (Node script,
+lived in the session scratchpad — not in the repo; recreate if needed: launch Chrome with
+`--headless=new --remote-debugging-port`, use Node's built-in WebSocket). Pre-rendered pages
+must be tested at the trailing-slash URL with `vite preview` (it serves the SPA shell without
+the slash). Local network was very slow (~2.5KB/s npm) — big downloads need resumable curl.
+Review agents hit a monthly spend limit once mid-session; re-run if a hook requires them.
+
 **v1 build started (2026-09-13, later session).** The full, Parth-approved v1 plan is in
 `/Users/parth/.claude-personal/plans/let-s-start-working-on-jolly-fern.md` (phases 0–4:
 content foundation → public site v1 → `/admin` backend foundation → backend editors →
