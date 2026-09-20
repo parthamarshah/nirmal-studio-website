@@ -135,6 +135,51 @@ scroll lock PASS — **0px** horizontal shift when the scrollbar disappears (so 
 Lenis scrolls normally afterwards. Both of the edge-case review's "unverified" items are
 therefore answered.
 
+**PHASE 2 IN PROGRESS (2026-09-20, later session).** Build plan:
+`~/.claude-personal/plans/nirmal-studio-phase-2-admin.md` — read it before continuing,
+it has the locked decisions, the build order and the named risks.
+
+**Done so far (steps 1-2 of 7), all committed:**
+- **Storage:** D1 `nirmal-studio-admin` (APAC) + KV `UPLOADS`, bound per environment in
+  `wrangler.toml`; `migrations/0001_initial.sql` applied local **and** remote.
+- **Secrets:** `npm run admin:secrets` writes a 0600, gitignored `.dev.vars`
+  (`ADMIN_PIN_HASH`, `GITHUB_TOKEN`, `SESSION_SECRET`, `PUBLISH_BRANCH`). Parth has set
+  his real PIN and token. **`.dev.vars` and `.wrangler` were NOT gitignored — fixed
+  before anything could write a secret there.**
+- **Auth:** `functions/api/admin/{login,logout,me}.js` + `_lib/auth.js`. PBKDF2 verify,
+  5-failure lockout (per-IP **and** a global bucket), revocable D1-backed sessions,
+  HttpOnly/Secure/SameSite=Strict signed cookie. **`npm run test:auth` — 17 tests,
+  all passing**, weighted to failure paths (forged signatures, unsigned ids, lockout,
+  correct-PIN-refused-while-locked, logout revoking server-side).
+
+**Three traps found the hard way — don't rediscover these:**
+1. `wrangler pages dev` **always** loads `.dev.vars`, and `--env-file` does **not**
+   override it (verified by having the worker report the salt prefix it received). Since
+   nobody but Parth knows the real PIN, testing the success path means swapping the file
+   and restoring it on any exit — `scripts/test-admin-auth.sh` does this with a trap.
+2. Passing `--d1 NAME=...` to `pages dev` binds a **different** local SQLite file than
+   `wrangler d1 execute --local` writes to. Symptom is a 500 with "no such table".
+   Let `wrangler.toml` supply the bindings; don't pass the flags.
+3. A Cyrillic character was typo'd into an identifier (`clearedСookieHeader`) and lint
+   did not catch it. Worth a glance when a name "looks right" but doesn't resolve.
+
+**OPEN RISK, not yet resolved:** login costs ~15ms wall-clock locally and Cloudflare's
+free tier caps CPU near 10ms per request. Wall-clock includes D1 I/O which does not
+count as CPU, so this is unproven either way — **`wrangler pages dev` enforces no limit,
+so this can only be settled on a real deployment.** The build plan deliberately puts
+"deploy a thin auth slice" at step 3, before the shell and editors, so this surfaces
+cheaply. The stored hash carries its own iteration count, so tuning it down needs no
+migration — but note Parth's existing hash is 210k, so lowering the constant won't help
+his login until he re-runs `npm run admin:secrets`.
+
+**Next (steps 3-7):** deploy the thin auth slice to `admin-test` and measure CPU → admin
+shell (second Vite entry, noindex) → drafts with autosave → publish/status/undo →
+hardening + the three review agents.
+
+**Also still to do from Phase 1:** Parth chose to route the Contact section's
+"Book a Consultation" CTA through the Talk-to-Tej panel (rather than straight out to
+WhatsApp) — decided 2026-09-20, **not yet built**. He declined the rename.
+
 **Next up — Phase 2 (backend foundation). Both API tokens are now CREATED** (2026-09-20,
 walked through one step at a time; see CLAUDE.md's "Phase 2 credentials" section for
 scopes and where they're stored). Remaining before Phase 2 can be finished: Parth's
