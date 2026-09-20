@@ -2,14 +2,10 @@ import { useEffect, useRef, useState } from 'react'
 import Boundary from './Boundary'
 import { journalPosts } from '../data/journal'
 import { isSectionOn, whatsappUrl } from '../lib/content'
-
-// The "Talk to Tej" panel's code is fetched on first use (and warmed up when a
-// pointer or keyboard focus reaches the button), never during page load or hydration.
-let talkModule = null
-const loadTalk = () => (talkModule ??= import('./TalkToTej.jsx').catch((err) => {
-  talkModule = null // allow a retry
-  throw err
-}))
+// Shared with Contact.jsx's CTA so both open the same panel from one downloaded chunk.
+// Fetched on first use (and warmed when a pointer or keyboard focus reaches the
+// button), never during page load or hydration.
+import { loadTalk } from './loadTalk'
 
 // Persistent nav, used on every page. Transparent/light-text over the Hero
 // image until `scrolled` (driven by HomeNav.jsx's #hero ScrollTrigger on the
@@ -158,7 +154,7 @@ export default function Nav({ scrolled = true, onNavigate }) {
           onTouchStart={() => loadTalk().catch(() => {})}
           onFocus={() => loadTalk().catch(() => {})}
         >
-          Talk to Tej
+          Talk with Us
         </a>
 
         <button
@@ -199,7 +195,7 @@ export default function Nav({ scrolled = true, onNavigate }) {
           createPortal does not escape a boundary: boundaries follow the React tree,
           not the DOM. */}
       {TalkPanel && (
-        <Boundary name="Talk to Tej panel">
+        <Boundary name="Talk panel">
           <TalkPanel onClose={() => setTalkPanel(null)} />
         </Boundary>
       )}

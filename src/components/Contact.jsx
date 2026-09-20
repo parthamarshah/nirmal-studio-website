@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { gsap, prefersReducedMotion } from '../lib/scroll'
 import { site, social, tejShah, whatsappUrl, whatsappWebUrl } from '../lib/content'
+import Boundary from './Boundary'
+import { loadTalk } from './loadTalk'
 
 // Section 11 of the brief, and — until Journal/Testimonials have real
 // content — the last section on the page, so its ScrollTrigger uses
@@ -28,11 +30,22 @@ import { site, social, tejShah, whatsappUrl, whatsappWebUrl } from '../lib/conte
 //
 // All of these now come from content/site.json (editable in the backend).
 //
-// The link itself is built by whatsappUrl() in lib/content, NOT by hand here: this
+// The CTA opens the SAME panel as the nav button (Parth, 2026-09-21): the options,
+// the first-message helper and the desktop QR are the whole point of that panel, and
+// this button — the site's single stated conversion action — used to skip all of it and
+// drop a logged-out desktop visitor onto WhatsApp Web's bare QR-login screen with no
+// context. It was the less helpful of the two paths to the same place.
+//
+// The anchors below stay, and stay gated by CSS, as the no-JavaScript fallback: if the
+// panel's chunk fails to load the click still reaches WhatsApp. Deliberately not
+// preventDefault() + window.open() — a blocked popup would make the site's one
+// conversion action do nothing at all, the default having already been cancelled.
+//
+// The href itself is built by whatsappUrl() in lib/content, NOT by hand here: this
 // file used to derive its own wa.me URL, which had already drifted from the nav's
-// "Talk to Tej" panel — same action, same page, two behaviours. It also silently
-// dropped the ?text= greeting whenever whatsappGreeting was empty, where the panel
-// falls back to a default.
+// panel — same action, same page, two behaviours. It also silently dropped the ?text=
+// greeting whenever whatsappGreeting was empty, where the panel falls back to a
+// default.
 const WHATSAPP_URL = whatsappUrl()
 // wa.me on a computer stops at a "continue to chat" interstitial, so desktop goes to
 // WhatsApp Web directly — the same call the Talk-to-Tej panel makes, and this uses the
@@ -83,6 +96,30 @@ export default function Contact() {
   // debt (9.1MB of images, no code-splitting), a map most visitors never
   // interact with shouldn't cost bytes by default.
   const [mapLoaded, setMapLoaded] = useState(false)
+  // The panel, once its chunk has loaded. Same pattern as Nav.jsx, deliberately: it is
+  // a plain state toggle, not an AnimatePresence overlay, and the panel portals itself
+  // to <body> so the nav's backdrop-filter (or anything else here) can't trap it.
+  const [TalkPanel, setTalkPanel] = useState(null)
+  const [talkLoading, setTalkLoading] = useState(false)
+
+  // Declared above every effect and handler that names it — a const referenced before
+  // its declaration in the same function body throws on every render, and there is no
+  // error boundary above this component (CLAUDE.md's known-incident list).
+  const openTalk = (e) => {
+    e.preventDefault()
+    // Keep the real href: if the chunk fails, this is where we send them instead.
+    const href = e.currentTarget.href
+    setTalkLoading(true)
+    loadTalk().then(
+      (m) => {
+        setTalkLoading(false)
+        setTalkPanel(() => m.default)
+      },
+      () => {
+        window.location.href = href
+      },
+    )
+  }
 
   useEffect(() => {
     if (prefersReducedMotion() || !contentRef.current) return
@@ -138,10 +175,32 @@ export default function Contact() {
           Have a project in mind? Let&rsquo;s talk.
         </p>
 
-        <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer" className="contact-cta is-phone">
+        <a
+          href={WHATSAPP_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={`contact-cta is-phone${talkLoading ? ' is-loading' : ''}`}
+          aria-haspopup="dialog"
+          aria-busy={talkLoading || undefined}
+          onClick={openTalk}
+          onPointerEnter={() => loadTalk().catch(() => {})}
+          onTouchStart={() => loadTalk().catch(() => {})}
+          onFocus={() => loadTalk().catch(() => {})}
+        >
           Book a Consultation
         </a>
-        <a href={WHATSAPP_WEB_URL} target="_blank" rel="noopener noreferrer" className="contact-cta is-desktop">
+        <a
+          href={WHATSAPP_WEB_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={`contact-cta is-desktop${talkLoading ? ' is-loading' : ''}`}
+          aria-haspopup="dialog"
+          aria-busy={talkLoading || undefined}
+          onClick={openTalk}
+          onPointerEnter={() => loadTalk().catch(() => {})}
+          onTouchStart={() => loadTalk().catch(() => {})}
+          onFocus={() => loadTalk().catch(() => {})}
+        >
           Book a Consultation
         </a>
 
@@ -307,6 +366,16 @@ export default function Contact() {
           cursor: pointer;
         }
       `}</style>
+
+      {/* Its own boundary, not the section's: this is lazily loaded code rendering
+          inside Contact, so a throw in it would otherwise take the address, map and
+          phone number down with it — and an error boundary never resets, so they
+          would stay gone until a reload. */}
+      {TalkPanel && (
+        <Boundary name="Talk panel">
+          <TalkPanel onClose={() => setTalkPanel(null)} />
+        </Boundary>
+      )}
     </section>
   )
 }

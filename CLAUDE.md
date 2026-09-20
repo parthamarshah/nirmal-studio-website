@@ -106,6 +106,16 @@ Tagline: "Designing Spaces. Crafting Experiences."
   choice: a placeholder undercuts the confident, non-marketing tone the brief itself
   asks for. The moment real entries are added to those data files, the sections should
   reappear with no component changes needed.
+- **Button label (decided 2026-09-21)**: the nav button and the panel heading read
+  **"Talk with Us"**, not "Talk to Tej" — Parth's call. The panel's subtitle still says
+  "You'll speak directly with Tej" on purpose: the button invites, the line under it
+  reassures you are not writing to a mailbox. **The component is still `TalkToTej.jsx`**
+  and the greeting in `site.json` still opens "Hi Tej" — those are internal/recipient
+  names, not the label, and neither was renamed. Don't "restore" the old button text.
+  The Contact section's **"Book a Consultation" CTA opens the same panel** (same
+  decision) rather than jumping straight to WhatsApp; both it and the nav button share
+  `src/components/loadTalk.js` so the chunk is fetched once. Both keep a real wa.me href
+  as the no-JS fallback — see the two-anchors-gated-by-CSS pattern below.
 - **Contact**: Tej Shah, WhatsApp/phone `910 699 8434`, email `tej@nirmalstudio.com`.
   The studio address **is confirmed and real** — it lives in `content/site.json`
   (`contact.address`, plus `contact.addressShort` for the Talk-to-Tej "Visit" link) and
