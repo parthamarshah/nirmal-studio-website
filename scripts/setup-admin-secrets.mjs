@@ -13,12 +13,22 @@ import { readFileSync, writeFileSync, existsSync, chmodSync } from 'node:fs'
 
 const FILE = '.dev.vars'
 
-// PBKDF2-SHA256. 210k iterations is OWASP's 2023 floor for this construction, and the
-// stored format carries its own parameters so they can be raised later without
-// invalidating existing hashes. A 6-digit PIN is only a million possibilities, so the
-// real protection is the server-side lockout (5 attempts / 15 minutes) — the hash just
-// ensures a leaked secret store doesn't hand over the PIN itself.
-const ITERATIONS = 210_000
+// PBKDF2-SHA256. OWASP's 2023 floor for this construction is 210k, but **Cloudflare
+// Workers refuses any iteration count above 100,000** — `crypto.subtle.deriveBits`
+// throws "Pbkdf2 failed: iteration counts above 100000 are not supported". Measured on
+// a real preview deployment on 2026-09-20: 100000 → HTTP 200, 100001 → HTTP 500. So
+// 100k is not a tuning choice, it is the hard ceiling of the platform.
+//
+// The free-tier CPU worry that this number was originally hedged against turned out not
+// to bite: the same measurement reported 23-38ms CPU at 100k iterations with outcome
+// "ok", well past the 10ms figure the plan feared.
+//
+// The stored format carries its own parameters, so this can be raised again if the
+// platform ever lifts the cap, without invalidating existing hashes. A 6-digit PIN is
+// only a million possibilities anyway, so the real protection is the server-side lockout
+// (5 attempts / 15 minutes) — the hash just ensures a leaked secret store doesn't hand
+// over the PIN itself.
+const ITERATIONS = 100_000
 export const hashPin = (pin, salt = randomBytes(16)) =>
   `pbkdf2$sha256$${ITERATIONS}$${salt.toString('base64')}$${pbkdf2Sync(pin, salt, ITERATIONS, 32, 'sha256').toString('base64')}`
 

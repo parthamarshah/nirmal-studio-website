@@ -34,7 +34,7 @@ node -e "
 const { pbkdf2Sync, randomBytes } = require('crypto')
 const fs = require('fs')
 const salt = randomBytes(16)
-const hash = ['pbkdf2','sha256',210000,salt.toString('base64'),pbkdf2Sync('$TEST_PIN',salt,210000,32,'sha256').toString('base64')].join('\$')
+const hash = ['pbkdf2','sha256',100000,salt.toString('base64'),pbkdf2Sync('$TEST_PIN',salt,100000,32,'sha256').toString('base64')].join('\$')
 const kept = fs.readFileSync('.dev.vars.real','utf8').split('\n').filter(l => !/^(ADMIN_PIN_HASH|SESSION_SECRET)=/.test(l))
 kept.push('ADMIN_PIN_HASH=' + hash, 'SESSION_SECRET=' + randomBytes(32).toString('base64'))
 fs.writeFileSync('.dev.vars', kept.join('\n').replace(/\n+\$/,'') + '\n', { mode: 0o600 })

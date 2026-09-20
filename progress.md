@@ -144,6 +144,12 @@ existing, since production has no PIN/session secrets) and was undone in `857ea5
 CLAUDE.md's "Branches right now" section. **Work on `admin-test`:**
 `git checkout admin-test`.
 
+**Second trap, same family, hit minutes later:** `git merge main` into `admin-test`
+fast-forwarded and carried main's *deletion* of `functions/` across, silently leaving
+`admin-test` without the backend it exists to hold (restored in `992911c`). The two
+branches deliberately **diverge** on `functions/`, so never merge main into admin-test —
+cherry-pick the docs commit, or merge admin-test into main when it is time to launch.
+
 **Local setup a cold session needs to know about:** `.dev.vars` exists on this machine
 (gitignored, 0600) holding Parth's real PIN hash, his GitHub token, a generated
 `SESSION_SECRET` and `PUBLISH_BRANCH=admin-test`. Nobody knows the PIN, including Claude
@@ -179,18 +185,146 @@ it has the locked decisions, the build order and the named risks.
 3. A Cyrillic character was typo'd into an identifier (`clearedСookieHeader`) and lint
    did not catch it. Worth a glance when a name "looks right" but doesn't resolve.
 
-**OPEN RISK, not yet resolved:** login costs ~15ms wall-clock locally and Cloudflare's
-free tier caps CPU near 10ms per request. Wall-clock includes D1 I/O which does not
-count as CPU, so this is unproven either way — **`wrangler pages dev` enforces no limit,
-so this can only be settled on a real deployment.** The build plan deliberately puts
-"deploy a thin auth slice" at step 3, before the shell and editors, so this surfaces
-cheaply. The stored hash carries its own iteration count, so tuning it down needs no
-migration — but note Parth's existing hash is 210k, so lowering the constant won't help
-his login until he re-runs `npm run admin:secrets`.
+**RESOLVED — the CPU risk was the wrong worry. The real one is a hard platform
+ceiling.** Step 3 is done. Measured on a real preview deployment (2026-09-20) with a
+throwaway endpoint that ran the same derivation the login does, reading `cpuTime`
+straight out of `wrangler pages deployment tail`:
 
-**Next (steps 3-7):** deploy the thin auth slice to `admin-test` and measure CPU → admin
-shell (second Vite entry, noindex) → drafts with autosave → publish/status/undo →
-hardening + the three review agents.
+| PBKDF2 iterations | result | CPU |
+|---|---|---|
+| 1,000 | ok | 1 ms |
+| 10,000 | ok | 5 ms |
+| 25,000 | ok | 13 ms |
+| 50,000 | ok | 18 ms |
+| 75,000 | ok | 18 ms |
+| 100,000 | ok | 23-38 ms |
+| 100,001 | **HTTP 500** | — |
+| 210,000 | **HTTP 500** | — |
+
+- **CPU was never the problem.** 100k iterations burns 23-38ms and Workers ran it
+  happily, well past the ~10ms figure the plan hedged against. Stop treating the free
+  tier's CPU budget as the constraint on this.
+- **Cloudflare Workers refuses any iteration count above 100,000.** `deriveBits` throws
+  `Pbkdf2 failed: iteration counts above 100000 are not supported`. The boundary is
+  exact: 100000 passes, 100001 fails. This is a platform limit, not a tuning knob.
+- **So Parth's stored hash could never have worked.** `npm run admin:secrets` hashed at
+  210k, so his `ADMIN_PIN_HASH` would have made *every* login 500 — on a deployment, in a
+  way local dev could never reproduce, with nothing in the error pointing at the cause.
+  **He must re-run `npm run admin:secrets`** (the constant is now 100k) before /admin can
+  work anywhere. Nothing else can fix it: the iteration count travels inside the hash.
+  The 100k constant is on **both `main` and `admin-test`** — the script is deliberately
+  identical on the two branches, unlike `functions/`, so it does not matter which one is
+  checked out when he runs it.
+- `verifyPin` now refuses an out-of-range hash with a plain-English 503 naming the
+  problem, instead of throwing an uncaught exception.
+
+**Review gate run early (the previous session's own advice), and it was worth it.**
+edge-case-checker and impact-tracker both ran against the auth code before any more was
+built on it. Four must-fix findings, all fixed and all now covered by tests:
+
+1. **Total auth bypass if `ADMIN_PIN_HASH` were ever truncated.** The derived length was
+   read *from the stored hash*, so a hash whose final segment was empty made
+   `deriveBits(…, 0)` return an empty buffer and the constant-time compare answer `true`
+   for **every** PIN. A one-byte hash let ~1 in 256 PINs through. Nothing in the repo
+   produces such a value — but hand-pasting the hash into the Cloudflare dashboard is the
+   documented workflow, and that is exactly when truncation happens. The length is now
+   pinned at 32 bytes and anything else is a 503.
+2. **The lockout could be outrun by guessing in parallel.** `recordFailure` read the row,
+   added one in JavaScript and wrote the literal back across two round-trips, so fifty
+   simultaneous attempts all read the same count and all wrote the same count+1 — the
+   counter advanced by **one**. Since CLAUDE.md and the file's own header both name the
+   lockout as the real defence for a 6-digit PIN, this defeated the actual security
+   model. The increment now happens inside one SQL statement, so SQLite serialises it.
+   Regression test fires 10 parallel wrong PINs and asserts the stored count is 10.
+3. **One malformed cookie anywhere on the domain 500'd every session check, forever.**
+   `decodeURIComponent` throws on a bare `%`, and the offending cookie need not be ours —
+   any third-party cookie would do. That browser then got a 500 from `/me` *and* from
+   `/logout`, so it could not even clear the cookie that was breaking it. Now caught.
+4. **The session cookie is `__Host-`-prefixed.** Without it a sibling subdomain can set a
+   `Domain=.nirmalstudio.com` cookie of the same name and shadow the real session — and
+   there is one: `erp.` is a CNAME to a separate third-party-hosted app. Duplicate names
+   also now resolve first-wins rather than last-wins.
+
+Also fixed from the same reviews: `getSession` checks the D1 binding as well as the
+secret (otherwise a half-configured deployment 500s where it should 401); the hourly
+`last_seen_at` touch can no longer kill a valid session if the write fails; a 401 now
+clears the dead cookie instead of leaving it to fail for 30 days; and `admin:dev` /
+`admin:migrate` in package.json were **both broken** — `wrangler` is not installed
+locally or on PATH, so they need `npx` (only `test:auth` worked, because it already used
+`npx`). **`npm run test:auth` is now 35 tests** (12 new `scripts/test-pin-hash.mjs` unit
+tests for malformed hashes, which need no server, plus 23 integration tests).
+
+**Not fixed, deliberately — decide these before production:**
+- **Preview and production share one D1** (same `database_id` in all three wrangler.toml
+  blocks), so they share `login_attempts` — including the `global` bucket. Once
+  production has secrets, a scanner hitting the *preview* login 20 times locks Parth and
+  Tej out of the **live** /admin. Give preview its own D1 before production is configured,
+  not after. Same argument for a distinct `SESSION_SECRET` per environment.
+- **The lockout fails open if D1 runs out of writes.** Each failed login writes 2 rows;
+  the free tier allows ~100k/day. Past that `recordFailure` throws, the counter stops
+  climbing, and guessing proceeds unmetered. Needs a deliberate call, not a patch.
+- Neither `login_attempts` nor `sessions` is ever pruned; sessions expire at 30 days with
+  no renewal (an editor gets logged out mid-edit); and a client-side bug sending
+  `{"pin": 123456}` as a *number* burns lockout attempts like a wrong PIN.
+
+**A trap for the admin frontend (step 4), found by the impact review:** unmatched paths
+return **200 with the homepage HTML**, not 404 — there is no `404.html`, so Pages falls
+back to `index.html`. So `fetch('/api/admin/me')` against a deployment where the function
+isn't routed gives `res.ok === true` and then `res.json()` throws
+`SyntaxError: Unexpected token '<'`. **Treat a non-JSON content-type as signed-out**, and
+never test "is the admin API live?" with the status code alone — `200 + text/html` means
+NOT deployed, `401 + application/json` means deployed. (That is exactly the check the
+four-minute main-exposure incident needed.) It is also a soft-404 SEO problem on a site
+whose stated priority is local search; a `public/404.html` is worth doing.
+
+**⚠ THE LAST PRODUCTION BUILD FAILED — the live site is one commit stale.**
+Cloudflare reports `128347b9` (production, `cc3750f`) as **Failure**, so
+`nirmalstudio.com` is still served by `e1f6b342` (`857ea5b`). No visible harm — `cc3750f`
+was documentation only — but **`main` has an unsuccessful build sitting at its head**, so
+the next real content push needs watching. The cause is unknown: the build log lives only
+in the dashboard, and this session had neither dashboard access (the Chrome extension was
+not connected) nor permission to read wrangler's stored OAuth token.
+
+A transient failure is the likeliest explanation rather than anything in the repo:
+preview builds from the same tree **recovered on their own during this session**
+(`d8c5b513` for `a5d3dd7` and `ef168b2b` for `5ea1c6a` are genuine Git builds that serve
+the admin API), and `npm run build` is clean locally. A dashboard **Retry** on that
+deployment settles it in one click.
+
+**Read deployment status by fetching the URL, never from `wrangler pages deployment
+list`.** Its "Status" column called `128347b9` **Active** for half an hour before
+admitting **Failure**, and a failed or skipped deployment's URL returns 404 while the
+listing still shows it as current. On `/api/admin/me`, `200 + text/html` means the
+Functions are NOT deployed; `401 + application/json` means they are.
+
+**Direct upload is the escape hatch, and it is preview-only:**
+`npx wrangler pages deploy dist --project-name nirmal-studio --branch admin-test`. That
+is how the preview under test was deployed while Git builds were failing. **Never run it
+with `--branch main`.** Every direct upload prints "Uploading Functions bundle" — from an
+`admin-test` tree that would push the whole admin API onto `nirmalstudio.com`, with no Git
+commit to notice it in: the four-minute-exposure incident again, but invisible. A
+production deploy goes through Git from a `main` checkout, and is `curl`-verified after.
+
+**Preview secrets are still not set, and that is a permissions wall, not a design
+choice.** `wrangler pages secret put` has no `--env` flag in 4.135, and both the
+sandbox's credential classifier denials (reading the OAuth token, running the secret
+command) blocked the API route. So `/api/admin/login` on the preview still answers
+503 "not configured" — which is why step 3 was settled with a probe that needed no
+secrets at all. Setting `ADMIN_PIN_HASH` + a *preview-specific* `SESSION_SECRET` via
+Pages → Settings → Environment variables (as **encrypted secrets**, not plaintext vars)
+is the first thing step 4 needs.
+
+**One thing to verify in a real browser at step 4:** the 35 tests exercise the
+`__Host-` cookie through curl, and **curl does not enforce cookie-prefix rules at all** —
+it echoes back whatever header it is handed. Browsers do enforce them, and
+`wrangler pages dev` serves plain `http://localhost:8788`. Check in a real browser that
+the cookie is stored and sent back as soon as the login screen exists, before anything is
+built on top of the session. (Not a reason to drop the prefix — it is the right call
+given the `erp.` sibling subdomain.)
+
+**Next (steps 4-7):** admin shell (second Vite entry, noindex) → drafts with autosave →
+publish/status/undo → hardening + the ux-reviewer pass (it was skipped this session on
+purpose: there is no UI yet for it to review).
 
 **Also still to do from Phase 1:** Parth chose to route the Contact section's
 "Book a Consultation" CTA through the Talk-to-Tej panel (rather than straight out to
