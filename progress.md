@@ -135,6 +135,22 @@ scroll lock PASS — **0px** horizontal shift when the scrollbar disappears (so 
 Lenis scrolls normally afterwards. Both of the edge-case review's "unverified" items are
 therefore answered.
 
+**⚠ BRANCH LAYOUT — CHECK THIS FIRST IF PICKING UP COLD.** `main` has **no**
+`functions/` directory and must keep it that way for now; the `/admin` backend lives on
+**`admin-test`**. Cloudflare Pages auto-deploys `functions/` from whatever branch it
+builds, so committing backend code to `main` publishes the admin API on the live domain.
+That happened on 2026-09-20 (live ~4 minutes, nothing exposed beyond the endpoints
+existing, since production has no PIN/session secrets) and was undone in `857ea5b`. See
+CLAUDE.md's "Branches right now" section. **Work on `admin-test`:**
+`git checkout admin-test`.
+
+**Local setup a cold session needs to know about:** `.dev.vars` exists on this machine
+(gitignored, 0600) holding Parth's real PIN hash, his GitHub token, a generated
+`SESSION_SECRET` and `PUBLISH_BRANCH=admin-test`. Nobody knows the PIN, including Claude
+— `npm run test:auth` swaps in a throwaway one and restores the real file via a trap.
+Commands: `npm run admin:secrets` (re-enter secrets), `npm run admin:dev` (local server
+on :8788), `npm run admin:migrate` (apply schema locally), `npm run test:auth`.
+
 **PHASE 2 IN PROGRESS (2026-09-20, later session).** Build plan:
 `~/.claude-personal/plans/nirmal-studio-phase-2-admin.md` — read it before continuing,
 it has the locked decisions, the build order and the named risks.

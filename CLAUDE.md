@@ -396,6 +396,26 @@ against them rather than rediscovering them by chance:
   visitors. `Img.jsx` now only points at files `build-content.mjs` verifiably produced.
   If anything ever reintroduces a path derived by string substitution, this comes back.
 
+## Branches right now — read this before pushing anything
+
+**`main` deliberately has NO `functions/` directory. Do not put it back yet.**
+
+Cloudflare Pages **auto-deploys anything in `functions/`** on the branch it builds. There
+is no switch for this and nothing in the dashboard to opt out of. So a commit of backend
+code to `main` publishes those endpoints on `nirmalstudio.com` immediately — which is
+exactly what happened on 2026-09-20: `/api/admin/me` and `/api/admin/login` were live on
+the real domain for about four minutes before being removed. Nothing was exposed beyond
+the endpoints' existence (production has no `ADMIN_PIN_HASH`/`SESSION_SECRET`, so login
+answered "not configured" and `/me` answered 401), but it was the opposite of the agreed
+"preview branch only" and it was caught by checking, not by design.
+
+- **`main`** — the live site. Contains `wrangler.toml`, `migrations/` and the admin
+  scripts, all of which are inert without `functions/`.
+- **`admin-test`** — the `/admin` backend lives here and deploys to its own preview URL.
+  All Phase 2 work goes here until Parth has reviewed it and the review agents have run.
+
+Merging `admin-test` into `main` is therefore a **launch decision**, not a routine merge.
+
 ## Phase 2 credentials (created 2026-09-20, stored in Parth's Apple Passwords)
 
 Never in the repo, never in chat. Both are saved in the **Passwords** app, and both go
