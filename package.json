@@ -14,7 +14,8 @@
     "build": "vite build && node scripts/prerender.mjs",
     "lint": "oxlint",
     "preview": "vite preview",
-    "check:domains": "bash scripts/check-domains.sh"
+    "check:domains": "bash scripts/check-domains.sh",
+    "admin:secrets": "node scripts/setup-admin-secrets.mjs"
   },
   "dependencies": {
     "embla-carousel-react": "^8.6.0",

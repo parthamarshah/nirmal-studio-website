@@ -28,3 +28,13 @@ public/_media
 src/generated
 public/_redirects
 public/sitemap.xml
+
+# Local backend secrets (v1 Phase 2). `wrangler pages dev` reads .dev.vars for the
+# admin PIN hash and the GitHub token. NEVER commit these — a GitHub token pushed to
+# a repo is scraped and abused within minutes. Remote secrets live in Cloudflare
+# (Pages → Settings → Environment variables), not here.
+.dev.vars
+.dev.vars.*
+
+# Wrangler's local state: the local D1 database and KV data used by `wrangler pages dev`.
+.wrangler
