@@ -410,10 +410,48 @@ nothing renders them (a quiet "signed in until…" would make expiry legible bef
 surprises someone); and iOS Safari auto-zooms any focused input under 16px, so Phase 3's
 form controls need 16px at phone widths.
 
-**Next (steps 5-7):** drafts with autosave (`draft` GET/PUT — two tabs must not silently
-overwrite each other) → publish / status / undo → the remaining hardening. **The first
-thing step 5 needs is the preview secrets**, without which nobody can sign in to test any
-of it.
+**STEP 5 DONE — drafts with autosave.** Both of the plan's "done when" conditions are
+verified in a real browser (23 checks), not argued:
+
+- **An edit survives a reload.** Type, and the top bar goes *Unsaved changes… → Saving… →
+  Saved as a draft*. Reload: the value is still there and the pane says plainly that these
+  are unpublished changes, with a Discard link back to the published version.
+- **Two tabs do not silently overwrite each other.** Every save carries the `updated_at`
+  of the row it is building on, and the server writes only if that still matches — one
+  guarded SQL statement, so SQLite decides rather than a read-then-write in JavaScript
+  (the same lesson as the login lockout counter). On a mismatch the save is **refused**
+  and the editor stops and asks, with two explicit choices: *Use the other version* or
+  *Keep mine and overwrite it*. **No automatic merge, deliberately** — two people editing
+  one studio's details is a case where guessing is worse than asking. The test asserts the
+  other writer's work is still intact on the server at the moment the conflict appears,
+  then exercises both resolutions.
+
+Details worth not rediscovering:
+- **`updated_at` doubles as the concurrency token, so it is written as
+  `MAX(now, previous + 1)`.** Two saves inside the same millisecond would otherwise share
+  a token and a stale write could slip through.
+- **Discard requires the version too.** An unguarded `DELETE` would throw away whatever
+  arrived after the caller last looked; a caller with no draft has nothing to discard, so
+  there is no legitimate null case.
+- **`base_sha` is still NULL.** It exists so a stale draft can be caught at publish time,
+  and it gets filled in step 6 when the GitHub client arrives. The draft's *base* today is
+  the content embedded in the admin bundle at build time, which is current as of the last
+  deploy — fine now, and exactly what `base_sha` is for once publishing exists.
+
+**The Settings pane is now a real editor** (studio contact details), because step 5 needed
+something editable to exercise any of this and that is the smallest honest slice. It
+validates against the same rules as `scripts/build-content.mjs` — a bad WhatsApp number or
+email is flagged as it is typed, so the build stays the backstop rather than the first
+place an error appears. **Projects and Founders remain read-only and say so**; their
+editors are Phase 3 and will use the same `useDraft` hook.
+
+Also closed here: inputs are 16px at phone widths. Below that iOS Safari zooms the page on
+focus and does not zoom back — the UX review flagged it for whenever the first form landed.
+
+**Next (steps 6-7):** publish (validate → GitHub Git Data API, `content/` paths only → a
+`publishes` row) → status polling → undo → the remaining hardening. **Step 6 is the first
+step that needs `GITHUB_TOKEN` on a deployment**, and preview still has no secrets at all.
+
 
 **Also still to do from Phase 1:** Parth chose to route the Contact section's
 "Book a Consultation" CTA through the Talk-to-Tej panel (rather than straight out to
