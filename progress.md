@@ -358,6 +358,58 @@ but you cannot get in yet — see the secrets note above).
   Workers supports at most 100000. Re-run npm run admin:secrets and set the new hash."*
   That is the whole bug, visible, in one sentence, on the screen where it matters.
 
+**The ux-reviewer pass ran on the shell and found two dead ends worth the trip.** Both
+were reproduced in a browser before and after, not reasoned about:
+1. **A correct PIN could freeze the screen on "Checking…" forever.** `setBusy(false)` lived
+   only in the catch, so when `login()` succeeded but the session didn't stick (cookies
+   blocked, a stripped `Set-Cookie`, clock skew) `Admin` re-rendered the same `<Login>` at
+   the same position, React kept its local state, and the form stayed disabled with no
+   error and no way out but a manual reload. `refresh()` now returns whether a session was
+   actually confirmed. Verified by intercepting `/api/admin/me` over CDP and forcing a 401
+   after a real login.
+2. **The "couldn't reach the server" card said try again and offered nothing to try again
+   with** — and a one-second network blip lands there too, not just an absent backend.
+
+Also fixed from that review: the top bar said **"No unpublished changes"**, which asserts
+that a draft system checked and found nothing — there is no draft system yet. It now reads
+"Read-only preview. Editing and publishing arrive in the next phase.", which also carries
+the reason the Publish button is disabled (that reason previously existed **only** in a
+`title` tooltip — invisible on touch, to a keyboard, and usually suppressed on a disabled
+element). A retry that cannot work is no longer offered: on a 503 the typed PIN is kept and
+submit is disabled; on a lockout the button shows the minutes left and re-enables itself.
+`ApiError` now carries `lockedUntil`, which was being dropped. **The 503 text itself leads
+with its meaning rather than with `ADMIN_PIN_HASH`** — on an unconfigured deployment it is
+the only thing any PIN ever returns.
+
+**Two structural changes made now because they get expensive after Phase 3:**
+- **The open pane lives in the URL** (`#/projects`), so Back goes back a pane instead of
+  leaving the admin, and a reload lands where you were. Three of CLAUDE.md's incidents are
+  back-button bugs that came from grafting history onto components that already had their
+  own state; Phase 3 adds a selected project and a selected image on top of this.
+- **A 401 arriving mid-session is handled in one place** (`setSessionEndedHandler`), not
+  re-invented by every future editor call. Sessions last 30 days, so this will fire
+  mid-edit eventually.
+
+**Measured accessibility fixes** (the review composited the alpha values rather than
+eyeballing them): the PIN field's border was **1.87:1** and its fill **1.13:1** against the
+login background — the only control on the only screen Tej sees cold, at well under the 3:1
+a component boundary needs; now **4.09:1**, measured in the browser. The sign-out border was
+1.73:1. Phone rail controls were 30–35px tall, now 44. Status pills went 11px uppercase →
+12px sentence case (they carry multi-word values like "Under construction"), body text 14px
+→ 15px. The focus ring no longer sets its own `border-radius`, which was reshaping the
+elements it highlighted. `site.sections` keys now render through a label map, so nobody
+ever reads `ideaTimeline` on the screen aimed at the studio's owner.
+
+**The PIN is masked with a Show toggle and `autoComplete="current-password"`** — it was
+`one-time-code`, which tells password managers *not* to offer to save it. Both of this
+project's other secrets already live in Apple Passwords, and two people using a 6-digit PIN
+occasionally will forget it. **Parth: say if you'd rather see the digits by default.**
+
+**Still open from that review, deliberately:** `me.js` returns `since`/`expiresAt` and
+nothing renders them (a quiet "signed in until…" would make expiry legible before it
+surprises someone); and iOS Safari auto-zooms any focused input under 16px, so Phase 3's
+form controls need 16px at phone widths.
+
 **Next (steps 5-7):** drafts with autosave (`draft` GET/PUT — two tabs must not silently
 overwrite each other) → publish / status / undo → the remaining hardening. **The first
 thing step 5 needs is the preview secrets**, without which nobody can sign in to test any
