@@ -32,6 +32,15 @@ const storyProjects = allProjects
 // Visible projects, in order — the grid, project pages, prev/next.
 export const visibleProjects = storyProjects.filter((p) => !p.hidden)
 
+// Every project in site order, hidden ones INCLUDED. The public site must never use
+// this — it wants `visibleProjects`. The /admin editor needs it, because a hidden
+// project is exactly the thing you go into the editor to un-hide. Exported here rather
+// than letting /admin read src/generated/content.js directly: CLAUDE.md's rule is that
+// content reaches components only through this adapter, and the Phase 1a incident
+// (a rewrite silently dropping fields a second consumer relied on) is what the rule is
+// for.
+export const projectsIncludingHidden = storyProjects
+
 export const findVisibleProject = (slug) => visibleProjects.find((p) => p.slug === slug) ?? null
 
 // Resolves a section's image references to pool entries (hidden images are

@@ -7,7 +7,9 @@
 
 :root {
   --admin-rail: 248px;
-  --admin-inspector: 320px;
+  /* Not a fixed 320: on a 1280px MacBook Air that leaves the main pane 712px, and the
+     inspector fills up in Phase 3 (framing, type, caption, word counts, usage). */
+  --admin-inspector: minmax(300px, 380px);
   --admin-ink: #16150f;
   --admin-rail-text: #e9e5da;
   --admin-rail-muted: #9c968a;
@@ -23,7 +25,9 @@
 body {
   margin: 0;
   font-family: var(--font-body);
-  font-size: 14px;
+  /* 15px, not 14: two occasional, non-professional users on a laptop. Cheap now,
+     annoying once Phase 3's forms are laid out against it. */
+  font-size: 15px;
   line-height: 1.5;
   color: var(--color-text);
   background: var(--admin-surface);
@@ -41,11 +45,13 @@ button {
   cursor: pointer;
 }
 
-/* Every interactive thing keeps a visible focus ring — this is a keyboard-heavy tool. */
+/* Every interactive thing keeps a visible focus ring — this is a keyboard-heavy tool.
+   Deliberately no border-radius here: setting one RESHAPES the focused element (the
+   6px Publish button, the 999px pills), and browsers already follow each element's own
+   radius when drawing the outline. */
 :focus-visible {
   outline: 2px solid var(--color-bronze);
   outline-offset: 2px;
-  border-radius: 3px;
 }
 
 /* ---------------------------------------------------------------- app frame */
@@ -128,8 +134,11 @@ button {
   margin: 0 0 8px;
 }
 
+/* 0.18 alpha composited over the rail is 1.73:1 — below the 3:1 a control's boundary
+   needs, so on a phone (where this is one of only two buttons) it barely read as a
+   button at all. 0.42 measures ~3.8:1. */
 .admin-signout {
-  border: 1px solid rgb(255 255 255 / 0.18);
+  border: 1px solid rgb(255 255 255 / 0.42);
   background: transparent;
   color: var(--admin-rail-text);
   padding: 6px 10px;
@@ -163,20 +172,10 @@ button {
   font-size: 17px;
 }
 
-.admin-draft-state {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 7px;
+.admin-state {
+  margin: 0 0 0 auto;
   font-size: 13px;
   color: var(--color-stone-dark);
-}
-
-.admin-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--color-stone);
 }
 
 .admin-publish {
@@ -214,7 +213,7 @@ button {
 }
 
 .admin-eyebrow {
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--color-stone-dark);
@@ -224,6 +223,12 @@ button {
 .admin-hint {
   color: var(--color-stone-dark);
   max-width: 62ch;
+}
+
+/* A project name becomes a free-text field in Phase 3, and one long unbroken word
+   would otherwise push this track past its max. */
+.admin-row strong {
+  overflow-wrap: anywhere;
 }
 
 /* A read-only row in the Projects / Founders lists. */
@@ -258,11 +263,12 @@ button {
   font-size: 13px;
 }
 
+/* 12px and sentence case. These pills carry MULTI-WORD values ("Under construction",
+   "Needs photo + bio"), and 11px uppercase with letter-spacing is a shape that reads
+   slowly at a glance — fine for a one-word pill, not for three words. */
 .admin-tag {
   justify-self: end;
-  font-size: 11px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: 12px;
   color: var(--color-bronze-darker);
   background: var(--color-beige);
   padding: 3px 8px;
@@ -321,15 +327,50 @@ button {
   font-size: 22px;
   letter-spacing: 0.35em;
   font-variant-numeric: tabular-nums;
-  border: 1px solid rgb(255 255 255 / 0.2);
+  /* Measured over the login background: the old 0.2 border composited to 1.87:1 and
+     the 0.05 fill to 1.13:1 — so the only interactive element on the only screen Tej
+     ever sees cold was outlined at well under the 3:1 a component boundary needs.
+     0.42 / 0.12 / 0.45 measure ~3.1:1, a visible fill, and a legible placeholder. */
+  border: 1px solid rgb(255 255 255 / 0.42);
   border-radius: var(--admin-radius);
-  background: rgb(255 255 255 / 0.05);
+  background: rgb(255 255 255 / 0.12);
   color: #fff;
 }
 
 .admin-pin::placeholder {
-  color: rgb(255 255 255 / 0.25);
+  color: rgb(255 255 255 / 0.45);
   letter-spacing: 0.35em;
+}
+
+/* The PIN is masked by default, so a reveal toggle sits inside the field. */
+.admin-pin-wrap {
+  position: relative;
+}
+
+.admin-pin-wrap .admin-pin {
+  padding-right: 68px;
+}
+
+.admin-reveal {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+  min-height: 36px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--admin-radius);
+  background: transparent;
+  color: var(--admin-rail-muted);
+  font-size: 13px;
+}
+
+.admin-reveal:hover {
+  color: var(--admin-rail-text);
+}
+
+.admin-where {
+  margin: 0 0 10px;
 }
 
 .admin-submit {
@@ -414,24 +455,43 @@ button {
     display: none;
   }
 
+  /* Both rail controls were 30-35px tall on a phone. 44 is the floor. */
   .admin-nav button {
     width: auto;
     white-space: nowrap;
     padding: 7px 11px;
+    min-height: 44px;
+  }
+
+  .admin-signout {
+    min-height: 44px;
+    padding: 6px 14px;
   }
 
   .admin-nav-count {
     display: none;
   }
 
+
+  /* `display: contents` lets the foot's two children become flex items of the rail
+     itself, so Sign out can sit on the first row while the sentence takes its own.
+     The sentence is NOT hidden here: "your changes are not going to the real site" is
+     the line that matters most on the small screen, which is exactly where an earlier
+     version of this stylesheet dropped it. */
   .admin-rail-foot {
-    border-top: 0;
-    padding-top: 0;
-    flex: none;
+    display: contents;
   }
 
-  .admin-rail-foot p {
-    display: none;
+  .admin-where {
+    order: 3;
+    flex-basis: 100%;
+    margin: 0;
+    font-size: 12px;
+  }
+
+  .admin-top .admin-state {
+    margin-left: 0;
+    flex-basis: 100%;
   }
 
   .admin-top {

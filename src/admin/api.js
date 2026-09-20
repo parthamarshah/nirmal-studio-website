@@ -12,11 +12,23 @@
 // is treated as "the backend isn't there", never as data.
 
 export class ApiError extends Error {
-  constructor(message, { status, kind }) {
+  constructor(message, { status, kind, data }) {
     super(message)
     this.status = status
     this.kind = kind
+    // The backend returns `lockedUntil` with a 429 so the UI can say how long is left
+    // and stop accepting attempts that cannot succeed. Dropping it here would force the
+    // login screen to keep offering a button that is guaranteed to fail.
+    this.lockedUntil = data?.lockedUntil ?? null
   }
+}
+
+// A session can end at any moment — it lasts 30 days, so in Phase 3 it will expire
+// mid-edit. Handling that in one place means every future editor call gets the same
+// answer instead of each one inventing its own.
+let onSessionEnded = null
+export const setSessionEndedHandler = (fn) => {
+  onSessionEnded = fn
 }
 
 const NOT_DEPLOYED =
@@ -50,6 +62,8 @@ export async function api(path, { method = 'GET', body } = {}) {
     throw new ApiError(NOT_DEPLOYED, { status: res.status, kind: 'not-deployed' })
   }
 
+  if (res.status === 401) onSessionEnded?.()
+
   if (res.ok) return data
 
   // 503 is the backend saying it is misconfigured — no PIN hash, no session secret, no
@@ -59,6 +73,7 @@ export async function api(path, { method = 'GET', body } = {}) {
   throw new ApiError(data?.error || `Request failed (${res.status}).`, {
     status: res.status,
     kind: res.status === 503 ? 'misconfigured' : res.status === 429 ? 'locked' : 'error',
+    data,
   })
 }
 
