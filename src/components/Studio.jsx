@@ -1,14 +1,37 @@
-import { useEffect, useRef } from 'react'
+import { Suspense, lazy, useEffect, useRef } from 'react'
 import { gsap, prefersReducedMotion } from '../lib/scroll'
 import { tejShah, foldNetwork, foundersReady } from '../lib/content'
-import Founders from './Founders'
+
+// Founders.jsx pulls in Embla (the phone carousel). `foundersReady` is false today
+// and stays false until all four people have a real photo and bio, so nobody visiting
+// the site can currently reach that carousel — yet a static import put Embla in the
+// homepage bundle for every visitor anyway (the flag is computed from content at
+// runtime, so the bundler can't tree-shake it away). Loading it on demand keeps those
+// bytes off the homepage until the section actually switches on.
+const Founders = lazy(() => import('./Founders'))
 
 // v1 (plan Phase 1b): the new founders section (Founders.jsx) replaces this one
 // only once all four people have a real photo and bio in content/founders.json —
 // the live site never shows placeholder portraits or empty bios. Until then the
 // pre-v1 layout below stays.
+//
+// Suspense sits INSIDE the gate, not around it: the legacy layout is the branch that
+// actually renders today, and wrapping the whole section would give it a fallback
+// flash / layout shift for no benefit.
+//
+// The fallback RESERVES the section's height rather than rendering null. Founders is a
+// full-height section in the middle of the page: on a slow connection the chunk can take
+// seconds, and collapsing to nothing then expanding would shove everything below it down
+// under the reader's thumb mid-scroll. Scroll anchoring can't be relied on here — Lenis
+// drives the scroll.
 export default function Studio() {
-  return foundersReady ? <Founders /> : <LegacyStudio />
+  return foundersReady ? (
+    <Suspense fallback={<div style={{ minHeight: '100svh' }} aria-hidden="true" />}>
+      <Founders />
+    </Suspense>
+  ) : (
+    <LegacyStudio />
+  )
 }
 
 // Pre-v1 section: Studio (Tej Shah) + Network (FOLD). Nirmal Studio

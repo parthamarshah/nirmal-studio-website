@@ -5,9 +5,134 @@ live in `CLAUDE.md` — read that first if you're picking this up cold.
 
 ## Resume here
 
-**Session status (2026-09-14, later session): Phase 1b committed + pushed on top of
-`4290acc` (see block below); live site looks unchanged because the new founders section
-is gated off.**
+**Session status (2026-09-20 — Phase 1 of the v1 plan is COMPLETE).**
+Plan file for this session: `/Users/parth/.claude-personal/plans/moonlit-wobbling-kurzweil.md`.
+
+**What landed: 1c (Talk to Tej) + 1d (Lighter), committed and pushed together.**
+
+**Phase 1c — shipped.** The two review passes that never reported back last session
+(impact-tracker, edge-case-checker) were re-run and **found two must-fix bugs**, both
+reproduced in a real browser before fixing and re-verified after:
+1. **Closing the panel could navigate the visitor clean off the site.**
+   `history.back()` is async, so the panel stayed mounted and interactive until popstate
+   landed. Anything re-entering in that window — a double-tapped ×, or simply *holding*
+   Escape (auto-repeat fires every ~30ms) — called `back()` again and popped a second,
+   real history entry. Reproduced in headless Chrome: two Escape events destroyed the
+   page ("Inspected target navigated or closed"). This is the exact incident
+   `FeaturedProjects.jsx` already carries `closingRef` for. Fixed the same way
+   (`closingRef` set synchronously before `back()`, cleared in the popstate handler) plus
+   `&& !e.repeat` on the Escape branch. The same two-Escape test now passes cleanly.
+   **`ImageViewer.jsx` had the identical unguarded shape** — pre-existing, not introduced
+   here, but fixed in the same session rather than left as a TODO: it is the *only*
+   overlay on the public, shareable project pages, so the bug was worse there. Verified
+   the same way (open the floor plan on `/projects/shimla-house/` at 390px, two Escapes
+   25ms apart, no filler history — stays on the page, lock released).
+2. **A phone in landscape got the desktop treatment.** `DESKTOP` was width-only
+   (`min-width: 768px`), and an iPhone in landscape is ~930px CSS wide — so it hid the
+   working `wa.me` deep link, handed the visitor a `web.whatsapp.com` URL that does not
+   work on a phone (**the primary CTA, dead**), showed a "scan this QR with your phone"
+   panel to someone holding their phone, and downloaded the QR library it was supposed
+   to skip. Now `(min-width: 768px) and (pointer: fine)` in both the JS constant and the
+   media query.
+
+Also fixed from the same reviews: `Contact.jsx` had drifted from the panel (it built its
+own `wa.me` URL by hand and still sent desktop users through the "continue to chat"
+interstitial) — it now uses the shared `whatsappUrl()`/`whatsappWebUrl()` and copies the
+panel's **two-anchors-gated-by-CSS** pattern. A first attempt used `preventDefault()` +
+`window.open()` instead; that was rewritten because a blocked popup would have made the
+site's single conversion action do *nothing at all* (the default already cancelled), and
+because `(pointer: fine)` matches an iPad with a keyboard, which would then have been
+handed a WhatsApp Web link. Two plain anchors need no JS and can't fail that way; a
+surrogate-pair split in `composeMessage()`'s `.slice(0, 40)` that could throw `URIError`
+at render time (reproduced, then fixed with a character-wise slice); the QR's `failed`
+state was latched for the whole session and now recovers; `build-content.mjs` now rejects
+duplicate helper labels (they're React keys — verified it fails the build); and
+`ProjectPage.jsx`'s bare `<Nav />` is wrapped in a boundary so a nav throw hides the nav
+instead of white-screening a public, indexed URL. That boundary is deliberately **not**
+`SectionBoundary` — that one imports `ScrollTrigger`, which would have dragged GSAP+Lenis
+into the project-page bundle.
+
+**Phase 1d (Lighter) — done, measured.**
+- **Homepage initial JS: 191.7 KB gz → 180.4 KB gz (−11.3 KB).** `Founders.jsx` (and
+  therefore Embla) is now `React.lazy` behind the existing `foundersReady` gate, which is
+  false until Phase 4 — so every visitor was downloading a carousel none of them could
+  reach. Vite also split GSAP/Lenis into its own `scroll-*.js` chunk as a side effect.
+  Project pages: 79.9 → 80.0 KB gz (the new nav boundary), still no GSAP/Lenis/Framer —
+  re-verified by scanning the built chunks.
+  **The extra chunk was checked, not assumed harmless.** Splitting GSAP out means one more
+  serialized request, which matters on the real target device (mid-range Android, variable
+  Indian mobile data). Measured cold-cache at 390px under CDP's Slow 4G emulation
+  (400 Kbps, 400ms RTT): **before** 3 JS files, hero visible 7508 / 7049 ms, 309 / 288 KB;
+  **after** 4 JS files, hero visible 7342 / 6863 ms, 299 / 277 KB. The split is slightly
+  *faster* — the chunks fetch in parallel — so no `modulepreload` hint was added.
+  Incidentally this **corrects an older note in this file** claiming no network throttling
+  was available to these sessions: the Chrome extension doesn't expose it, but CDP's
+  `Network.emulateNetworkConditions` does, so real Slow-4G numbers are reproducible now.
+- **Fonts are self-hosted** (`public/fonts/*.woff2` + inline `@font-face`, Syne and roman
+  Fraunces preloaded). This was not just a byte/latency win — **it fixed a live bug**.
+  Measuring *applied* rendering rather than load state showed that on the old setup the
+  "nirmal" wordmark rendered in the generic fallback sans on **two of three** cold loads:
+  `display=optional` gives ~100ms to decide, and Syne couldn't win that after a DNS+TLS
+  handshake to gstatic plus a stylesheet round-trip. After self-hosting + preload it
+  applies on all three. See the new CLAUDE.md incident entry — `document.fonts.check()`
+  reports LOAD state, not whether a font was APPLIED, and it returned true on runs where
+  the wordmark was visibly the fallback.
+- **Body font token made honest.** `--font-body` named `'Open Sans'`, which was **never
+  loaded anywhere** (no `@font-face`, no link, nothing in git history) — all body copy has
+  always rendered in the system sans. Parth was shown this and chose (2026-09-20) to keep
+  the system stack and drop the dead name rather than add a third family. Don't restore it.
+- **Framer Motion deliberately NOT removed.** ~40KB gz and the biggest remaining win, but
+  it powers `FeaturedProjects`' takeover and `IdeaTimeline`'s lightbox — the most
+  bug-hardened code in the repo. Parth's call (2026-09-20): defer to its own session with
+  a full live verification pass. Rewriting `Loader.jsx` alone saves nothing, since the
+  other two still import the library — it is all-or-nothing.
+
+**Cloudflare's AI-crawler block is GONE — that long-standing open question is closed.**
+Verified this session on a cache MISS, with real `GPTBot` and `ClaudeBot` user-agents, on
+both `nirmalstudio.com` and `www.` : robots.txt is a plain `User-agent: * / Allow: /` with
+the sitemap line, identical to the `.pages.dev` copy, and there is no `Content-Signal`
+header. Nothing was changed to achieve this — either Cloudflare altered its default or it
+was switched off externally. **Stop carrying this as an open item**, but re-check with
+`curl` if AI answer engines still aren't citing the site in a few months.
+
+**Verification tooling (scratchpad, not committed — recreate if needed).** Headless Chrome
+over the DevTools protocol, driven by a small dependency-free Node CDP driver
+(`cdp.mjs`, `checkfonts.mjs`, `checkhistory.mjs`, `checklock.mjs`, `measure.mjs`). Two
+things worth remembering:
+- Launch **without** `--hide-scrollbars` when testing a scroll lock, or the flag masks the
+  very layout shift you're looking for.
+- To prove a webfont is applied, measure text width with the font vs the fallback alone.
+  `document.fonts.check()` will lie to you about this.
+Results on the final build: fonts PASS at 1440/390 on homepage and project page; panel
+history PASS for Escape / backdrop / browser-Back (exactly one entry popped each time);
+scroll lock PASS — **0px** horizontal shift when the scrollbar disappears (so no
+`scrollbar-gutter` needed), lock released on every path, scroll position preserved, and
+Lenis scrolls normally afterwards. Both of the edge-case review's "unverified" items are
+therefore answered.
+
+**Next up — Phase 2 (backend foundation), blocked on Parth.** Needs, one step at a time:
+1. A **fine-grained GitHub token** limited to `parthamarshah/nirmal-studio-website`,
+   Contents read/write.
+2. A **Cloudflare API token** with Pages read (build status).
+3. His chosen **6-digit `/admin` PIN**, typed into a secret prompt — never into chat.
+
+**Open questions for Parth (unchanged, still unanswered):**
+- Founder role wording "Ar. — Founding Partner, FOLD" → "Founding Partner, FOLD"? And an
+  optional small "FOLD network" label before person 2?
+- Real founder photos + bios for all four (gates the Phase 1b section going live).
+- AI concept images: keep them in the homepage takeover for Shimla/Nishee, or remove until
+  he assigns each to one house in the Phase 3 backend?
+- Hero render (Citadel `exterior-landscape.jpg`) is only 1024px wide — soft on big screens.
+- Delete the old `nirmal-studio-website` Pages project? (The agreed window opened 2026-09-20.)
+- **Google Business Profile** — still the highest-leverage action for his local-SEO goal,
+  bigger than anything code-side.
+
+**Deferred UX ideas from reviews (not decided, not built):** next/prev inside the image
+viewer; soft 404 for unknown `/projects/<slug>/` (currently homepage shell + "isn't
+available" message, HTTP 200); unify takeover vs page prev/next style; enlarge hint on
+single photos. A project-page "Talk to Tej" CTA was suggested but conflicts with Parth's
+decision (nav button only) — don't add. (Note: the nav pill *does* appear on project pages
+via the shared `<Nav />`; that is the decided design, not a violation of that rule.)
 
 **Phase 1b (founders section) — built 2026-09-14, switched OFF on the live site by design.**
 `src/components/Founders.jsx`: desktop bands (Tej's photo/name ~18% larger, photos
@@ -29,8 +154,22 @@ desktop intro top-aligned. **Not applied, for Parth:** roles read "Ar. — Found
 FOLD" (UX review suggests "Founding Partner, FOLD" — content wording, his call); optional
 small "FOLD network" divider before person 2 so skimmers don't read all four as studio team.
 
+**Phase 1c (Talk to Tej) — built 2026-09-14.** Nav pill on every page (a real wa.me
+link; tapping loads `TalkToTej.jsx` on demand) → panel: WhatsApp (first-message helper:
+chips from `site.json` `talk.helper` + free-text city, composed after the studio's
+`whatsappGreeting`), Call, Email (+ Copy), Visit (Google Maps; `contact.addressShort`).
+Phone = bottom sheet, desktop = dialog with a QR code that encodes the current message
+(QR library fetched on desktop only — changed from the plan's build-time QR so the code
+can carry the written message). Reply-time/hours lines only appear once set in
+`site.json` (both null now). Verified headless at 320/390/1440 on homepage + project page:
+every close path, history, focus, scroll lock with Lenis, no hydration warnings. New
+CLAUDE.md incident: overlays opened from inside the nav must be portalled to `<body>`
+(the scrolled nav's `backdrop-filter` traps `position: fixed`). Things to show Parth when
+reporting 1c: helper chip wording + message template are first drafts (editable in
+`site.json`); `replyTime`/`hours` are empty so the panel makes no reply-time promise.
+
 **Next up — rest of Phase 1 (Parth already said "go" for all of Stage 1):**
-1. **1c Talk to Tej** — nav button on every page (Nav is shared by homepage + project pages),
+1. ~~**1c Talk to Tej**~~ done (above). Original notes: — nav button on every page (Nav is shared by homepage + project pages),
    choice panel, first-message helper, desktop QR; `content/site.json` needs `replyTime`,
    helper options. Project pages must stay free of Framer/GSAP (use a plain overlay like
    `ImageViewer.jsx`) and render-time-browser-API-free (hydration).
@@ -44,6 +183,8 @@ himself).
   Shimla/Nishee, deliberately NOT on the public project pages. Remove from the takeover too
   now, or keep until he assigns each to one house in the Phase 3 backend?
 - Real founder photos + bios for all four (needed before 1b can go live, not before it's built).
+- Founder role wording "Ar. — Founding Partner, FOLD" → "Founding Partner, FOLD"? And an
+  optional small "FOLD network" label before person 2? (both raised after 1b, unanswered)
 - Hero render (Citadel `exterior-landscape.jpg`) is only 1024px wide — soft on big screens; a
   larger export from the renders would fix it.
 - Still open from earlier: Cloudflare AI-crawler block; deleting old `nirmal-studio-website`

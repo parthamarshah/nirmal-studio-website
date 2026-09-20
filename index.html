@@ -112,29 +112,122 @@
          HTML — which crawlers read — always match what the backend publishes. -->
 
     <!-- Fraunces (headings) + Syne (wordmark), chosen via Task #4's comparison
-         pass. Self-hosting these is a later polish-pass item, not blocking now. -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <!-- Split into two requests. Syne (the wordmark) uses display=optional,
-         not swap or block: `block` was tried first and confirmed (via a real
-         Slow-4G test) to still show two fonts — its swap period is infinite,
-         so a font that arrives even slightly late still swaps in after the
-         fallback already painted, just delayed rather than fixed. `optional`
-         has no swap period: the browser decides almost immediately (~100ms)
-         whether Syne is ready, and if not, uses the fallback for that whole
-         visit and never swaps later — no flash is possible under any network
-         condition. Trade-off: on a slow/cold-cache first load, the wordmark
-         may render in the fallback font that one time instead of Syne.
-         Fraunces is used across the whole page's body copy, so it keeps
-         swap to avoid a longer invisible-text window on slow connections. -->
-    <link
-      href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&display=swap"
-      rel="stylesheet"
-    />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Syne:wght@400;800&display=optional"
-      rel="stylesheet"
-    />
+         pass. Self-hosted since v1 Phase 1d: the files sit next to the site on
+         Cloudflare's edge, so there are no extra DNS+TLS handshakes to
+         fonts.googleapis.com/fonts.gstatic.com, and — more importantly — the
+         browser discovers the .woff2 immediately from the preload below
+         instead of only after a stylesheet round-trip has finished.
+
+         These @font-face rules are a faithful copy of the CSS Google served
+         for the exact same request (Fraunces v38, Syne v24), including the
+         unicode-range split, so rendering is unchanged. Only the vietnamese
+         and greek slices are dropped (nothing on this site uses them; those
+         glyphs would fall back per-character).
+
+         Fraunces and Syne are both VARIABLE fonts: one file covers Fraunces
+         300-600 and one covers Syne 400-800, which is why several @font-face
+         blocks point at the same URL. Version numbers are in the file names,
+         so the year-long immutable cache in public/_headers stays safe — a
+         font update would be a new URL.
+
+         font-display is deliberately different per family and must not be
+         "simplified" to one value:
+           Syne = optional. `block` was tried first and confirmed (via a real
+             Slow-4G test) to STILL show two fonts — its swap period is
+             infinite, so a late font swaps in after the fallback painted.
+             `optional` has no swap period: the browser decides in ~100ms and,
+             if the font isn't ready, uses the fallback for that whole visit
+             and never swaps. No flash is possible under any network
+             condition. Trade-off: on a slow cold load the loader wordmark may
+             render in the fallback that one time. Preloading it below makes
+             winning that ~100ms window far more likely than it was on Google
+             Fonts, where the file couldn't even be discovered until the
+             stylesheet had arrived.
+           Fraunces = swap. It carries every heading on the page, so a longer
+             invisible-text window would cost more than a swap does. -->
+    <!-- Only the 6.5KB Syne subset is preloaded. Syne is font-display:optional, so it
+         has ~100ms to arrive or it is not used at all for that visit — it genuinely
+         needs the head start, and it renders the wordmark, the first thing on screen.
+         Fraunces is deliberately NOT preloaded: it is font-display:swap (so text is
+         never invisible, it just restyles), it was never preloaded before this change
+         either, and at 67KB it would compete at top priority with the hero render —
+         the LCP image — on exactly the mid-range-Android-on-mobile-data visitor this
+         site is built for. -->
+    <link rel="preload" href="/fonts/syne-v24-wordmark.woff2" as="font" type="font/woff2" crossorigin />
+    <style>
+      /* Fraunces — roman, variable 300-600 (one file, four declared weights,
+         mirroring Google's own CSS so weight matching is identical). */
+      @font-face {
+        font-family: 'Fraunces';
+        font-style: normal;
+        font-weight: 300 600;
+        font-display: swap;
+        src: url('/fonts/fraunces-v38-latin.woff2') format('woff2');
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+      @font-face {
+        font-family: 'Fraunces';
+        font-style: normal;
+        font-weight: 300 600;
+        font-display: swap;
+        src: url('/fonts/fraunces-v38-latin-ext.woff2') format('woff2');
+        unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+      }
+      /* Fraunces — italic 400. Really used: pull quotes (projectStory.js),
+         Testimonials, Studio's intro line, Founders' "behind", and RichText's
+         italic mark. Only fetched when italic text is actually on the page. */
+      @font-face {
+        font-family: 'Fraunces';
+        font-style: italic;
+        font-weight: 400;
+        font-display: swap;
+        src: url('/fonts/fraunces-v38-italic-latin.woff2') format('woff2');
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+      @font-face {
+        font-family: 'Fraunces';
+        font-style: italic;
+        font-weight: 400;
+        font-display: swap;
+        src: url('/fonts/fraunces-v38-italic-latin-ext.woff2') format('woff2');
+        unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+      }
+      /* Syne — the wordmark. Variable 400-800 in one file.
+         Two sizes of the same font, and ORDER MATTERS: the tiny wordmark subset is
+         declared LAST, so for the characters it covers (space + a-z, which is the
+         entire wordmark, "nirmal" + " studio") it wins font matching and the full
+         34.5KB file is never fetched. The full files stay declared so that any other
+         character ever set in Syne still renders in Syne rather than falling back —
+         it just costs a fetch on that rare page. */
+      @font-face {
+        font-family: 'Syne';
+        font-style: normal;
+        font-weight: 400 800;
+        font-display: optional;
+        src: url('/fonts/syne-v24-latin.woff2') format('woff2');
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+      @font-face {
+        font-family: 'Syne';
+        font-style: normal;
+        font-weight: 400 800;
+        font-display: optional;
+        src: url('/fonts/syne-v24-latin-ext.woff2') format('woff2');
+        unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+      }
+      /* The wordmark subset — space + a-z only, 6.5KB instead of 34.5KB. Declared last
+         on purpose (see the note above). Regenerate with Google's own subsetter if the
+         wordmark ever needs more characters:
+         fonts.googleapis.com/css2?family=Syne:wght@400;800&display=optional&text=<chars> */
+      @font-face {
+        font-family: 'Syne';
+        font-style: normal;
+        font-weight: 400 800;
+        font-display: optional;
+        src: url('/fonts/syne-v24-wordmark.woff2') format('woff2');
+        unicode-range: U+0020, U+0061-007A;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>

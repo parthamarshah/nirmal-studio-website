@@ -98,18 +98,34 @@ Tagline: "Designing Spaces. Crafting Experiences."
   asks for. The moment real entries are added to those data files, the sections should
   reappear with no component changes needed.
 - **Contact**: Tej Shah, WhatsApp/phone `910 699 8434`, email `tej@nirmalstudio.com`.
-  No office address yet for the map/office-photos part of Contact — placeholder until
-  supplied.
+  The studio address **is confirmed and real** — it lives in `content/site.json`
+  (`contact.address`, plus `contact.addressShort` for the Talk-to-Tej "Visit" link) and
+  Contact.jsx renders it with a click-to-load map embed. (This line used to say "no
+  office address yet — placeholder until supplied"; that was stale and is exactly the
+  kind of drift that gets real data deleted as if it were filler.) Still missing:
+  office photos.
 - **Hero media**: no real video exists (all projects are under construction). Use a
   slow Ken Burns-style pan/zoom on a strong still render (e.g. Citadel Tower exterior)
   until/unless Parth supplies real generated video — media is a swappable asset, not
   something to rebuild the section around.
 - **Fonts (decided)**: heading serif is **Fraunces** (`--font-heading`), wordmark is
   **Syne** (`--font-wordmark`, bold 800 for "nirmal" + regular 400 for "studio",
-  replacing the unlicensed Stinger Wide trial), body stays Open Sans. Both pulled via
-  Google Fonts link in `index.html`; self-hosting them is a later polish-pass item, not
-  urgent now. Chosen by Parth via a live visual comparison, not from font names — don't
-  re-ask or re-litigate this.
+  replacing the unlicensed Stinger Wide trial). Chosen by Parth via a live visual
+  comparison, not from font names — don't re-ask or re-litigate this.
+  **Body text is the system sans** (`--font-body`), not a downloaded font. It used to
+  name Open Sans, but Open Sans was never actually loaded anywhere — not in
+  `index.html`, nothing in git history — so every paragraph has always rendered in
+  `-apple-system`/`system-ui`. Parth reviewed that repeatedly and approved it; on
+  2026-09-20 he chose to make it official rather than introduce a third family. Don't
+  "restore" Open Sans.
+  **Both families are self-hosted** since v1 Phase 1d: `public/fonts/*.woff2` +
+  `@font-face` rules inline in `index.html`, with Syne and the roman Fraunces
+  preloaded. No Google Fonts requests remain. The rules are a faithful copy of the CSS
+  Google served for the same request (Fraunces v38, Syne v24) including the
+  `unicode-range` split, minus the unused vietnamese/greek slices; the version number
+  is in each file name so `public/_headers`' one-year immutable cache is safe.
+  **Keep `font-display` per family** — Syne `optional`, Fraunces `swap` — and don't
+  unify them: see the loader font-flash incident in the known-incident list below.
 
 ## Tech stack & architecture
 
@@ -120,7 +136,7 @@ Tagline: "Designing Spaces. Crafting Experiences."
   `scripts/prerender.mjs` and hydrated). Anything rendered on project pages —
   `ProjectStory`, `Nav`, `Img`, `RichText`, `ImageViewer` — must not read browser APIs
   (window, matchMedia, `prefersReducedMotion()`) during render, or hydration fails.
-  Project pages don't load GSAP/Lenis/Framer/Embla (Embla = the homepage founders carousel only); keep it that way. Always link to project
+  Project pages don't load GSAP/Lenis/Framer/Embla (Embla = the homepage founders carousel only); keep it that way. The nav's "Talk to Tej" panel (`TalkToTej.jsx`) is shared by both pages but loaded only on tap (plus the QR library, desktop only) — keep it out of the initial bundles. Always link to project
   pages with a trailing slash (`projectPath()`), since Pages serves the directory index there.
 - **Mobile-first, not desktop-first-then-adapt.** Mobile is the primary "ultra smooth"
   target; desktop can be comparatively subdued but must feel equally polished. Build
@@ -140,7 +156,8 @@ Tagline: "Designing Spaces. Crafting Experiences."
   - **Framer Motion** — mount/exit transitions and micro-interactions only (hover
     states, mount/exit transitions). Never scroll-linked.
 - **Content lives in `content/` (JSON + original images), not in components.**
-  `content/site.json` (contact, socials, homepage image spots, section on/off),
+  `content/site.json` (contact, socials, the `talk` first-message helper — now
+  build-required, homepage image spots, section on/off),
   `content/founders.json`, `content/projects/<slug>.json`, `content/unsorted.json`,
   and original images under `content/media/`. The v1 `/admin` backend edits these
   files by committing to `main`. `scripts/build-content.mjs` runs before every
@@ -317,11 +334,52 @@ against them rather than rediscovering them by chance:
   `AnimatePresence` overlay — new lightbox, new modal — against all three parts of
   this (disable on close, reset on open, guard against same-position click-through)
   rather than just the first.
+- **A `position: fixed` overlay rendered inside the nav is sized to the nav bar, not the
+  screen, once the nav is scrolled** — `.site-nav--scrolled` has `backdrop-filter`, which
+  (like `transform`/`filter`) makes the element the containing block for fixed
+  descendants. `TalkToTej.jsx` avoids it with `createPortal(…, document.body)`. Any future
+  overlay opened from inside the nav (or any filtered/transformed ancestor) needs the same.
 - **When rewriting or narrowing a data adapter (`src/lib/content.js`), grep every
   consumer's reads (`project?.x`, `project.x`) against the new return shape.** v1
   Phase 1a's rewrite dropped `type`/`location` from the homepage shape; FocusImage's
   caption silently lost them. Screenshot, page-height and image-count comparisons all
   passed — they don't catch lost text inside an element that still renders.
+- **`history.back()` is async, so any overlay that closes through it needs a guard, or a
+  fast second close request pops a second real history entry and navigates the visitor
+  off the site.** Between the `back()` call and `popstate` landing, the overlay is still
+  mounted, visible and interactive. Two things reach that window in practice: a
+  double-tapped close button on a slow phone, and — easier to hit and easy to forget —
+  simply **holding the Escape key**, whose auto-repeat fires roughly every 30ms. This
+  first appeared in `FeaturedProjects.jsx` (fixed with `closingRef`) and then recurred
+  verbatim in new code in `TalkToTej.jsx` on 2026-09-20, which is why it is written down
+  here rather than left in one component's comments. The fix is two parts, both needed:
+  a `closingRef` set **synchronously** immediately before `window.history.back()` and
+  cleared only inside the `popstate` handler, plus `&& !e.repeat` on the Escape branch.
+  Reproduce it in headless Chrome by dispatching two `keydown`/`Escape` events ~25ms
+  apart with no filler history entries — the tab leaves the page and CDP reports
+  "Inspected target navigated or closed". Careful constructing that test: if you push
+  filler entries at the *same URL* first, popping two still leaves `location.href`
+  unchanged and the test passes while the bug is present. **`ImageViewer.jsx` (its
+  `onClose`/history integration) still has the identical unguarded shape** — pre-existing
+  and not yet fixed; do it next time that file is open.
+- **`font-display: optional` on a third-party font host silently loses its race far more
+  often than it looks, and `document.fonts.check()` will not tell you.** Measured in
+  headless Chrome on 2026-09-20, before fonts were self-hosted: the "nirmal" wordmark
+  rendered in the generic fallback sans — not Syne — on **two of three** cold page loads
+  (both 1440px runs; the 390px run only passed because the previous run had warmed
+  Chrome's HTTP cache). `optional` gives the browser a ~100ms decision window, and a
+  font that must wait for a DNS+TLS handshake to `fonts.gstatic.com` *and* a stylesheet
+  round-trip before it is even discovered routinely misses it. The fix was self-hosting
+  plus `<link rel="preload">`, after which it applied on all three loads. Two lessons
+  worth keeping: (1) `document.fonts.check('800 1em Syne')` reports LOAD state, not
+  whether the font was APPLIED — it returned true on runs where the wordmark was visibly
+  the fallback. To prove a webfont is actually in use, measure: render the same string in
+  `'<Font>, <fallback>'` and in the fallback alone and compare widths (see the session
+  scratchpad's `checkfonts.mjs` recipe). (2) `display: optional` deliberately never swaps,
+  so the fallback render is permanent for that visit — it is the right choice for the
+  wordmark (it is what killed the two-font flash) but it makes discovery latency the
+  whole ballgame. Don't "fix" a fallback render by changing the display mode; make the
+  file arrive sooner.
 - **(Closed by the Phase 0 image pipeline, kept as background.)** A `<picture>`'s
   `<source>` does not fall back to the `<img>` on a 404 — only on an unsupported
   `type`/`media`. The old `webp()` helper derived `.webp` sibling paths with no existence

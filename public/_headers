@@ -3,3 +3,9 @@
 # so a changed image always gets a new URL — safe for browsers to cache for a year.
 /_media/*
   Cache-Control: public, max-age=31536000, immutable
+
+# Self-hosted fonts (v1 Phase 1d). The Google Fonts version number is baked into
+# each file name (fraunces-v38-*, syne-v24-*), so updating a font means a new URL —
+# same reasoning as the hashed images above, safe to cache for a year.
+/fonts/*
+  Cache-Control: public, max-age=31536000, immutable

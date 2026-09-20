@@ -126,6 +126,36 @@ export const social = Object.fromEntries(
     .map(([key, v]) => [key, v.on && v.url ? v.url : null]),
 )
 
+// ---------------------------------------------------------------- talk to Tej
+
+const DEFAULT_GREETING = 'Hi Tej, I’d like to talk about a project.'
+export const whatsappGreeting = () => site.contact.whatsappGreeting?.trim() || DEFAULT_GREETING
+export const whatsappUrl = (text = whatsappGreeting()) => `https://wa.me/${site.contact.whatsapp}?text=${encodeURIComponent(text)}`
+export const whatsappWebUrl = (text = whatsappGreeting()) =>
+  `https://web.whatsapp.com/send?phone=${site.contact.whatsapp}&text=${encodeURIComponent(text)}`
+export const mapsUrl = () => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(site.contact.address)}`
+
+// "Desktop" for the purpose of WHICH WHATSAPP LINK to hand someone — deliberately not
+// width alone: a phone in landscape is ~930px CSS wide, and web.whatsapp.com does not
+// work on a phone. Layout breakpoints are a separate question and stay width-only.
+// Mirrored by the `@media (min-width: 768px) and (pointer: fine)` blocks in
+// TalkToTej.jsx and Contact.jsx — change all three together.
+export const DESKTOP_POINTER = '(min-width: 768px) and (pointer: fine)'
+
+// The first message the helper writes: the studio greeting, then what the
+// visitor picked. `what`/`stage` are helper options ({ label, says }) or null.
+export function composeMessage({ what, city, stage }) {
+  // Slice by CHARACTERS, not UTF-16 code units: a plain .slice(40) can cut an emoji's
+  // surrogate pair in half, and encodeURIComponent then throws URIError on the broken
+  // half — at render time, on an href, which would white-screen a project page.
+  const place = city ? [...city.replace(/\s+/g, ' ').trim()].slice(0, 40).join('') : ''
+  const parts = [whatsappGreeting()]
+  if (what?.says) parts.push(`It’s ${what.says}${place ? ` in ${place}` : ''}.`)
+  else if (place) parts.push(`It’s in ${place}.`)
+  if (stage?.says) parts.push(stage.says)
+  return parts.join(' ')
+}
+
 export const SITE_URL = 'https://nirmalstudio.com'
 // Trailing slash: the pre-rendered file is projects/<slug>/index.html, and
 // Cloudflare Pages serves directory pages at the slashed address.

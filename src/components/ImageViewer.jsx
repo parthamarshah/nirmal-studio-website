@@ -29,19 +29,34 @@ export default function ImageViewer({ image, onClose }) {
   // then closes the viewer), so × / Escape / backdrop and the back button all
   // leave history in the same state. If something else replaced that entry,
   // close directly rather than leaving the viewer stuck open.
+  //
+  // `history.back()` is async — popstate lands a tick later, and the viewer stays
+  // mounted and interactive until it does. Without `closingRef`, a double-tapped ×
+  // or a HELD Escape key (auto-repeat fires ~every 30ms) calls back() twice and pops
+  // a second, real history entry, navigating the visitor off the site — on the public,
+  // shareable project pages, where this is the only overlay. See CLAUDE.md's
+  // "history.back() is async" incident; same fix as FeaturedProjects and TalkToTej.
+  const closingRef = useRef(false)
   const requestClose = () => {
-    if (window.history.state?.nirmalImageViewer) window.history.back()
-    else onCloseRef.current()
+    if (closingRef.current) return
+    if (window.history.state?.nirmalImageViewer) {
+      closingRef.current = true
+      window.history.back()
+    } else onCloseRef.current()
   }
 
   useEffect(() => {
     if (!isOpen) return
+    closingRef.current = false
     const opener = document.activeElement
     closeRef.current?.focus()
     window.history.pushState({ nirmalImageViewer: true }, '')
-    const onPopState = () => onCloseRef.current()
+    const onPopState = () => {
+      closingRef.current = false
+      onCloseRef.current()
+    }
     const onKeyDown = (e) => {
-      if (e.key === 'Escape') requestClose()
+      if (e.key === 'Escape' && !e.repeat) requestClose()
       if (e.key === 'Tab') {
         e.preventDefault()
         closeRef.current?.focus()

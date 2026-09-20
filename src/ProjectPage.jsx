@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react'
 import Nav from './components/Nav'
+import Boundary from './components/Boundary'
 import ProjectStory from './components/ProjectStory'
 import ImageViewer from './components/ImageViewer'
 import { findVisibleProject, projectPath, visibleProjects } from './lib/content'
@@ -21,7 +22,13 @@ export default function ProjectPage({ slug }) {
 
   return (
     <>
-      <Nav />
+      {/* App.jsx wraps its Nav in SectionBoundary; project pages had a bare <Nav />,
+          so a throw took down a public, shareable, indexed URL. Boundary (not
+          SectionBoundary) because that one imports ScrollTrigger, which would pull
+          GSAP + Lenis onto these deliberately light pages. */}
+      <Boundary name="Nav">
+        <Nav />
+      </Boundary>
       <main className="project-page">
         <a href="/#projects" className="project-page-back">
           ← All projects

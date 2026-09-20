@@ -19,7 +19,17 @@
 
   /* Type — chosen via the font-comparison pass (Task #4) */
   --font-heading: 'Fraunces', Georgia, serif;
-  --font-body: 'Open Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  /* Body text is the SYSTEM sans on purpose — San Francisco on Apple devices, Roboto
+     on Android, Arial on Windows. This used to name 'Open Sans' first, but Open
+     Sans was never actually loaded anywhere (no @font-face, no Google Fonts link, and
+     nothing in git history ever added one), so that name only ever fell through to
+     the stack below. Parth reviewed the site that way many times and, on 2026-09-20,
+     chose to keep it rather than add a third downloaded family. Don't "restore" it.
+     The rest of the stack is left EXACTLY as it was, deliberately: adding 'Segoe UI'
+     would have moved Windows body copy from Arial (Chrome's generic sans-serif) to
+     Segoe UI — a real metric change that can re-wrap tight lines. The agreed change
+     was "drop the name that never loaded", not "pick new fonts". */
+  --font-body: -apple-system, BlinkMacSystemFont, sans-serif;
   --font-wordmark: 'Syne', sans-serif;
 
   /* Spacing scale — generous, per the brief's "whitespace as a design element" */

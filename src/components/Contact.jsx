@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { gsap, prefersReducedMotion } from '../lib/scroll'
-import { site, social, tejShah } from '../lib/content'
+import { site, social, tejShah, whatsappUrl, whatsappWebUrl } from '../lib/content'
 
 // Section 11 of the brief, and — until Journal/Testimonials have real
 // content — the last section on the page, so its ScrollTrigger uses
@@ -27,9 +27,21 @@ import { site, social, tejShah } from '../lib/content'
 // would otherwise reach out.
 //
 // All of these now come from content/site.json (editable in the backend).
-const WHATSAPP_URL = `https://wa.me/${site.contact.whatsapp}${
-  site.contact.whatsappGreeting ? `?text=${encodeURIComponent(site.contact.whatsappGreeting)}` : ''
-}`
+//
+// The link itself is built by whatsappUrl() in lib/content, NOT by hand here: this
+// file used to derive its own wa.me URL, which had already drifted from the nav's
+// "Talk to Tej" panel — same action, same page, two behaviours. It also silently
+// dropped the ?text= greeting whenever whatsappGreeting was empty, where the panel
+// falls back to a default.
+const WHATSAPP_URL = whatsappUrl()
+// wa.me on a computer stops at a "continue to chat" interstitial, so desktop goes to
+// WhatsApp Web directly — the same call the Talk-to-Tej panel makes, and this uses the
+// panel's exact pattern too: render BOTH links and let CSS pick one. Deliberately not
+// preventDefault() + window.open(): if the popup were blocked the click would do nothing
+// at all (the default having already been cancelled), and the site's single conversion
+// action is the last place to risk that. Two plain anchors always work, need no JS, and
+// stay correct with JavaScript off entirely.
+const WHATSAPP_WEB_URL = whatsappWebUrl()
 const PHONE_DISPLAY = site.contact.phoneDisplay
 const PHONE_TEL = `tel:${site.contact.phone}`
 const EMAIL = site.contact.email
@@ -126,12 +138,10 @@ export default function Contact() {
           Have a project in mind? Let&rsquo;s talk.
         </p>
 
-        <a
-          href={WHATSAPP_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="contact-cta"
-        >
+        <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer" className="contact-cta is-phone">
+          Book a Consultation
+        </a>
+        <a href={WHATSAPP_WEB_URL} target="_blank" rel="noopener noreferrer" className="contact-cta is-desktop">
           Book a Consultation
         </a>
 
@@ -239,6 +249,21 @@ export default function Contact() {
           text-transform: uppercase;
           color: var(--color-warm-white);
           text-decoration: none;
+        }
+        /* Which of the two CTAs shows. "Desktop" means wide AND a real pointer: a phone
+           in landscape is ~930px wide, and web.whatsapp.com does not work on a phone.
+           Must stay in step with TalkToTej.jsx's link-target @media block and with
+           DESKTOP_POINTER in lib/content.js — change all three together. */
+        .contact-cta.is-desktop {
+          display: none;
+        }
+        @media (min-width: 768px) and (pointer: fine) {
+          .contact-cta.is-phone {
+            display: none;
+          }
+          .contact-cta.is-desktop {
+            display: inline-flex;
+          }
         }
         .contact-link {
           display: inline-flex;

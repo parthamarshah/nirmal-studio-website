@@ -256,7 +256,7 @@ if (site) {
   if (!isObj(site.contact)) fail(where, '"contact" is missing')
   else {
     for (const k of ['email', 'phone', 'phoneDisplay', 'whatsapp', 'address']) if (!isStr(site.contact[k])) fail(where, `contact.${k} is empty`)
-    for (const k of ['whatsappGreeting', 'hours', 'replyTime']) if (!isNullableStr(site.contact[k])) fail(where, `contact.${k} must be text`)
+    for (const k of ['whatsappGreeting', 'hours', 'replyTime', 'addressShort']) if (!isNullableStr(site.contact[k])) fail(where, `contact.${k} must be text`)
     if (isStr(site.contact.whatsapp) && !/^\d{8,15}$/.test(site.contact.whatsapp)) fail(where, 'contact.whatsapp must be digits only, with country code (e.g. 919106998434)')
   }
   if (!isObj(site.socials)) fail(where, '"socials" is missing')
@@ -266,6 +266,28 @@ if (site) {
       if (!isObj(v) || typeof v.on !== 'boolean') fail(where, `socials.${k} needs an on/off switch`)
       else if (k !== 'whatsapp' && v.url != null && v.url !== '' && !isHttps(v.url)) fail(where, `socials.${k} must be a full https:// link`)
       else if (v.on && k !== 'whatsapp' && !isStr(v.url)) fail(where, `socials.${k} is switched on but has no link`)
+    }
+  // "Talk to Tej" first-message helper: chip label + the words it adds to the
+  // WhatsApp message (null = adds nothing, e.g. "Something else"). Empty lists
+  // just leave that question out.
+  if (!isObj(site.talk) || !isObj(site.talk.helper)) fail(where, '"talk.helper" is missing')
+  else
+    for (const q of ['what', 'stage']) {
+      const list = site.talk.helper[q]
+      if (!Array.isArray(list)) fail(where, `talk.helper.${q} must be a list`)
+      else {
+        const seen = new Set()
+        list.forEach((o, i) => {
+          const at = `talk.helper.${q} → option ${i + 1}`
+          if (!isObj(o) || !isStr(o.label)) fail(where, `${at} needs a label`)
+          else if (o.label.length > 40) fail(where, `${at}: keep the label to 40 characters`)
+          else if (!isNullableStr(o.says)) fail(where, `${at}: "says" must be text`)
+          // Labels are used as React keys in the chip list, so duplicates would make
+          // two chips share one key and select as a pair.
+          else if (seen.has(o.label)) fail(where, `${at}: "${o.label}" is listed twice — each option needs its own label`)
+          else seen.add(o.label)
+        })
+      }
     }
   if (!isObj(site.homepage)) fail(where, '"homepage" is missing')
   else

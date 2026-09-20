@@ -1,6 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
+import Boundary from './Boundary'
 import { journalPosts } from '../data/journal'
-import { isSectionOn } from '../lib/content'
+import { isSectionOn, whatsappUrl } from '../lib/content'
+
+// The "Talk to Tej" panel's code is fetched on first use (and warmed up when a
+// pointer or keyboard focus reaches the button), never during page load or hydration.
+let talkModule = null
+const loadTalk = () => (talkModule ??= import('./TalkToTej.jsx').catch((err) => {
+  talkModule = null // allow a retry
+  throw err
+}))
 
 // Persistent nav, used on every page. Transparent/light-text over the Hero
 // image until `scrolled` (driven by HomeNav.jsx's #hero ScrollTrigger on the
@@ -38,6 +47,8 @@ const NAV_LINKS = [
 // global transition override.
 export default function Nav({ scrolled = true, onNavigate }) {
   const [menuOpen, setMenuOpen] = useState(false)
+  const [TalkPanel, setTalkPanel] = useState(null) // the loaded component while open, else null
+  const [talkLoading, setTalkLoading] = useState(false) // instant feedback on slow connections
   const navRef = useRef(null)
   const menuRef = useRef(null)
   const toggleRef = useRef(null)
@@ -96,6 +107,24 @@ export default function Nav({ scrolled = true, onNavigate }) {
     onNavigate(href)
   }
 
+  // The button is a real WhatsApp link, so it still works if JavaScript or the
+  // panel's code fails to load; normally it opens the panel instead.
+  const openTalk = (e) => {
+    e.preventDefault()
+    setMenuOpen(false)
+    const href = e.currentTarget.href
+    setTalkLoading(true)
+    loadTalk().then(
+      (m) => {
+        setTalkLoading(false)
+        setTalkPanel(() => m.default)
+      },
+      () => {
+        window.location.href = href
+      },
+    )
+  }
+
   const handleWordmarkClick = (e) => {
     setMenuOpen(false)
     if (!onHome) return
@@ -110,26 +139,41 @@ export default function Nav({ scrolled = true, onNavigate }) {
         <span style={{ fontFamily: 'var(--font-wordmark)', fontWeight: 400 }}> studio</span>
       </a>
 
-      <div className="site-nav-links">
-        {links.map((link) => (
-          <a key={link.href} href={linkHref(link.href)} className="site-nav-link" onClick={(e) => handleLinkClick(e, link.href)}>
-            {link.label}
-          </a>
-        ))}
-      </div>
+      <div className="site-nav-right">
+        <div className="site-nav-links">
+          {links.map((link) => (
+            <a key={link.href} href={linkHref(link.href)} className="site-nav-link" onClick={(e) => handleLinkClick(e, link.href)}>
+              {link.label}
+            </a>
+          ))}
+        </div>
 
-      <button
-        ref={toggleRef}
-        type="button"
-        className="site-nav-toggle"
-        aria-expanded={menuOpen}
-        aria-controls="site-nav-menu"
-        aria-label={menuOpen ? 'Close menu' : 'Open menu'}
-        onClick={() => setMenuOpen((v) => !v)}
-      >
-        <span className="site-nav-toggle-bar" />
-        <span className="site-nav-toggle-bar" />
-      </button>
+        <a
+          href={whatsappUrl()}
+          className={`site-nav-talk${talkLoading ? ' is-loading' : ''}`}
+          aria-haspopup="dialog"
+          aria-busy={talkLoading || undefined}
+          onClick={openTalk}
+          onPointerEnter={() => loadTalk().catch(() => {})}
+          onTouchStart={() => loadTalk().catch(() => {})}
+          onFocus={() => loadTalk().catch(() => {})}
+        >
+          Talk to Tej
+        </a>
+
+        <button
+          ref={toggleRef}
+          type="button"
+          className="site-nav-toggle"
+          aria-expanded={menuOpen}
+          aria-controls="site-nav-menu"
+          aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+          onClick={() => setMenuOpen((v) => !v)}
+        >
+          <span className="site-nav-toggle-bar" />
+          <span className="site-nav-toggle-bar" />
+        </button>
+      </div>
 
       <div
         id="site-nav-menu"
@@ -148,7 +192,51 @@ export default function Nav({ scrolled = true, onNavigate }) {
         ))}
       </div>
 
+      {/* The panel gets its OWN boundary, not the nav's: it is the newest, lazily
+          loaded code here and it renders inside this tree, so a throw in it would
+          otherwise take the wordmark, menu and contact button down with it — and an
+          error boundary never resets, so they would stay gone until a reload.
+          createPortal does not escape a boundary: boundaries follow the React tree,
+          not the DOM. */}
+      {TalkPanel && (
+        <Boundary name="Talk to Tej panel">
+          <TalkPanel onClose={() => setTalkPanel(null)} />
+        </Boundary>
+      )}
+
       <style>{`
+        .site-nav-right {
+          display: flex;
+          align-items: center;
+          gap: 0.35rem;
+        }
+        .site-nav-talk {
+          display: inline-flex;
+          align-items: center;
+          min-height: 38px;
+          padding: 0 0.9rem;
+          border: 1px solid rgba(251, 250, 246, 0.85);
+          border-radius: 999px;
+          font-family: var(--font-body);
+          font-size: 0.8rem;
+          font-weight: 600;
+          letter-spacing: 0.02em;
+          white-space: nowrap;
+          text-decoration: none;
+          color: var(--color-warm-white);
+          text-shadow: 0 1px 12px rgba(0, 0, 0, 0.5);
+          transition: color 0.3s ease, border-color 0.3s ease, background-color 0.3s ease;
+          /* 38px visible pill, 44px tap target */
+          position: relative;
+        }
+        .site-nav-talk::after { content: ''; position: absolute; inset: -3px 0; }
+        .site-nav--scrolled .site-nav-talk {
+          color: var(--color-text);
+          border-color: var(--color-text);
+          text-shadow: none;
+        }
+        .site-nav-talk:hover { background: rgba(169, 126, 94, 0.18); }
+        .site-nav-talk.is-loading { opacity: 0.6; }
         .site-nav {
           position: fixed;
           top: 0;
@@ -268,6 +356,7 @@ export default function Nav({ scrolled = true, onNavigate }) {
             display: flex;
             gap: var(--space-md);
           }
+          .site-nav-right { gap: var(--space-md); }
           .site-nav-toggle,
           .site-nav-menu {
             display: none;

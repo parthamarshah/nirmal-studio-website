@@ -3,9 +3,10 @@
     "phoneDisplay": "910 699 8434",
     "phone": "+919106998434",
     "whatsapp": "919106998434",
-    "whatsappGreeting": "Hi Tej, I'd like to talk about a project.",
+    "whatsappGreeting": "Hi Tej, I’d like to talk about a project.",
     "email": "tej@nirmalstudio.com",
     "address": "201, Second Floor, Tilakraj Complex, Panchavati 1st Lane, Ambavadi, Ahmedabad, Gujarat 380006",
+    "addressShort": "Ambavadi, Ahmedabad",
     "hours": null,
     "replyTime": null
   },
@@ -25,6 +26,54 @@
     "linkedin": {
       "url": null,
       "on": false
+    }
+  },
+  "talk": {
+    "helper": {
+      "what": [
+        {
+          "label": "New home",
+          "says": "a new home"
+        },
+        {
+          "label": "Home or apartment interior",
+          "says": "a home or apartment interior"
+        },
+        {
+          "label": "Office or workplace",
+          "says": "an office or workplace"
+        },
+        {
+          "label": "Shop, showroom or café",
+          "says": "a shop, showroom or café"
+        },
+        {
+          "label": "Landscape or farmhouse",
+          "says": "a landscape or farmhouse project"
+        },
+        {
+          "label": "Something else",
+          "says": null
+        }
+      ],
+      "stage": [
+        {
+          "label": "Just exploring",
+          "says": "I’m just exploring for now."
+        },
+        {
+          "label": "Have a site or space",
+          "says": "I already have the site or space."
+        },
+        {
+          "label": "Ready to start",
+          "says": "I’m ready to get started."
+        },
+        {
+          "label": "Want a second opinion",
+          "says": "I’d like a second opinion on a design."
+        }
+      ]
     }
   },
   "homepage": {
