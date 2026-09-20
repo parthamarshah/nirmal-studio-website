@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { logout, ApiError } from './api.js'
-import { site, people, foundersReady, projectsIncludingHidden, STATUS_LABELS } from '../lib/content.js'
+import { people, foundersReady, projectsIncludingHidden, STATUS_LABELS } from '../lib/content.js'
+import SettingsEditor from './SettingsEditor.jsx'
 
 // The desktop-first shell: left rail, top bar with state and Publish, main pane, right
 // inspector. Phase 3 builds the real editors into these panes.
@@ -16,29 +17,28 @@ const SECTIONS = [
   { id: 'settings', label: 'Settings' },
 ]
 
-// Homepage section keys are camelCase identifiers from site.json. They must never reach
-// the screen raw — this pane is aimed at the person who owns the studio, not at whoever
-// wrote the JSON. Today every section is on, so the list is empty and the gap is
-// invisible; it appears the first time one is switched off.
-const SECTION_LABELS = {
-  statement: 'Statement',
-  focusImage: 'Focus image',
-  philosophy: 'Philosophy',
-  ideaTimeline: 'Idea timeline',
-  featuredProjects: 'Featured projects',
-  studio: 'Studio',
-  process: 'Process',
-  contact: 'Contact',
-}
-
-const SOCIAL_LABELS = {
-  facebook: 'Facebook',
-  instagram: 'Instagram',
-  whatsapp: 'WhatsApp',
-  linkedin: 'LinkedIn',
-}
-
 const dash = '—'
+
+// One line, in one place. Projects and Founders are still read-only; Settings is the
+// first pane with a real draft behind it.
+function stateLine(section, draft) {
+  if (section !== 'settings') return 'Read-only for now. Editing arrives with the project and founder editors.'
+  if (!draft) return 'Publishing arrives in the next step.'
+  switch (draft.state) {
+    case 'loading':
+      return 'Loading…'
+    case 'saving':
+      return 'Saving…'
+    case 'dirty':
+      return 'Unsaved changes…'
+    case 'conflict':
+      return 'Changed somewhere else — choose which version to keep.'
+    case 'error':
+      return 'Couldn’t save. Your changes are still on screen.'
+    default:
+      return draft.hasDraft ? 'Saved as a draft · publishing arrives next' : 'No changes yet'
+  }
+}
 
 // Which pane is open lives in the URL, not in component state. On a phone the system
 // Back gesture would otherwise leave the admin entirely instead of going back a pane,
@@ -55,6 +55,9 @@ export default function Shell({ session, onSignedOut }) {
   const [section, setSection] = useState(sectionFromHash)
   const [signingOut, setSigningOut] = useState(false)
   const [error, setError] = useState(null)
+  // Reported up by whichever pane owns a draft, so the top bar can show one save state
+  // for the whole screen rather than each editor growing its own.
+  const [draft, setDraft] = useState(null)
 
   useEffect(() => {
     const onHashChange = () => setSection(sectionFromHash())
@@ -65,6 +68,9 @@ export default function Shell({ session, onSignedOut }) {
   const go = useCallback((id) => {
     window.location.hash = `#/${id}`
   }, [])
+
+  // Stable identity: SettingsEditor reports through an effect that depends on this.
+  const onDraftState = useCallback((s) => setDraft(s), [])
 
   async function signOut() {
     if (signingOut) return
@@ -134,7 +140,9 @@ export default function Shell({ session, onSignedOut }) {
               lands. It also carries the explanation for the disabled Publish button,
               which used to exist only in a `title` tooltip: invisible on touch,
               invisible to a keyboard, and usually suppressed on a disabled element. */}
-          <p className="admin-state">Read-only preview. Editing and publishing arrive in the next phase.</p>
+          <p className="admin-state">{stateLine(section, draft)}</p>
+          {/* Still inert: the Publish endpoint is the next step. The line to the left
+              says so, rather than a tooltip nobody on a touchscreen can see. */}
           <button className="admin-publish" type="button" disabled>
             Publish
           </button>
@@ -144,7 +152,7 @@ export default function Shell({ session, onSignedOut }) {
           <main className="admin-main">
             {section === 'projects' && <Projects />}
             {section === 'founders' && <Founders />}
-            {section === 'settings' && <Settings />}
+            {section === 'settings' && <SettingsEditor onStateChange={onDraftState} />}
           </main>
 
           <aside className="admin-inspector" aria-label="Inspector">
@@ -216,56 +224,3 @@ function Founders() {
   )
 }
 
-function Settings() {
-  const socialsOn = Object.entries(site.socials || {})
-    .filter(([, v]) => v.on && v.url)
-    .map(([k]) => SOCIAL_LABELS[k] || k)
-  const sectionsOff = Object.entries(site.sections || {})
-    .filter(([, on]) => on === false)
-    .map(([k]) => SECTION_LABELS[k] || k)
-
-  return (
-    <>
-      <ul className="admin-list">
-        <li>
-          <div className="admin-row">
-            <strong>Phone</strong>
-            <span className="admin-row-meta">{site.contact.phone || dash}</span>
-          </div>
-        </li>
-        <li>
-          <div className="admin-row">
-            <strong>Email</strong>
-            <span className="admin-row-meta">{site.contact.email || dash}</span>
-          </div>
-        </li>
-        <li>
-          <div className="admin-row">
-            <strong>Address</strong>
-            <span className="admin-row-meta">{site.contact.address || dash}</span>
-          </div>
-        </li>
-        <li>
-          <div className="admin-row">
-            <strong>Social links</strong>
-            <span className="admin-row-meta">
-              {socialsOn.length ? socialsOn.join(', ') : 'None switched on'}
-            </span>
-          </div>
-        </li>
-        <li>
-          <div className="admin-row">
-            <strong>Hidden sections</strong>
-            <span className="admin-row-meta">
-              {sectionsOff.length ? sectionsOff.join(', ') : 'None — all sections shown'}
-            </span>
-          </div>
-        </li>
-      </ul>
-      <p className="admin-note">
-        Changing the PIN, the switches for each social link and the homepage image spots all live
-        here once the editors are built.
-      </p>
-    </>
-  )
-}

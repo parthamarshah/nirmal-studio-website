@@ -16,6 +16,9 @@ export class ApiError extends Error {
     super(message)
     this.status = status
     this.kind = kind
+    // The whole error body, so a caller can act on what the server sent back — a 409
+    // from the draft endpoint carries the version that is actually stored.
+    this.data = data ?? null
     // The backend returns `lockedUntil` with a 429 so the UI can say how long is left
     // and stop accepting attempts that cannot succeed. Dropping it here would force the
     // login screen to keep offering a button that is guaranteed to fail.

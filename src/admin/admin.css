@@ -285,6 +285,111 @@ button {
   max-width: 62ch;
 }
 
+/* ---------------------------------------------------------------- editors */
+
+.admin-fields {
+  display: grid;
+  gap: var(--space-sm);
+  max-width: 34rem;
+}
+
+.admin-field label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: 600;
+}
+
+.admin-field input,
+.admin-field textarea {
+  width: 100%;
+  padding: 9px 11px;
+  font: inherit;
+  color: inherit;
+  background: #fff;
+  border: 1px solid var(--admin-line);
+  border-radius: var(--admin-radius);
+  resize: vertical;
+}
+
+.admin-field input:focus,
+.admin-field textarea:focus {
+  border-color: var(--color-bronze);
+}
+
+.admin-field [aria-invalid='true'] {
+  border-color: #a4341f;
+}
+
+.admin-field-hint,
+.admin-field-error {
+  margin: 5px 0 0;
+  font-size: 13px;
+}
+
+.admin-field-hint {
+  color: var(--color-stone-dark);
+}
+
+.admin-field-error {
+  color: #8c2c1a;
+}
+
+.admin-note--warn {
+  border-style: solid;
+  border-color: #d9bfae;
+  background: #fdf4ee;
+  color: #6f4630;
+}
+
+/* A conflict is the one thing in this tool that can lose somebody's work, so it is a
+   block at the top of the pane with two explicit choices — never a toast, never an
+   automatic merge. */
+.admin-conflict {
+  margin-bottom: var(--space-md);
+  padding: 14px 16px;
+  border: 1px solid #d9bfae;
+  border-left: 4px solid var(--color-bronze-dark);
+  border-radius: var(--admin-radius);
+  background: #fdf4ee;
+  max-width: 44rem;
+}
+
+.admin-conflict p {
+  margin: 6px 0 0;
+  color: #6f4630;
+}
+
+.admin-conflict-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  margin-top: 12px;
+}
+
+.admin-btn {
+  min-height: 40px;
+  padding: 8px 14px;
+  border: 1px solid var(--color-bronze-dark);
+  border-radius: var(--admin-radius);
+  background: var(--color-bronze-dark);
+  color: #fff;
+  font-weight: 600;
+}
+
+.admin-btn--quiet {
+  background: transparent;
+  color: var(--color-bronze-darker);
+}
+
+.admin-link {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: var(--color-bronze-darker);
+  text-decoration: underline;
+}
+
 /* ---------------------------------------------------------------- login */
 
 .admin-login {
@@ -527,6 +632,13 @@ button {
   .admin-row {
     grid-template-columns: 1fr;
     gap: 4px;
+  }
+
+  /* iOS Safari zooms the whole page when a focused input is under 16px. The zoom does
+     not undo itself, so the rest of the form is then off-screen. */
+  .admin-field input,
+  .admin-field textarea {
+    font-size: 16px;
   }
 
   .admin-tag {
