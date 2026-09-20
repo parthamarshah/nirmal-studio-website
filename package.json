@@ -15,7 +15,10 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "check:domains": "bash scripts/check-domains.sh",
-    "admin:secrets": "node scripts/setup-admin-secrets.mjs"
+    "admin:secrets": "node scripts/setup-admin-secrets.mjs",
+    "test:auth": "bash scripts/test-admin-auth.sh",
+    "admin:dev": "wrangler pages dev --port 8788",
+    "admin:migrate": "wrangler d1 execute nirmal-studio-admin --local --file=migrations/0001_initial.sql"
   },
   "dependencies": {
     "embla-carousel-react": "^8.6.0",

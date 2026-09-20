@@ -128,6 +128,14 @@ if (token) {
   console.log('• Skipped — add it later by running this again.')
 }
 
+// Key used to sign the admin session cookie. Generated, never chosen — it is not a
+// password and nobody needs to know it. Kept if one already exists, because rotating it
+// signs everyone out.
+if (!vars.SESSION_SECRET) {
+  vars.SESSION_SECRET = randomBytes(32).toString('base64')
+  console.log('\u2713 Session signing key generated.')
+}
+
 // Branch that local publishing commits to. Never `main` by default: a publish from a
 // development machine must not be able to change the live site by accident.
 vars.PUBLISH_BRANCH ??= 'admin-test'
