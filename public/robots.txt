@@ -1,4 +1,6 @@
 User-agent: *
 Allow: /
+# The editing backend. Nothing here is public, and it must never appear in search.
+Disallow: /admin
 
 Sitemap: https://nirmalstudio.com/sitemap.xml

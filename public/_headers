@@ -9,3 +9,14 @@
 # same reasoning as the hashed images above, safe to cache for a year.
 /fonts/*
   Cache-Control: public, max-age=31536000, immutable
+
+# The editing backend. robots.txt and the page's own meta tag cover the HTML; this
+# covers the JavaScript and CSS too, which a meta tag cannot speak for. Preview
+# deployments get an automatic noindex from Cloudflare but production does NOT, so this
+# is the line that matters on nirmalstudio.com. no-store because an admin screen should
+# never sit in a shared cache or survive in the back/forward cache after signing out.
+/admin/*
+  X-Robots-Tag: noindex, nofollow
+  Cache-Control: no-store
+  Referrer-Policy: same-origin
+  X-Frame-Options: DENY

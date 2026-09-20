@@ -1,0 +1,458 @@
+/* Admin shell styles.
+ *
+ * Only the palette is shared with the public site — tokens.css, not index.css. Pulling
+ * in index.css would drag the site's global body/h1/a rules and its Fraunces heading
+ * font into a tool that wants neither. */
+@import '../styles/tokens.css';
+
+:root {
+  --admin-rail: 248px;
+  --admin-inspector: 320px;
+  --admin-ink: #16150f;
+  --admin-rail-text: #e9e5da;
+  --admin-rail-muted: #9c968a;
+  --admin-line: #e3ded1;
+  --admin-surface: #fbfaf6;
+  --admin-radius: 6px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-text);
+  background: var(--admin-surface);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3 {
+  margin: 0;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+}
+
+/* Every interactive thing keeps a visible focus ring — this is a keyboard-heavy tool. */
+:focus-visible {
+  outline: 2px solid var(--color-bronze);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/* ---------------------------------------------------------------- app frame */
+
+.admin-app {
+  display: grid;
+  grid-template-columns: var(--admin-rail) 1fr;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.admin-rail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: 22px 18px;
+  background: var(--admin-ink);
+  color: var(--admin-rail-text);
+}
+
+.admin-wordmark {
+  font-size: 15px;
+  letter-spacing: 0.02em;
+}
+
+.admin-wordmark b {
+  font-weight: 700;
+}
+
+.admin-wordmark span {
+  color: var(--admin-rail-muted);
+}
+
+.admin-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.admin-nav button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 12px;
+  border: 0;
+  border-radius: var(--admin-radius);
+  background: transparent;
+  color: var(--admin-rail-muted);
+  text-align: left;
+  transition: background 0.12s, color 0.12s;
+}
+
+.admin-nav button:hover {
+  background: rgb(255 255 255 / 0.06);
+  color: var(--admin-rail-text);
+}
+
+.admin-nav button[aria-current='page'] {
+  background: rgb(255 255 255 / 0.1);
+  color: #fff;
+}
+
+.admin-nav-count {
+  margin-left: auto;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--admin-rail-muted);
+}
+
+.admin-rail-foot {
+  border-top: 1px solid rgb(255 255 255 / 0.1);
+  padding-top: 14px;
+  font-size: 12px;
+  color: var(--admin-rail-muted);
+}
+
+.admin-rail-foot p {
+  margin: 0 0 8px;
+}
+
+.admin-signout {
+  border: 1px solid rgb(255 255 255 / 0.18);
+  background: transparent;
+  color: var(--admin-rail-text);
+  padding: 6px 10px;
+  border-radius: var(--admin-radius);
+  font-size: 12px;
+}
+
+.admin-signout:hover {
+  background: rgb(255 255 255 / 0.08);
+}
+
+/* ---------------------------------------------------------------- top bar */
+
+.admin-col {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-width: 0;
+}
+
+.admin-top {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 0 var(--space-md);
+  height: 60px;
+  border-bottom: 1px solid var(--admin-line);
+  background: #fff;
+}
+
+.admin-top h1 {
+  font-size: 17px;
+}
+
+.admin-draft-state {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  color: var(--color-stone-dark);
+}
+
+.admin-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-stone);
+}
+
+.admin-publish {
+  border: 0;
+  border-radius: var(--admin-radius);
+  background: var(--color-bronze-dark);
+  color: #fff;
+  padding: 9px 18px;
+  font-weight: 600;
+}
+
+.admin-publish:disabled {
+  background: var(--admin-line);
+  color: var(--color-stone-dark);
+  cursor: not-allowed;
+}
+
+/* ---------------------------------------------------------------- panes */
+
+.admin-panes {
+  display: grid;
+  grid-template-columns: 1fr var(--admin-inspector);
+  min-height: 0;
+}
+
+.admin-main {
+  padding: var(--space-md);
+  min-width: 0;
+}
+
+.admin-inspector {
+  border-left: 1px solid var(--admin-line);
+  padding: var(--space-md) var(--space-sm);
+  background: #fff;
+}
+
+.admin-eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-stone-dark);
+  margin: 0 0 12px;
+}
+
+.admin-hint {
+  color: var(--color-stone-dark);
+  max-width: 62ch;
+}
+
+/* A read-only row in the Projects / Founders lists. */
+.admin-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--admin-line);
+  border-radius: var(--admin-radius);
+  background: #fff;
+  overflow: hidden;
+}
+
+.admin-list li + li {
+  border-top: 1px solid var(--admin-line);
+}
+
+.admin-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 15rem) 1fr auto;
+  align-items: baseline;
+  gap: var(--space-sm);
+  padding: 12px 16px;
+}
+
+.admin-row strong {
+  font-weight: 600;
+}
+
+.admin-row-meta {
+  color: var(--color-stone-dark);
+  font-size: 13px;
+}
+
+.admin-tag {
+  justify-self: end;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-bronze-darker);
+  background: var(--color-beige);
+  padding: 3px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.admin-note {
+  margin-top: var(--space-md);
+  padding: 14px 16px;
+  border: 1px dashed var(--admin-line);
+  border-radius: var(--admin-radius);
+  color: var(--color-stone-dark);
+  max-width: 62ch;
+}
+
+/* ---------------------------------------------------------------- login */
+
+.admin-login {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: var(--space-md) var(--space-sm);
+  background: var(--admin-ink);
+  color: var(--admin-rail-text);
+}
+
+.admin-login-card {
+  width: 100%;
+  max-width: 340px;
+}
+
+.admin-login h1 {
+  font-size: 20px;
+  margin-bottom: 6px;
+}
+
+.admin-login p {
+  margin: 0 0 var(--space-md);
+  color: var(--admin-rail-muted);
+}
+
+.admin-login label {
+  display: block;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--admin-rail-muted);
+  margin-bottom: 8px;
+}
+
+.admin-pin {
+  width: 100%;
+  padding: 12px 14px;
+  font-size: 22px;
+  letter-spacing: 0.35em;
+  font-variant-numeric: tabular-nums;
+  border: 1px solid rgb(255 255 255 / 0.2);
+  border-radius: var(--admin-radius);
+  background: rgb(255 255 255 / 0.05);
+  color: #fff;
+}
+
+.admin-pin::placeholder {
+  color: rgb(255 255 255 / 0.25);
+  letter-spacing: 0.35em;
+}
+
+.admin-submit {
+  width: 100%;
+  margin-top: 12px;
+  padding: 12px;
+  border: 0;
+  border-radius: var(--admin-radius);
+  background: var(--color-bronze);
+  color: #191710;
+  font-weight: 700;
+}
+
+.admin-submit:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Errors are announced, not just coloured — this is the one screen where a
+   screen-reader user gets no other signal that anything happened. */
+.admin-error {
+  margin-top: 14px;
+  padding: 11px 13px;
+  border-radius: var(--admin-radius);
+  background: rgb(255 255 255 / 0.07);
+  border-left: 3px solid var(--color-bronze);
+  color: var(--admin-rail-text);
+  font-size: 13px;
+}
+
+.admin-boot {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  color: var(--color-stone-dark);
+}
+
+/* ---------------------------------------------------------------- phone */
+
+/* Below 768px the rail becomes a top strip with horizontal nav, and the inspector
+   drops under the main pane instead of beside it. Every property that changes here
+   is declared in this stylesheet at both sizes and never set inline — an inline
+   style would beat this media query regardless of specificity. */
+@media (max-width: 767px) {
+  .admin-app {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+
+  .admin-rail {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px var(--space-sm);
+    padding: 12px 14px;
+  }
+
+  .admin-wordmark {
+    flex: 1;
+  }
+
+  /* Only the nav scrolls if it has to — not the whole strip, which used to push
+     Sign out off the right edge where nobody would find it. */
+  .admin-nav {
+    order: 2;
+    flex-direction: row;
+    flex-basis: 100%;
+    gap: 4px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .admin-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .admin-nav button {
+    width: auto;
+    white-space: nowrap;
+    padding: 7px 11px;
+  }
+
+  .admin-nav-count {
+    display: none;
+  }
+
+  .admin-rail-foot {
+    border-top: 0;
+    padding-top: 0;
+    flex: none;
+  }
+
+  .admin-rail-foot p {
+    display: none;
+  }
+
+  .admin-top {
+    height: auto;
+    padding: 12px 16px;
+    flex-wrap: wrap;
+  }
+
+  .admin-panes {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-main {
+    padding: var(--space-sm);
+  }
+
+  .admin-inspector {
+    border-left: 0;
+    border-top: 1px solid var(--admin-line);
+    padding: var(--space-sm);
+  }
+
+  .admin-row {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  .admin-tag {
+    justify-self: start;
+  }
+}

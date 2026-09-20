@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- This page must never be indexed. The meta tag here covers the page itself;
+         public/robots.txt disallows the path, and public/_headers adds an
+         X-Robots-Tag to /admin/* so the JavaScript and CSS are covered too — a meta
+         tag can't speak for an asset. Preview deployments get an automatic noindex
+         header from Cloudflare; production does NOT, so the header is the one that
+         matters on nirmalstudio.com. -->
+    <meta name="robots" content="noindex, nofollow, noarchive" />
+    <meta name="referrer" content="same-origin" />
+
+    <title>Nirmal Studio — Admin</title>
+
+    <!-- Deliberately no @font-face block and no Google Fonts. The public site
+         self-hosts Fraunces and Syne; copying those rules here would make an
+         internal tool download a 67KB display serif it has no use for. The admin
+         uses the system sans throughout — the same stack as the site's body copy —
+         and takes only the palette from tokens.css. -->
+  </head>
+  <body>
+    <div id="admin-root"></div>
+    <script type="module" src="/src/admin/main.jsx"></script>
+  </body>
+</html>
