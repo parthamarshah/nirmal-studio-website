@@ -24,7 +24,18 @@ export async function onRequestPost(context) {
   if (!env.ADMIN_PIN_HASH || !env.SESSION_SECRET || !env.DB) {
     // A misconfigured deployment must not silently behave like a wrong PIN — that would
     // be debugged for hours. Say so clearly; it leaks nothing an attacker can use.
-    return json({ error: 'The backend is not configured yet. ADMIN_PIN_HASH, SESSION_SECRET and the database binding are required.' }, { status: 503 })
+    //
+    // The human sentence leads and the variable names follow in brackets. Both readers
+    // matter: the person who has to fix this needs the names, but the person staring at
+    // the screen is an architect who has never heard of an environment variable, and on
+    // an unconfigured preview this is the ONLY thing any PIN ever returns.
+    return json(
+      {
+        error:
+          'This admin isn’t set up on this deployment yet, so no PIN will work here. (Missing: ADMIN_PIN_HASH, SESSION_SECRET or the database binding.)',
+      },
+      { status: 503 },
+    )
   }
 
   const lock = await checkLock(env.DB, ip)
