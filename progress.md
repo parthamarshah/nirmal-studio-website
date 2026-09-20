@@ -319,9 +319,49 @@ the cookie is stored and sent back as soon as the login screen exists, before an
 built on top of the session. (Not a reason to drop the prefix — it is the right call
 given the `erp.` sibling subdomain.)
 
-**Next (steps 4-7):** admin shell (second Vite entry, noindex) → drafts with autosave →
-publish/status/undo → hardening + the ux-reviewer pass (it was skipped this session on
-purpose: there is no UI yet for it to review).
+**STEP 4 DONE — the /admin shell is built and deployed to the preview.**
+`https://admin-test.nirmal-studio.pages.dev/admin/` (Parth: you can open the login screen,
+but you cannot get in yet — see the secrets note above).
+
+- **Built by its own Vite pass**, not as a second entry of the site build
+  (`vite.admin.config.js`, run from `npm run build` between `vite build` and the
+  prerender). A shared build let Rollup split React into a chunk both entries import,
+  which re-shaped the **public** site's bundle — and Phase 1d tuned that graph on
+  measured cold Slow-4G numbers. Separate passes keep every public chunk byte-identical
+  (`index-BqS-LPLx.js` and friends are unchanged), at the cost of the admin shipping its
+  own React (71 KB gz, one internal page, two users — the right trade).
+- **"No admin code in the public bundle" is verified, not assumed.** No public file
+  contains `/api/admin/`, `admin-root`, `ApiError`, `Inspector` or `signedIn`; the admin
+  bundle contains no GSAP, Lenis, Framer or Embla.
+- **noindex is declared in all three places it has to be:** the page's own meta tag,
+  `Disallow: /admin` in `public/robots.txt`, and an `X-Robots-Tag` (+ `no-store`,
+  `X-Frame-Options: DENY`) on `/admin/*` in `public/_headers`. The admin's JS and CSS are
+  emitted under **`/admin/assets/`** precisely so that one header rule covers them —
+  parked at the root they would have fallen outside it, and a meta tag cannot speak for a
+  `.js` file. Verified on the deployment: both the HTML and the JS carry the header, and
+  `/admin` 308-redirects to `/admin/`.
+- **`src/admin/api.js` classifies every response by content type, never `res.ok`** — the
+  soft-404 trap above, closed at the one place it would have bitten first.
+- **The three panes show the real published content, read-only** (9 projects, 4 founders,
+  the actual contact settings). Deliberate: a shell full of placeholder rows says nothing
+  about whether the layout survives real density and real name lengths, which is the
+  entire point of showing it to Parth before the editors go in. **Step 5 swaps the source
+  from published content to the D1 draft** — the layout is what's being judged now.
+- **Driven in headless Chrome, 20 checks** across the login screen and the shell at 1440
+  and 390: PIN field autofocus, non-digits stripped, submit gated at 6 digits, all three
+  panes, the publish branch shown (`admin-test`, never `main`), no horizontal overflow at
+  390, inspector stacking, keyboard reachability, clean console. **The `__Host-` cookie is
+  stored and returned correctly over plain-http localhost** — that needed a real browser,
+  since curl does not enforce cookie-prefix rules at all.
+- **The 210k hash was confirmed end-to-end from the UI**: typing a PIN against the real
+  `.dev.vars` renders *"ADMIN_PIN_HASH asks for 210000 PBKDF2 iterations; Cloudflare
+  Workers supports at most 100000. Re-run npm run admin:secrets and set the new hash."*
+  That is the whole bug, visible, in one sentence, on the screen where it matters.
+
+**Next (steps 5-7):** drafts with autosave (`draft` GET/PUT — two tabs must not silently
+overwrite each other) → publish / status / undo → the remaining hardening. **The first
+thing step 5 needs is the preview secrets**, without which nobody can sign in to test any
+of it.
 
 **Also still to do from Phase 1:** Parth chose to route the Contact section's
 "Book a Consultation" CTA through the Talk-to-Tej panel (rather than straight out to
