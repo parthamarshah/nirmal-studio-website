@@ -396,11 +396,41 @@ against them rather than rediscovering them by chance:
   visitors. `Img.jsx` now only points at files `build-content.mjs` verifiably produced.
   If anything ever reintroduces a path derived by string substitution, this comes back.
 
+## Phase 2 credentials (created 2026-09-20, stored in Parth's Apple Passwords)
+
+Never in the repo, never in chat. Both are saved in the **Passwords** app, and both go
+into Cloudflare as encrypted secrets when the `/admin` Functions are built.
+
+| what | where it's saved | scope |
+|---|---|---|
+| GitHub fine-grained PAT | `github.com` / user name `nirmal-studio-backend-token` | **only** `parthamarshah/nirmal-studio-website`; Contents: Read and write; Metadata: Read (auto) |
+| Cloudflare API token | `cloudflare.com` / user name `nirmal-studio-build-status` | Gurjar account only; **Cloudflare Pages: Read** — build status only, no edit rights anywhere |
+
+- The GitHub token is named `nirmal-studio-backen` in GitHub's UI (the trailing "d" was
+  truncated at creation) — cosmetic, don't be confused by it.
+- **The GitHub token expires** — it was created on a 90-day default (19 Dec 2026) and
+  Parth was asked whether he extended it; confirm the date on
+  github.com/settings/personal-access-tokens before relying on it. When it lapses,
+  publishing from `/admin` stops with an unhelpful error, so check this first if
+  publishing breaks. Editing a fine-grained token's scope regenerates its value; editing
+  it does NOT require deleting and recreating the token entry.
+- Neither token existed before this date, and the first attempt was created with
+  GitHub's defaults — **no repository access and no permissions at all**. A fine-grained
+  PAT with no permissions fails as a 404, not a 403, so verify scope on the token's page
+  rather than trusting that creation succeeded.
+- Cloudflare **Web Analytics is already enabled** on the zone (its `beacon.min.js` is
+  auto-injected into the live site) — Phase 3 item 4 doesn't need to turn it on.
+- Client IP filtering was deliberately left empty on the Cloudflare token: it is called
+  from Cloudflare's servers, not from Parth's laptop.
+
 ## Deploy
 
 - Repo: `https://github.com/parthamarshah/nirmal-studio-website` (plain `git push`,
   no `gh` CLI/Homebrew on this machine).
-- Cloudflare: Wrangler CLI is authenticated (`npx wrangler whoami`) against the
+- Cloudflare: **Wrangler's OAuth login has EXPIRED** as of 2026-09-20 (`npx wrangler
+  whoami` reports "Not logged in. Your auth token has expired"). Nothing depends on it
+  day to day — deploys happen by pushing to `main`, not through wrangler — so re-login
+  only if a wrangler command is actually needed. It was authenticated against the
   "Gurjar" account (where `nirmalstudio.com`'s DNS actually lives — OAuth via
   `wrangler login` needs `dangerouslyDisableSandbox: true` on the Bash call, since the
   loopback callback server otherwise isn't reachable from the real browser).

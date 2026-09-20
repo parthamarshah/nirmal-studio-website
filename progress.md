@@ -135,11 +135,23 @@ scroll lock PASS — **0px** horizontal shift when the scrollbar disappears (so 
 Lenis scrolls normally afterwards. Both of the edge-case review's "unverified" items are
 therefore answered.
 
-**Next up — Phase 2 (backend foundation), blocked on Parth.** Needs, one step at a time:
-1. A **fine-grained GitHub token** limited to `parthamarshah/nirmal-studio-website`,
-   Contents read/write.
-2. A **Cloudflare API token** with Pages read (build status).
-3. His chosen **6-digit `/admin` PIN**, typed into a secret prompt — never into chat.
+**Next up — Phase 2 (backend foundation). Both API tokens are now CREATED** (2026-09-20,
+walked through one step at a time; see CLAUDE.md's "Phase 2 credentials" section for
+scopes and where they're stored). Remaining before Phase 2 can be finished: Parth's
+**6-digit `/admin` PIN**, which he types into a secret prompt when the login is built —
+never into chat, so there is nothing to collect in advance.
+
+Worth knowing for next session:
+- GitHub's default for a new fine-grained token is **no repository access and no
+  permissions**, and it fails as a **404, not a 403** — so always verify the scope on the
+  token's own page rather than assuming creation worked. The first attempt here was
+  created that way and would have failed confusingly much later.
+- The GitHub token **expires** (90-day default = 19 Dec 2026 unless Parth extended it —
+  he was asked but hadn't confirmed when this was written). **Check the expiry date
+  first if publishing from `/admin` ever breaks.**
+- **Wrangler's OAuth login has expired.** Not blocking — deploys are `git push` — but
+  CLAUDE.md's claim that it's authenticated was stale and is corrected.
+- Cloudflare **Web Analytics is already on**, so Phase 3 item 4 is partly done.
 
 **Two UX-review findings deliberately NOT acted on — they are Parth's calls, not mine:**
 1. **The Contact section's "Book a Consultation" CTA bypasses the Talk-to-Tej helper.**
