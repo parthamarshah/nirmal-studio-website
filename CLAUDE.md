@@ -408,9 +408,8 @@ into Cloudflare as encrypted secrets when the `/admin` Functions are built.
 
 - The GitHub token is named `nirmal-studio-backen` in GitHub's UI (the trailing "d" was
   truncated at creation) — cosmetic, don't be confused by it.
-- **The GitHub token expires** — it was created on a 90-day default (19 Dec 2026) and
-  Parth was asked whether he extended it; confirm the date on
-  github.com/settings/personal-access-tokens before relying on it. When it lapses,
+- **The GitHub token expires on Saturday 19 December 2026** (90 days; Parth confirmed
+  on 2026-09-20 that he kept the default rather than extending it). When it lapses,
   publishing from `/admin` stops with an unhelpful error, so check this first if
   publishing breaks. Editing a fine-grained token's scope regenerates its value; editing
   it does NOT require deleting and recreating the token entry.
@@ -427,11 +426,19 @@ into Cloudflare as encrypted secrets when the `/admin` Functions are built.
 
 - Repo: `https://github.com/parthamarshah/nirmal-studio-website` (plain `git push`,
   no `gh` CLI/Homebrew on this machine).
-- Cloudflare: **Wrangler's OAuth login has EXPIRED** as of 2026-09-20 (`npx wrangler
-  whoami` reports "Not logged in. Your auth token has expired"). Nothing depends on it
-  day to day — deploys happen by pushing to `main`, not through wrangler — so re-login
-  only if a wrangler command is actually needed. It was authenticated against the
-  "Gurjar" account (where `nirmalstudio.com`'s DNS actually lives — OAuth via
+- Cloudflare: Wrangler CLI is authenticated (re-authorised 2026-09-20 after its OAuth
+  token expired) against the **"Gurjar"** account (`77c1fca7ffa3f3bf2ed702db856050fd`,
+  email `3shah.parth@gmail.com`), with `d1:write`, `workers_kv:write` and `pages:write`
+  among its scopes — everything the Phase 2 backend needs to create its bindings.
+  **Re-login gotcha, hit twice on 2026-09-20:** `wrangler login` binds an OAuth callback
+  server to `localhost:8976`. If an earlier attempt is still hanging it keeps that port,
+  and a second attempt then fails either with "port is already in use" or — worse,
+  because it looks like an account problem — a browser page reading
+  `request_forbidden / The CSRF value from the token does not match`. That CSRF error
+  just means two concurrent logins: the browser approved attempt B's `state` while
+  attempt A's server is the one listening. Fix: `pkill -f "wrangler.*login"`, confirm
+  port 8976 is free, then run **exactly one** login. Never run a second one because the
+  first looks stuck. The account it was authenticated against (where `nirmalstudio.com`'s DNS actually lives — OAuth via
   `wrangler login` needs `dangerouslyDisableSandbox: true` on the Bash call, since the
   loopback callback server otherwise isn't reachable from the real browser).
 - **Pages project**: `nirmal-studio` (live at `https://nirmal-studio.pages.dev`),

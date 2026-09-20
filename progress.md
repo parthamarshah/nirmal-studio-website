@@ -146,11 +146,16 @@ Worth knowing for next session:
   permissions**, and it fails as a **404, not a 403** — so always verify the scope on the
   token's own page rather than assuming creation worked. The first attempt here was
   created that way and would have failed confusingly much later.
-- The GitHub token **expires** (90-day default = 19 Dec 2026 unless Parth extended it —
-  he was asked but hadn't confirmed when this was written). **Check the expiry date
-  first if publishing from `/admin` ever breaks.**
-- **Wrangler's OAuth login has expired.** Not blocking — deploys are `git push` — but
-  CLAUDE.md's claim that it's authenticated was stale and is corrected.
+- The GitHub token **expires Sat 19 Dec 2026** (Parth confirmed he kept the 90-day
+  default). **Check that first if publishing from `/admin` ever breaks** — the failure
+  is a 404, which doesn't look like an auth problem. Renew it on
+  github.com/settings/personal-access-tokens and update the Passwords entry.
+- **Wrangler is re-authenticated** (2026-09-20) against Gurjar, verified with
+  `wrangler whoami` and `wrangler pages project list`, with `d1:write` /
+  `workers_kv:write` / `pages:write` — so Phase 2 can create its D1 database and KV
+  namespace immediately. Getting there took three attempts: see CLAUDE.md's Deploy
+  section for the `localhost:8976` / CSRF trap, which presents as an account-permission
+  error but is really just two concurrent `wrangler login` runs.
 - Cloudflare **Web Analytics is already on**, so Phase 3 item 4 is partly done.
 
 **Two UX-review findings deliberately NOT acted on — they are Parth's calls, not mine:**
