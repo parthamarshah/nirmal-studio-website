@@ -453,9 +453,22 @@ focus and does not zoom back — the UX review flagged it for whenever the first
 step that needs `GITHUB_TOKEN` on a deployment**, and preview still has no secrets at all.
 
 
-**Also still to do from Phase 1:** Parth chose to route the Contact section's
-"Book a Consultation" CTA through the Talk-to-Tej panel (rather than straight out to
-WhatsApp) — decided 2026-09-20, **not yet built**. He declined the rename.
+**DONE (2026-09-21), and it closes the last open Phase 1 item.** Parth asked for both:
+the button is now **"Talk with Us"** (nav and panel heading; the panel's subtitle still
+says "You'll speak directly with Tej" on purpose — the button invites, the line under it
+reassures), and **"Book a Consultation" opens the same panel** instead of jumping
+straight to WhatsApp. That closes the UX-review finding open since 2026-09-20: the site's
+single stated conversion action was the *less* helpful of the two paths to the same
+place, and on desktop it dropped a logged-out visitor onto WhatsApp Web's bare QR-login
+screen with no context.
+
+The loader moved to `src/components/loadTalk.js` so the nav and the CTA share one cached
+chunk. Contact renders its own panel instance behind its **own** `Boundary` — not the
+section's, since lazily loaded code throwing there would otherwise take the address, map
+and phone number with it. Both anchors stay, still gated by CSS, as the no-JS fallback.
+**The component file is still `TalkToTej.jsx` and `site.json`'s greeting still opens
+"Hi Tej"** — internal and recipient names, not the label; neither was renamed.
+Verified on the LIVE site at 1440 and 390, homepage and a project page: 31 checks.
 
 **Next up — Phase 2 (backend foundation). Both API tokens are now CREATED** (2026-09-20,
 walked through one step at a time; see CLAUDE.md's "Phase 2 credentials" section for
