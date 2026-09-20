@@ -212,6 +212,9 @@ straight out of `wrangler pages deployment tail`:
   way local dev could never reproduce, with nothing in the error pointing at the cause.
   **He must re-run `npm run admin:secrets`** (the constant is now 100k) before /admin can
   work anywhere. Nothing else can fix it: the iteration count travels inside the hash.
+  The 100k constant is on **both `main` and `admin-test`** — the script is deliberately
+  identical on the two branches, unlike `functions/`, so it does not matter which one is
+  checked out when he runs it.
 - `verifyPin` now refuses an out-of-range hash with a plain-English 503 naming the
   problem, instead of throwing an uncaught exception.
 
@@ -274,21 +277,33 @@ NOT deployed, `401 + application/json` means deployed. (That is exactly the chec
 four-minute main-exposure incident needed.) It is also a soft-404 SEO problem on a site
 whose stated priority is local search; a `public/404.html` is worth doing.
 
-**⚠ CLOUDFLARE IS NOT BUILDING FROM GIT RIGHT NOW — the live site is stale.** Every
-Pages build since `857ea5b` has either come back **Skipped** or produced a deployment
-whose URL 404s. `128347b9` (production, `cc3750f`) has no output, so
-`nirmalstudio.com` is still served by `e1f6b342` (`857ea5b`). No harm done — `cc3750f`
-was documentation only — but **the next real push to `main` will not go live either**,
-and nothing in the deployment list says so plainly (wrangler's "Status" column shows
-"Active" for a deployment that returns 404). Two things follow:
-- **Verify a deploy by fetching it, not by reading the deployment list.**
-- The workaround that does work is a direct upload: `npx wrangler pages deploy dist
-  --project-name nirmal-studio --branch admin-test`. That is how the preview under test
-  got there, and it bypasses the Git build entirely.
-The cause is unknown — the build log is only in the dashboard, and this session had
-neither dashboard access (the Chrome extension was not connected) nor permission to read
-wrangler's stored OAuth token. **This needs Parth or a dashboard look before anything
-ships.**
+**⚠ THE LAST PRODUCTION BUILD FAILED — the live site is one commit stale.**
+Cloudflare reports `128347b9` (production, `cc3750f`) as **Failure**, so
+`nirmalstudio.com` is still served by `e1f6b342` (`857ea5b`). No visible harm — `cc3750f`
+was documentation only — but **`main` has an unsuccessful build sitting at its head**, so
+the next real content push needs watching. The cause is unknown: the build log lives only
+in the dashboard, and this session had neither dashboard access (the Chrome extension was
+not connected) nor permission to read wrangler's stored OAuth token.
+
+A transient failure is the likeliest explanation rather than anything in the repo:
+preview builds from the same tree **recovered on their own during this session**
+(`d8c5b513` for `a5d3dd7` and `ef168b2b` for `5ea1c6a` are genuine Git builds that serve
+the admin API), and `npm run build` is clean locally. A dashboard **Retry** on that
+deployment settles it in one click.
+
+**Read deployment status by fetching the URL, never from `wrangler pages deployment
+list`.** Its "Status" column called `128347b9` **Active** for half an hour before
+admitting **Failure**, and a failed or skipped deployment's URL returns 404 while the
+listing still shows it as current. On `/api/admin/me`, `200 + text/html` means the
+Functions are NOT deployed; `401 + application/json` means they are.
+
+**Direct upload is the escape hatch, and it is preview-only:**
+`npx wrangler pages deploy dist --project-name nirmal-studio --branch admin-test`. That
+is how the preview under test was deployed while Git builds were failing. **Never run it
+with `--branch main`.** Every direct upload prints "Uploading Functions bundle" — from an
+`admin-test` tree that would push the whole admin API onto `nirmalstudio.com`, with no Git
+commit to notice it in: the four-minute-exposure incident again, but invisible. A
+production deploy goes through Git from a `main` checkout, and is `curl`-verified after.
 
 **Preview secrets are still not set, and that is a permissions wall, not a design
 choice.** `wrangler pages secret put` has no `--env` flag in 4.135, and both the
@@ -298,6 +313,14 @@ command) blocked the API route. So `/api/admin/login` on the preview still answe
 secrets at all. Setting `ADMIN_PIN_HASH` + a *preview-specific* `SESSION_SECRET` via
 Pages → Settings → Environment variables (as **encrypted secrets**, not plaintext vars)
 is the first thing step 4 needs.
+
+**One thing to verify in a real browser at step 4:** the 35 tests exercise the
+`__Host-` cookie through curl, and **curl does not enforce cookie-prefix rules at all** —
+it echoes back whatever header it is handed. Browsers do enforce them, and
+`wrangler pages dev` serves plain `http://localhost:8788`. Check in a real browser that
+the cookie is stored and sent back as soon as the login screen exists, before anything is
+built on top of the session. (Not a reason to drop the prefix — it is the right call
+given the `erp.` sibling subdomain.)
 
 **Next (steps 4-7):** admin shell (second Vite entry, noindex) → drafts with autosave →
 publish/status/undo → hardening + the ux-reviewer pass (it was skipped this session on
