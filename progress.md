@@ -8,7 +8,23 @@ live in `CLAUDE.md` — read that first if you're picking this up cold.
 **Session status (2026-09-20 — Phase 1 of the v1 plan is COMPLETE).**
 Plan file for this session: `/Users/parth/.claude-personal/plans/moonlit-wobbling-kurzweil.md`.
 
-**What landed: 1c (Talk to Tej) + 1d (Lighter), committed and pushed together.**
+**What landed: 1c (Talk to Tej) + 1d (Lighter), committed and pushed together as
+`376881a` — deployed and verified live.** Both hostnames OK (`npm run check:domains`),
+the live JS hash matches the local build exactly, all seven `/fonts/*.woff2` serve 200
+with the one-year immutable cache header, and the font/overlay checks were re-run
+against `https://nirmalstudio.com` itself, not just the local preview. (The one "failed
+request" those checks report on the live site is Cloudflare's own auto-injected
+`static.cloudflareinsights.com/beacon.min.js`, refused by this sandbox's egress rules —
+not site code. Incidentally that confirms **Cloudflare Web Analytics is already enabled**
+on the zone, which Phase 3 item 4 wanted.)
+
+**Pushing needs SSH now — this bit Phase 1d and will bite again.** `origin` is an HTTPS
+remote but the stored github.com keychain credential is gone, so `git push` fails with
+"could not read Username". `ssh -T git@github.com` authenticates fine, so push with
+`git push git@github.com:parthamarshah/nirmal-studio-website.git main` (and
+`dangerouslyDisableSandbox: true`, since the keychain isn't reachable from the sandbox).
+CLAUDE.md's Deploy section is corrected. **Worth asking Parth once** whether to switch the
+remote to SSH permanently — not done unilaterally, since it changes his repo config.
 
 **Phase 1c — shipped.** The two review passes that never reported back last session
 (impact-tracker, edge-case-checker) were re-run and **found two must-fix bugs**, both
@@ -59,6 +75,15 @@ into the project-page bundle.
   reach. Vite also split GSAP/Lenis into its own `scroll-*.js` chunk as a side effect.
   Project pages: 79.9 → 80.0 KB gz (the new nav boundary), still no GSAP/Lenis/Framer —
   re-verified by scanning the built chunks.
+  **Font bytes were cut further after the UX review.** Syne is now subset to the wordmark
+  glyphs via Google's own `&text=` subsetter — **34.5KB → 6.5KB** — and is the *only*
+  preload. The full Syne latin/latin-ext faces are still declared (so any character ever
+  set in Syne still renders in Syne) but the subset is declared **last**, so it wins font
+  matching for space + a-z and the big file is never fetched; verified in the browser.
+  Fraunces' preload was dropped: it is `display: swap` (text is never invisible, it just
+  restyles), it was never preloaded before either, and at 67KB it competed at top
+  priority with the hero render — the LCP image. Cold Slow-4G hero-visible went
+  **7508/7049ms → 5636/5132ms** across the session.
   **The extra chunk was checked, not assumed harmless.** Splitting GSAP out means one more
   serialized request, which matters on the real target device (mid-range Android, variable
   Indian mobile data). Measured cold-cache at 390px under CDP's Slow 4G emulation
@@ -115,6 +140,27 @@ therefore answered.
    Contents read/write.
 2. A **Cloudflare API token** with Pages read (build status).
 3. His chosen **6-digit `/admin` PIN**, typed into a secret prompt — never into chat.
+
+**Two UX-review findings deliberately NOT acted on — they are Parth's calls, not mine:**
+1. **The Contact section's "Book a Consultation" CTA bypasses the Talk-to-Tej helper.**
+   The nav pill opens the panel (what / city / stage → a pre-written first message, plus
+   the desktop QR); the Contact CTA jumps straight out to WhatsApp with only the generic
+   greeting. So the site's single stated conversion action is the *less* helpful of the
+   two paths, and on desktop it drops a logged-out visitor onto WhatsApp Web's bare
+   QR-login screen with no context. The fix is to route the CTA through the same panel
+   (reusing `Nav.jsx`'s `loadTalk()` pattern, keeping both anchors as the no-JS
+   fallback). Not done because it changes the behaviour of his primary conversion action
+   and moves panel ownership out of `Nav` — a real product decision, and not something to
+   slip in at the end of a session.
+2. **"Book a Consultation" doesn't say what the button does.** It promises a booking
+   (calendar, slot, confirmation) and opens a WhatsApp message; the same action is called
+   "Talk to Tej" a few centimetres away in the nav. Suggested: "Talk to Tej on WhatsApp".
+   That is brand copy, so it's his to approve.
+
+**Also flagged, smaller:** the nav pill's loading state is `opacity: 0.6` only, which
+reads as "disabled" rather than "loading" on a slow connection; and the pill's 44px tap
+target is built from a `::after` overlay on a 38px-tall pill, so the primary CTA has 38px
+of *visible* affordance.
 
 **Open questions for Parth (unchanged, still unanswered):**
 - Founder role wording "Ar. — Founding Partner, FOLD" → "Founding Partner, FOLD"? And an

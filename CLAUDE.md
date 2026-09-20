@@ -19,8 +19,17 @@ better than that, not a marginal improvement.
 
 ## GitHub and Cloudflare are both already connected — self-serve these
 
-- **GitHub**: this repo is pushed to `github.com/parthamarshah/nirmal-studio-website`
-  and `git push`/`git pull` work directly, no `gh` CLI needed.
+- **GitHub**: this repo is pushed to `github.com/parthamarshah/nirmal-studio-website`,
+  no `gh` CLI needed. **The `origin` remote is HTTPS but the stored keychain credential
+  for github.com is gone** (as of 2026-09-20 `git push` fails with "could not read
+  Username for 'https://github.com'", and `git credential-osxkeychain get` returns
+  nothing). **SSH works** — `ssh -T git@github.com` authenticates as `parthamarshah` —
+  so push with
+  `git push git@github.com:parthamarshah/nirmal-studio-website.git main`.
+  Either that, or switch the remote to SSH permanently
+  (`git remote set-url origin git@github.com:parthamarshah/nirmal-studio-website.git`)
+  — not done unilaterally, since it changes Parth's repo config; worth asking him once.
+  Git commands that touch the keychain also need `dangerouslyDisableSandbox: true`.
 - **Cloudflare**: the `nirmal-studio` Pages project (Gurjar account) is Git-connected
   to this repo — **pushing to `main` is the deploy**; no wrangler step needed. Wrangler
   CLI is also authenticated, but its OAuth token has **no DNS-edit scope**, so DNS
