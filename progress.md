@@ -277,25 +277,22 @@ NOT deployed, `401 + application/json` means deployed. (That is exactly the chec
 four-minute main-exposure incident needed.) It is also a soft-404 SEO problem on a site
 whose stated priority is local search; a `public/404.html` is worth doing.
 
-**⚠ THE LAST PRODUCTION BUILD FAILED — the live site is one commit stale.**
-Cloudflare reports `128347b9` (production, `cc3750f`) as **Failure**, so
-`nirmalstudio.com` is still served by `e1f6b342` (`857ea5b`). No visible harm — `cc3750f`
-was documentation only — but **`main` has an unsuccessful build sitting at its head**, so
-the next real content push needs watching. The cause is unknown: the build log lives only
-in the dashboard, and this session had neither dashboard access (the Chrome extension was
-not connected) nor permission to read wrangler's stored OAuth token.
-
-A transient failure is the likeliest explanation rather than anything in the repo:
-preview builds from the same tree **recovered on their own during this session**
-(`d8c5b513` for `a5d3dd7` and `ef168b2b` for `5ea1c6a` are genuine Git builds that serve
-the admin API), and `npm run build` is clean locally. A dashboard **Retry** on that
-deployment settles it in one click.
+**One production build failed mid-session, then the pipeline recovered on its own.**
+`128347b9` (production, `cc3750f`) came back **Failure**, leaving `nirmalstudio.com`
+served by `e1f6b342` (`857ea5b`) for about an hour. Several preview builds were
+**Skipped** in the same window. Nothing in the repo caused it: `npm run build` was clean
+throughout, and the next pushes all built and deployed normally — `d8c5b513` (`a5d3dd7`)
+and `ef168b2b` (`5ea1c6a`) on preview, and `7b7946e2` (`b1ba6ae`) on production, which is
+what the live site now serves. **Treat it as transient**, but if a build ever "succeeds"
+and the site doesn't change, this is the shape it takes.
 
 **Read deployment status by fetching the URL, never from `wrangler pages deployment
-list`.** Its "Status" column called `128347b9` **Active** for half an hour before
-admitting **Failure**, and a failed or skipped deployment's URL returns 404 while the
-listing still shows it as current. On `/api/admin/me`, `200 + text/html` means the
-Functions are NOT deployed; `401 + application/json` means they are.
+list`.** That is the lasting lesson here. Its "Status" column called `128347b9` **Active**
+for half an hour before admitting **Failure**, and a failed or skipped deployment's URL
+returns 404 while the listing still presents it as current. On `/api/admin/me`,
+`200 + text/html` means the Functions are NOT deployed; `401 + application/json` means
+they are — status code alone cannot tell the two apart, because an unmatched path falls
+back to `index.html` with a 200.
 
 **Direct upload is the escape hatch, and it is preview-only:**
 `npx wrangler pages deploy dist --project-name nirmal-studio --branch admin-test`. That
