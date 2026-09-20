@@ -319,13 +319,156 @@ the cookie is stored and sent back as soon as the login screen exists, before an
 built on top of the session. (Not a reason to drop the prefix — it is the right call
 given the `erp.` sibling subdomain.)
 
-**Next (steps 4-7):** admin shell (second Vite entry, noindex) → drafts with autosave →
-publish/status/undo → hardening + the ux-reviewer pass (it was skipped this session on
-purpose: there is no UI yet for it to review).
+**STEP 4 DONE — the /admin shell is built and deployed to the preview.**
+`https://admin-test.nirmal-studio.pages.dev/admin/` (Parth: you can open the login screen,
+but you cannot get in yet — see the secrets note above).
 
-**Also still to do from Phase 1:** Parth chose to route the Contact section's
-"Book a Consultation" CTA through the Talk-to-Tej panel (rather than straight out to
-WhatsApp) — decided 2026-09-20, **not yet built**. He declined the rename.
+- **Built by its own Vite pass**, not as a second entry of the site build
+  (`vite.admin.config.js`, run from `npm run build` between `vite build` and the
+  prerender). A shared build let Rollup split React into a chunk both entries import,
+  which re-shaped the **public** site's bundle — and Phase 1d tuned that graph on
+  measured cold Slow-4G numbers. Separate passes keep every public chunk byte-identical
+  (`index-BqS-LPLx.js` and friends are unchanged), at the cost of the admin shipping its
+  own React (71 KB gz, one internal page, two users — the right trade).
+- **"No admin code in the public bundle" is verified, not assumed.** No public file
+  contains `/api/admin/`, `admin-root`, `ApiError`, `Inspector` or `signedIn`; the admin
+  bundle contains no GSAP, Lenis, Framer or Embla.
+- **noindex is declared in all three places it has to be:** the page's own meta tag,
+  `Disallow: /admin` in `public/robots.txt`, and an `X-Robots-Tag` (+ `no-store`,
+  `X-Frame-Options: DENY`) on `/admin/*` in `public/_headers`. The admin's JS and CSS are
+  emitted under **`/admin/assets/`** precisely so that one header rule covers them —
+  parked at the root they would have fallen outside it, and a meta tag cannot speak for a
+  `.js` file. Verified on the deployment: both the HTML and the JS carry the header, and
+  `/admin` 308-redirects to `/admin/`.
+- **`src/admin/api.js` classifies every response by content type, never `res.ok`** — the
+  soft-404 trap above, closed at the one place it would have bitten first.
+- **The three panes show the real published content, read-only** (9 projects, 4 founders,
+  the actual contact settings). Deliberate: a shell full of placeholder rows says nothing
+  about whether the layout survives real density and real name lengths, which is the
+  entire point of showing it to Parth before the editors go in. **Step 5 swaps the source
+  from published content to the D1 draft** — the layout is what's being judged now.
+- **Driven in headless Chrome, 20 checks** across the login screen and the shell at 1440
+  and 390: PIN field autofocus, non-digits stripped, submit gated at 6 digits, all three
+  panes, the publish branch shown (`admin-test`, never `main`), no horizontal overflow at
+  390, inspector stacking, keyboard reachability, clean console. **The `__Host-` cookie is
+  stored and returned correctly over plain-http localhost** — that needed a real browser,
+  since curl does not enforce cookie-prefix rules at all.
+- **The 210k hash was confirmed end-to-end from the UI**: typing a PIN against the real
+  `.dev.vars` renders *"ADMIN_PIN_HASH asks for 210000 PBKDF2 iterations; Cloudflare
+  Workers supports at most 100000. Re-run npm run admin:secrets and set the new hash."*
+  That is the whole bug, visible, in one sentence, on the screen where it matters.
+
+**The ux-reviewer pass ran on the shell and found two dead ends worth the trip.** Both
+were reproduced in a browser before and after, not reasoned about:
+1. **A correct PIN could freeze the screen on "Checking…" forever.** `setBusy(false)` lived
+   only in the catch, so when `login()` succeeded but the session didn't stick (cookies
+   blocked, a stripped `Set-Cookie`, clock skew) `Admin` re-rendered the same `<Login>` at
+   the same position, React kept its local state, and the form stayed disabled with no
+   error and no way out but a manual reload. `refresh()` now returns whether a session was
+   actually confirmed. Verified by intercepting `/api/admin/me` over CDP and forcing a 401
+   after a real login.
+2. **The "couldn't reach the server" card said try again and offered nothing to try again
+   with** — and a one-second network blip lands there too, not just an absent backend.
+
+Also fixed from that review: the top bar said **"No unpublished changes"**, which asserts
+that a draft system checked and found nothing — there is no draft system yet. It now reads
+"Read-only preview. Editing and publishing arrive in the next phase.", which also carries
+the reason the Publish button is disabled (that reason previously existed **only** in a
+`title` tooltip — invisible on touch, to a keyboard, and usually suppressed on a disabled
+element). A retry that cannot work is no longer offered: on a 503 the typed PIN is kept and
+submit is disabled; on a lockout the button shows the minutes left and re-enables itself.
+`ApiError` now carries `lockedUntil`, which was being dropped. **The 503 text itself leads
+with its meaning rather than with `ADMIN_PIN_HASH`** — on an unconfigured deployment it is
+the only thing any PIN ever returns.
+
+**Two structural changes made now because they get expensive after Phase 3:**
+- **The open pane lives in the URL** (`#/projects`), so Back goes back a pane instead of
+  leaving the admin, and a reload lands where you were. Three of CLAUDE.md's incidents are
+  back-button bugs that came from grafting history onto components that already had their
+  own state; Phase 3 adds a selected project and a selected image on top of this.
+- **A 401 arriving mid-session is handled in one place** (`setSessionEndedHandler`), not
+  re-invented by every future editor call. Sessions last 30 days, so this will fire
+  mid-edit eventually.
+
+**Measured accessibility fixes** (the review composited the alpha values rather than
+eyeballing them): the PIN field's border was **1.87:1** and its fill **1.13:1** against the
+login background — the only control on the only screen Tej sees cold, at well under the 3:1
+a component boundary needs; now **4.09:1**, measured in the browser. The sign-out border was
+1.73:1. Phone rail controls were 30–35px tall, now 44. Status pills went 11px uppercase →
+12px sentence case (they carry multi-word values like "Under construction"), body text 14px
+→ 15px. The focus ring no longer sets its own `border-radius`, which was reshaping the
+elements it highlighted. `site.sections` keys now render through a label map, so nobody
+ever reads `ideaTimeline` on the screen aimed at the studio's owner.
+
+**The PIN is masked with a Show toggle and `autoComplete="current-password"`** — it was
+`one-time-code`, which tells password managers *not* to offer to save it. Both of this
+project's other secrets already live in Apple Passwords, and two people using a 6-digit PIN
+occasionally will forget it. **Parth: say if you'd rather see the digits by default.**
+
+**Still open from that review, deliberately:** `me.js` returns `since`/`expiresAt` and
+nothing renders them (a quiet "signed in until…" would make expiry legible before it
+surprises someone); and iOS Safari auto-zooms any focused input under 16px, so Phase 3's
+form controls need 16px at phone widths.
+
+**STEP 5 DONE — drafts with autosave.** Both of the plan's "done when" conditions are
+verified in a real browser (23 checks), not argued:
+
+- **An edit survives a reload.** Type, and the top bar goes *Unsaved changes… → Saving… →
+  Saved as a draft*. Reload: the value is still there and the pane says plainly that these
+  are unpublished changes, with a Discard link back to the published version.
+- **Two tabs do not silently overwrite each other.** Every save carries the `updated_at`
+  of the row it is building on, and the server writes only if that still matches — one
+  guarded SQL statement, so SQLite decides rather than a read-then-write in JavaScript
+  (the same lesson as the login lockout counter). On a mismatch the save is **refused**
+  and the editor stops and asks, with two explicit choices: *Use the other version* or
+  *Keep mine and overwrite it*. **No automatic merge, deliberately** — two people editing
+  one studio's details is a case where guessing is worse than asking. The test asserts the
+  other writer's work is still intact on the server at the moment the conflict appears,
+  then exercises both resolutions.
+
+Details worth not rediscovering:
+- **`updated_at` doubles as the concurrency token, so it is written as
+  `MAX(now, previous + 1)`.** Two saves inside the same millisecond would otherwise share
+  a token and a stale write could slip through.
+- **Discard requires the version too.** An unguarded `DELETE` would throw away whatever
+  arrived after the caller last looked; a caller with no draft has nothing to discard, so
+  there is no legitimate null case.
+- **`base_sha` is still NULL.** It exists so a stale draft can be caught at publish time,
+  and it gets filled in step 6 when the GitHub client arrives. The draft's *base* today is
+  the content embedded in the admin bundle at build time, which is current as of the last
+  deploy — fine now, and exactly what `base_sha` is for once publishing exists.
+
+**The Settings pane is now a real editor** (studio contact details), because step 5 needed
+something editable to exercise any of this and that is the smallest honest slice. It
+validates against the same rules as `scripts/build-content.mjs` — a bad WhatsApp number or
+email is flagged as it is typed, so the build stays the backstop rather than the first
+place an error appears. **Projects and Founders remain read-only and say so**; their
+editors are Phase 3 and will use the same `useDraft` hook.
+
+Also closed here: inputs are 16px at phone widths. Below that iOS Safari zooms the page on
+focus and does not zoom back — the UX review flagged it for whenever the first form landed.
+
+**Next (steps 6-7):** publish (validate → GitHub Git Data API, `content/` paths only → a
+`publishes` row) → status polling → undo → the remaining hardening. **Step 6 is the first
+step that needs `GITHUB_TOKEN` on a deployment**, and preview still has no secrets at all.
+
+
+**DONE (2026-09-21), and it closes the last open Phase 1 item.** Parth asked for both:
+the button is now **"Talk with Us"** (nav and panel heading; the panel's subtitle still
+says "You'll speak directly with Tej" on purpose — the button invites, the line under it
+reassures), and **"Book a Consultation" opens the same panel** instead of jumping
+straight to WhatsApp. That closes the UX-review finding open since 2026-09-20: the site's
+single stated conversion action was the *less* helpful of the two paths to the same
+place, and on desktop it dropped a logged-out visitor onto WhatsApp Web's bare QR-login
+screen with no context.
+
+The loader moved to `src/components/loadTalk.js` so the nav and the CTA share one cached
+chunk. Contact renders its own panel instance behind its **own** `Boundary` — not the
+section's, since lazily loaded code throwing there would otherwise take the address, map
+and phone number with it. Both anchors stay, still gated by CSS, as the no-JS fallback.
+**The component file is still `TalkToTej.jsx` and `site.json`'s greeting still opens
+"Hi Tej"** — internal and recipient names, not the label; neither was renamed.
+Verified on the LIVE site at 1440 and 390, homepage and a project page: 31 checks.
 
 **Next up — Phase 2 (backend foundation). Both API tokens are now CREATED** (2026-09-20,
 walked through one step at a time; see CLAUDE.md's "Phase 2 credentials" section for
