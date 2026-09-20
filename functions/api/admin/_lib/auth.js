@@ -8,27 +8,62 @@
 
 const encoder = new TextEncoder()
 
-export const SESSION_COOKIE = 'nirmal_admin'
+// The `__Host-` prefix is not decoration: it makes the browser refuse to accept this
+// cookie from any host other than the exact one that set it, and refuse it unless it is
+// Secure with Path=/ and no Domain. Without it, a sibling subdomain could set a
+// `Domain=.nirmalstudio.com` cookie of the same name — and there IS one: `erp.` is a
+// CNAME to a separate third-party-hosted app (see CLAUDE.md's DNS notes). A cookie it
+// set would be sent alongside the real one and could shadow it.
+export const SESSION_COOKIE = '__Host-nirmal_admin'
 const SESSION_DAYS = 30
 const MAX_FAILURES = 5
 const LOCK_MINUTES = 15
 
 // ---------------------------------------------------------------- PIN hashing
 
+// Cloudflare Workers refuses any PBKDF2 iteration count above 100,000 — deriveBits
+// throws "Pbkdf2 failed: iteration counts above 100000 are not supported". Measured on a
+// real preview deployment 2026-09-20: 100000 → 200, 100001 → 500. This is a platform
+// ceiling, not a tuning knob, so a stored hash above it can never verify anywhere.
+export const MAX_PBKDF2_ITERATIONS = 100_000
+
+// The derived length is read from the stored hash, so the stored hash's own length IS a
+// security parameter. A truncated or empty one would weaken (or with zero bytes,
+// entirely defeat) the comparison below, so it is pinned rather than trusted.
+const PIN_HASH_BYTES = 32
+
+// Thrown when ADMIN_PIN_HASH itself is unusable. Deliberately NOT a `return false`: a
+// misconfigured deployment answering exactly like a wrong PIN is the kind of thing that
+// gets debugged for hours. Callers turn this into a plain 503 that says what to fix.
+export class PinHashUnusable extends Error {}
+
 // Stored format: pbkdf2$sha256$<iterations>$<salt b64>$<hash b64>. Parameters travel
 // with the hash, so iterations can be changed later without invalidating existing PINs
-// — which matters here, because Workers' CPU budget may force them down (see the plan's
-// risk #1) and we must be able to move that number without a migration.
+// — which matters if the platform ceiling above ever moves.
 export async function verifyPin(pin, stored) {
   const parts = String(stored || '').split('$')
-  if (parts.length !== 5) return false
+  if (parts.length !== 5) throw new PinHashUnusable('ADMIN_PIN_HASH is not in the expected pbkdf2$sha256$<iterations>$<salt>$<hash> format.')
   const [scheme, algo, iterations, saltB64, hashB64] = parts
-  if (scheme !== 'pbkdf2' || algo !== 'sha256') return false
+  if (scheme !== 'pbkdf2' || algo !== 'sha256') throw new PinHashUnusable(`ADMIN_PIN_HASH uses an unsupported scheme (${scheme}/${algo}); expected pbkdf2/sha256.`)
 
-  const expected = base64ToBytes(hashB64)
+  const rounds = Number(iterations)
+  if (!Number.isInteger(rounds) || rounds < 1 || rounds > MAX_PBKDF2_ITERATIONS) {
+    throw new PinHashUnusable(`ADMIN_PIN_HASH asks for ${iterations} PBKDF2 iterations; Cloudflare Workers supports at most ${MAX_PBKDF2_ITERATIONS}. Re-run "npm run admin:secrets" and set the new hash.`)
+  }
+
+  let expected
+  try {
+    expected = base64ToBytes(hashB64)
+  } catch {
+    throw new PinHashUnusable('ADMIN_PIN_HASH ends in something that is not valid base64.')
+  }
+  if (expected.length !== PIN_HASH_BYTES) {
+    throw new PinHashUnusable(`ADMIN_PIN_HASH holds a ${expected.length}-byte hash; ${PIN_HASH_BYTES} bytes are required. It was probably truncated when it was copied.`)
+  }
+
   const key = await crypto.subtle.importKey('raw', encoder.encode(pin), 'PBKDF2', false, ['deriveBits'])
   const bits = await crypto.subtle.deriveBits(
-    { name: 'PBKDF2', hash: 'SHA-256', salt: base64ToBytes(saltB64), iterations: Number(iterations) },
+    { name: 'PBKDF2', hash: 'SHA-256', salt: base64ToBytes(saltB64), iterations: rounds },
     key,
     expected.length * 8,
   )
@@ -76,17 +111,32 @@ export async function readSignedCookie(secret, value) {
   return timingSafeEqual(await hmac(secret, id), expected) ? id : null
 }
 
-export const parseCookies = (header) =>
-  Object.fromEntries(
-    (header || '')
-      .split(';')
-      .map((c) => c.trim())
-      .filter(Boolean)
-      .map((c) => {
-        const i = c.indexOf('=')
-        return i === -1 ? [c, ''] : [c.slice(0, i), decodeURIComponent(c.slice(i + 1))]
-      }),
-  )
+// Two things here are defensive rather than stylistic:
+//
+// 1. `decodeURIComponent` throws URIError on a bare `%` or a truncated escape, and the
+//    offending cookie need not be ours — any stray cookie on the domain would do it.
+//    Unguarded, that turns every session check into a 500 for that browser until the
+//    visitor clears their cookies, which also means /logout can never clear it.
+// 2. First match wins, not last. A duplicate name can only reach us from a header a
+//    browser was tricked into sending; taking the first keeps a shadowing copy appended
+//    later from silently replacing the real session.
+export const parseCookies = (header) => {
+  const out = {}
+  for (const part of (header || '').split(';')) {
+    const c = part.trim()
+    if (!c) continue
+    const i = c.indexOf('=')
+    const name = i === -1 ? c : c.slice(0, i)
+    if (Object.hasOwn(out, name)) continue
+    const raw = i === -1 ? '' : c.slice(i + 1)
+    try {
+      out[name] = decodeURIComponent(raw)
+    } catch {
+      out[name] = raw
+    }
+  }
+  return out
+}
 
 // SameSite=Strict: the admin has no cross-site flows at all, so there is no reason to
 // allow the cookie to ride along with any request originating elsewhere. HttpOnly keeps
@@ -119,7 +169,9 @@ export async function createSession(db, { userAgent }) {
 // Returns the session row if the cookie is valid, signed, unexpired and unrevoked.
 export async function getSession(env, request) {
   const secret = env.SESSION_SECRET
-  if (!secret) return null
+  // Both are checked: with a secret but no database binding, the query below would throw
+  // a TypeError and answer 500 where it should answer "not signed in".
+  if (!secret || !env.DB) return null
   const raw = parseCookies(request.headers.get('Cookie'))[SESSION_COOKIE]
   const id = await readSignedCookie(secret, raw)
   if (!id) return null
@@ -128,9 +180,14 @@ export async function getSession(env, request) {
   if (!row || row.revoked_at || row.expires_at < Date.now()) return null
 
   // Touch last_seen_at at most hourly. Writing on every request would burn D1's free-tier
-  // write budget on a value nothing needs to the second.
+  // write budget on a value nothing needs to the second. Nothing reads it either, so a
+  // failure here must never cost someone a valid session — hence the swallowed catch.
   if (Date.now() - row.last_seen_at > 3600_000) {
-    await env.DB.prepare('UPDATE sessions SET last_seen_at = ? WHERE id = ?').bind(Date.now(), id).run()
+    try {
+      await env.DB.prepare('UPDATE sessions SET last_seen_at = ? WHERE id = ?').bind(Date.now(), id).run()
+    } catch {
+      // bookkeeping only
+    }
   }
   return row
 }
@@ -157,27 +214,36 @@ export async function checkLock(db, ip) {
   return locked ? { locked: true, until: locked.locked_until } : { locked: false }
 }
 
+// The counter is incremented BY SQLITE, not in JavaScript. Reading the row, adding one
+// in JS and writing the literal back is a read-modify-write across two round-trips: fire
+// fifty logins in parallel and all fifty read the same value and write the same value+1,
+// so the count advances by one and the lockout — which CLAUDE.md and the header of this
+// file both name as the actual defence for a 6-digit PIN — never trips. Doing the
+// arithmetic inside a single statement makes SQLite serialise it.
+//
+// `stale` below is the same rule as before: a failure long after the last one starts a
+// fresh count, so an honest typo today doesn't combine with one from last week.
 export async function recordFailure(db, ip) {
   const now = Date.now()
+  const window = LOCK_MINUTES * 60_000
   for (const bucket of [`ip:${ip}`, 'global']) {
     // The global bucket is more tolerant — it exists to stop distributed guessing, not
     // to let one person's typo lock out the other legitimate user.
     const limit = bucket === 'global' ? MAX_FAILURES * 4 : MAX_FAILURES
-    const row = await db.prepare('SELECT * FROM login_attempts WHERE bucket = ?').bind(bucket).first()
-
-    // A failure long after the last one starts a fresh count, so an honest typo today
-    // doesn't combine with one from last week to trigger a lock.
-    const stale = row && now - row.first_failed > LOCK_MINUTES * 60_000
-    const failures = !row || stale ? 1 : row.failures + 1
-    const firstFailed = !row || stale ? now : row.first_failed
-    const lockedUntil = failures >= limit ? now + LOCK_MINUTES * 60_000 : null
-
     await db
       .prepare(
-        `INSERT INTO login_attempts (bucket, failures, first_failed, locked_until) VALUES (?, ?, ?, ?)
-         ON CONFLICT(bucket) DO UPDATE SET failures = ?, first_failed = ?, locked_until = ?`,
+        `INSERT INTO login_attempts (bucket, failures, first_failed, locked_until)
+         VALUES (?1, 1, ?2, CASE WHEN 1 >= ?4 THEN ?2 + ?3 ELSE NULL END)
+         ON CONFLICT(bucket) DO UPDATE SET
+           failures = CASE WHEN ?2 - login_attempts.first_failed > ?3
+                           THEN 1 ELSE login_attempts.failures + 1 END,
+           first_failed = CASE WHEN ?2 - login_attempts.first_failed > ?3
+                               THEN ?2 ELSE login_attempts.first_failed END,
+           locked_until = CASE WHEN (CASE WHEN ?2 - login_attempts.first_failed > ?3
+                                          THEN 1 ELSE login_attempts.failures + 1 END) >= ?4
+                               THEN ?2 + ?3 ELSE NULL END`,
       )
-      .bind(bucket, failures, firstFailed, lockedUntil, failures, firstFailed, lockedUntil)
+      .bind(bucket, now, window, limit)
       .run()
   }
 }
@@ -201,7 +267,10 @@ export const json = (body, init = {}) =>
     },
   })
 
-export const unauthorized = () => json({ error: 'Not signed in.' }, { status: 401 })
+// Clears the cookie on the way out. Without this, a revoked or expired session sits in
+// the browser for the rest of its 30-day Max-Age, failing on every single request.
+export const unauthorized = () =>
+  json({ error: 'Not signed in.' }, { status: 401, headers: { 'Set-Cookie': clearedCookieHeader() } })
 
 // Guard for every admin endpoint except login. Returns the session, or a Response to
 // return immediately — callers must check which they got.

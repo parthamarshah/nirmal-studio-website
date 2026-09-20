@@ -1,5 +1,6 @@
 import {
   verifyPin,
+  PinHashUnusable,
   createSession,
   signSessionId,
   sessionCookie,
@@ -50,7 +51,19 @@ export async function onRequestPost(context) {
     return json({ error: 'That PIN is not correct.' }, { status: 401 })
   }
 
-  if (!(await verifyPin(pin, env.ADMIN_PIN_HASH))) {
+  let correct
+  try {
+    correct = await verifyPin(pin, env.ADMIN_PIN_HASH)
+  } catch (err) {
+    // The stored hash itself is unusable — wrong format, truncated, or (the one that
+    // actually happened) more PBKDF2 iterations than Cloudflare Workers will run. Say so
+    // rather than recording a failure: the person typing is not the problem, and letting
+    // this burn lockout attempts would lock them out of a backend that cannot work yet.
+    if (err instanceof PinHashUnusable) return json({ error: err.message }, { status: 503 })
+    throw err
+  }
+
+  if (!correct) {
     await recordFailure(env.DB, ip)
     const after = await checkLock(env.DB, ip)
     if (after.locked) {

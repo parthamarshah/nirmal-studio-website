@@ -22,6 +22,10 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
+echo "--- ADMIN_PIN_HASH validation (no server needed) ---"
+node scripts/test-pin-hash.mjs || exit 1
+echo
+
 if [ ! -f .dev.vars ]; then
   echo "✗ No .dev.vars — run 'npm run admin:secrets' first."
   exit 1
@@ -34,7 +38,7 @@ node -e "
 const { pbkdf2Sync, randomBytes } = require('crypto')
 const fs = require('fs')
 const salt = randomBytes(16)
-const hash = ['pbkdf2','sha256',210000,salt.toString('base64'),pbkdf2Sync('$TEST_PIN',salt,210000,32,'sha256').toString('base64')].join('\$')
+const hash = ['pbkdf2','sha256',100000,salt.toString('base64'),pbkdf2Sync('$TEST_PIN',salt,100000,32,'sha256').toString('base64')].join('\$')
 const kept = fs.readFileSync('.dev.vars.real','utf8').split('\n').filter(l => !/^(ADMIN_PIN_HASH|SESSION_SECRET)=/.test(l))
 kept.push('ADMIN_PIN_HASH=' + hash, 'SESSION_SECRET=' + randomBytes(32).toString('base64'))
 fs.writeFileSync('.dev.vars', kept.join('\n').replace(/\n+\$/,'') + '\n', { mode: 0o600 })
@@ -80,7 +84,18 @@ check "session is accepted" "$(code -H "Cookie: $COOKIE" $BASE/me)" 200
 echo "--- forged cookies ---"
 check "forged signature"     "$(code -H "Cookie: ${COOKIE%.*}.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=" $BASE/me)" 401
 check "unsigned session id"  "$(code -H "Cookie: ${COOKIE%%.*}" $BASE/me)" 401
-check "garbage cookie"       "$(code -H "Cookie: nirmal_admin=nonsense" $BASE/me)" 401
+check "garbage cookie"       "$(code -H "Cookie: __Host-nirmal_admin=nonsense" $BASE/me)" 401
+
+echo "--- hostile cookie headers ---"
+# A bare % is an invalid percent-escape. decodeURIComponent throws on it, and the
+# offending cookie need not be ours — any third-party cookie on the domain would do.
+# Unguarded this turned every session check into a 500 for that browser, permanently.
+check "malformed escape alongside a real session" "$(code -H "Cookie: junk=%; $COOKIE" $BASE/me)" 200
+check "malformed escape with no session"          "$(code -H "Cookie: junk=%" $BASE/me)" 401
+check "truncated UTF-8 escape"                    "$(code -H "Cookie: junk=%E0%A4; $COOKIE" $BASE/me)" 200
+# Duplicate names resolve first-wins, so a copy appended by something else cannot
+# shadow the real session.
+check "a shadowing duplicate cannot replace the session" "$(code -H "Cookie: $COOKIE; __Host-nirmal_admin=bogus" $BASE/me)" 200
 
 echo "--- lockout after repeated failures ---"
 npx wrangler d1 execute nirmal-studio-admin --local --command "DELETE FROM login_attempts" -y >/dev/null 2>&1
@@ -89,6 +104,27 @@ check "5th wrong PIN locks out (429)" "$(code -X POST -H "$J" -d '{"pin":"000009
 check "correct PIN ALSO refused while locked" "$(code -X POST -H "$J" -d "{\"pin\":\"$TEST_PIN\"}" $BASE/login)" 429
 npx wrangler d1 execute nirmal-studio-admin --local --command "DELETE FROM login_attempts" -y >/dev/null 2>&1
 check "login works again once the lock is cleared" "$(code -X POST -H "$J" -d "{\"pin\":\"$TEST_PIN\"}" $BASE/login)" 200
+
+echo "--- parallel guessing cannot outrun the counter ---"
+# The counter used to be read, incremented in JavaScript and written back across two
+# round-trips, so simultaneous attempts all read the same value and wrote the same
+# value+1: a burst of N guesses advanced it by 1 and the lockout never tripped. The
+# increment now happens inside a single SQL statement, so every attempt is counted.
+npx wrangler d1 execute nirmal-studio-admin --local --command "DELETE FROM login_attempts" -y >/dev/null 2>&1
+BURST=""
+for _ in $(seq 1 10); do
+  curl -s -o /dev/null -X POST -H "$J" -d '{"pin":"000009"}' $BASE/login &
+  BURST="$BURST $!"
+done
+# Wait on these ten PIDs specifically. A bare `wait` would also wait on the dev server
+# backgrounded above, which never exits — the whole script would hang there forever.
+wait $BURST
+COUNTED=$(npx wrangler d1 execute nirmal-studio-admin --local --json \
+  --command "SELECT failures FROM login_attempts WHERE bucket LIKE 'ip:%'" -y 2>/dev/null \
+  | python3 -c "import sys,json; print(json.load(sys.stdin)[0]['results'][0]['failures'])" 2>/dev/null)
+check "all 10 parallel failures were counted" "${COUNTED:-none}" 10
+check "and the account is locked"  "$(code -X POST -H "$J" -d "{\"pin\":\"$TEST_PIN\"}" $BASE/login)" 429
+npx wrangler d1 execute nirmal-studio-admin --local --command "DELETE FROM login_attempts" -y >/dev/null 2>&1
 
 echo "--- signing out revokes server-side ---"
 COOKIE2=$(grep -i '^set-cookie:' "$TMP/h" | sed 's/[Ss]et-[Cc]ookie: //' | cut -d';' -f1)
