@@ -489,6 +489,16 @@ button {
     font-size: 12px;
   }
 
+  /* `display: contents` above also promotes the sign-out error to a flex item of the
+     rail. Without its own order and basis it lands squeezed in beside the nav pills
+     (measured at 390px: 285px wide, on the same row as the wordmark) instead of below
+     the button it belongs to. */
+  .admin-rail-foot .admin-error {
+    order: 4;
+    flex-basis: 100%;
+    margin-top: 0;
+  }
+
   .admin-top .admin-state {
     margin-left: 0;
     flex-basis: 100%;

@@ -26,6 +26,10 @@ export class ApiError extends Error {
 // A session can end at any moment — it lasts 30 days, so in Phase 3 it will expire
 // mid-edit. Handling that in one place means every future editor call gets the same
 // answer instead of each one inventing its own.
+//
+// This is process-global and SINGLE-OWNER: Admin sets it on mount and clears it on
+// unmount. Don't add a second subscriber — the later one silently wins, and the first
+// one's cleanup then clears the handler out from under it.
 let onSessionEnded = null
 export const setSessionEndedHandler = (fn) => {
   onSessionEnded = fn
