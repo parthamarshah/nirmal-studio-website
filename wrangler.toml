@@ -1,0 +1,64 @@
+#:schema node_modules/wrangler/config-schema.json
+#
+# Cloudflare Pages config for the /admin backend (v1 Phase 2).
+#
+# The PUBLIC site does not use any of this. It is static HTML/JS/images produced by
+# `npm run build`, and it keeps working exactly as before whether or not these Functions
+# or their storage are healthy — that separation is deliberate (see the plan's
+# "Backend outage can never affect it").
+#
+# Secrets are NOT here. Locally they come from .dev.vars (gitignored, written by
+# `npm run admin:secrets`); in Cloudflare they live in Pages → Settings → Environment
+# variables, set per environment. The names used are:
+#   ADMIN_PIN_HASH  - PBKDF2 hash of the 6-digit /admin PIN (never the PIN itself)
+#   GITHUB_TOKEN    - fine-grained PAT, nirmal-studio-website only, Contents read/write
+#   SESSION_SECRET  - random key used to sign the admin session cookie
+name = "nirmal-studio"
+pages_build_output_dir = "dist"
+compatibility_date = "2026-09-20"
+
+# PUBLISH_BRANCH is the branch a Publish commits to. It is an ordinary (non-secret)
+# variable so it is obvious at a glance which branch an environment writes to.
+# Production writes to main — that IS the live site. Everything else must not.
+[vars]
+PUBLISH_BRANCH = "admin-test"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "nirmal-studio-admin"
+database_id = "e7ad1b9c-6e35-4c73-acfb-da633e5dc5a4"
+
+# Staged image uploads live here between "chosen in the editor" and "committed by
+# Publish", so a half-finished edit never touches the repo. Entries are written with a
+# TTL so abandoned drafts expire on their own rather than accumulating.
+[[kv_namespaces]]
+binding = "UPLOADS"
+id = "0e6f4561ba3d42acb4725a6a5b0eea91"
+
+# Preview deployments (any branch that isn't main) keep the same storage but must never
+# publish to the live branch.
+[env.preview.vars]
+PUBLISH_BRANCH = "admin-test"
+
+[[env.preview.d1_databases]]
+binding = "DB"
+database_name = "nirmal-studio-admin"
+database_id = "e7ad1b9c-6e35-4c73-acfb-da633e5dc5a4"
+
+[[env.preview.kv_namespaces]]
+binding = "UPLOADS"
+id = "0e6f4561ba3d42acb4725a6a5b0eea91"
+
+# Production. PUBLISH_BRANCH is main here and only here — the one place a Publish
+# changes what visitors see.
+[env.production.vars]
+PUBLISH_BRANCH = "main"
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "nirmal-studio-admin"
+database_id = "e7ad1b9c-6e35-4c73-acfb-da633e5dc5a4"
+
+[[env.production.kv_namespaces]]
+binding = "UPLOADS"
+id = "0e6f4561ba3d42acb4725a6a5b0eea91"
