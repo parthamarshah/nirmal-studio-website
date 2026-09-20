@@ -349,9 +349,16 @@ button {
 }
 
 /* Errors are announced, not just coloured — this is the one screen where a
-   screen-reader user gets no other signal that anything happened. */
-.admin-error {
+   screen-reader user gets no other signal that anything happened.
+   The selector is scoped rather than bare `.admin-error` because `.admin-login p`
+   above is more specific and was zeroing this margin, leaving the message glued to
+   the bottom edge of the Sign in button (measured: 0px gap). */
+.admin-login .admin-error,
+.admin-rail-foot .admin-error {
   margin-top: 14px;
+}
+
+.admin-error {
   padding: 11px 13px;
   border-radius: var(--admin-radius);
   background: rgb(255 255 255 / 0.07);
