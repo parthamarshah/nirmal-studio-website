@@ -144,6 +144,12 @@ existing, since production has no PIN/session secrets) and was undone in `857ea5
 CLAUDE.md's "Branches right now" section. **Work on `admin-test`:**
 `git checkout admin-test`.
 
+**Second trap, same family, hit minutes later:** `git merge main` into `admin-test`
+fast-forwarded and carried main's *deletion* of `functions/` across, silently leaving
+`admin-test` without the backend it exists to hold (restored in `992911c`). The two
+branches deliberately **diverge** on `functions/`, so never merge main into admin-test —
+cherry-pick the docs commit, or merge admin-test into main when it is time to launch.
+
 **Local setup a cold session needs to know about:** `.dev.vars` exists on this machine
 (gitignored, 0600) holding Parth's real PIN hash, his GitHub token, a generated
 `SESSION_SECRET` and `PUBLISH_BRANCH=admin-test`. Nobody knows the PIN, including Claude
