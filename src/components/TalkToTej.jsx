@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import Img from './Img'
 import { site, tejShah, whatsappGreeting, whatsappUrl, whatsappWebUrl, mapsUrl, composeMessage, DESKTOP_POINTER } from '../lib/content'
 
-// "Talk to Tej" panel, opened from the nav on every page. Loaded only when the
+// The "Talk with Us" panel, opened from the nav and from the Contact CTA. Loaded only when the
 // visitor taps the button (Nav.jsx imports this file on demand), so neither the
 // homepage nor the pre-rendered project pages carry it up front.
 //
@@ -251,7 +251,7 @@ export default function TalkToTej({ onClose }) {
           )}
           <div>
             <h2 id={titleId} className="talk-title">
-              Talk to {firstName}
+              Talk with Us
             </h2>
             <p className="talk-sub">
               You’ll speak directly with {firstName}
