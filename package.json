@@ -19,7 +19,8 @@
     "test:auth": "bash scripts/test-admin-auth.sh",
     "admin:dev": "npx wrangler pages dev --port 8788",
     "admin:migrate": "npx wrangler d1 execute nirmal-studio-admin --local --file=migrations/0001_initial.sql && npx wrangler d1 execute nirmal-studio-admin --local --file=migrations/0002_publish_kind.sql",
-    "test:publish": "bash scripts/test-admin-publish.sh"
+    "test:publish": "bash scripts/test-admin-publish.sh",
+    "admin:migrate:remote": "bash scripts/migrate-remote.sh"
   },
   "dependencies": {
     "embla-carousel-react": "^8.6.0",

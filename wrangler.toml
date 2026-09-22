@@ -35,8 +35,14 @@ database_id = "e7ad1b9c-6e35-4c73-acfb-da633e5dc5a4"
 binding = "UPLOADS"
 id = "0e6f4561ba3d42acb4725a6a5b0eea91"
 
-# Preview deployments (any branch that isn't main) keep the same storage but must never
-# publish to the live branch.
+# Preview deployments (any branch that isn't main) never publish to the live branch, and
+# never share storage with production. They keep the original database and KV namespace
+# (which hold the preview's test drafts, sessions and publish history); production has its
+# own below. Drafts carry no branch, so a shared database would let a draft saved on the
+# preview be published to main — the split is what prevents that (the stale-base check
+# at publish catches most such drafts, but not all).
+# Local dev (`wrangler pages dev`, `--local`) uses the top-level blocks above, i.e. the
+# preview's names.
 [env.preview.vars]
 PUBLISH_BRANCH = "admin-test"
 
@@ -50,15 +56,17 @@ binding = "UPLOADS"
 id = "0e6f4561ba3d42acb4725a6a5b0eea91"
 
 # Production. PUBLISH_BRANCH is main here and only here — the one place a Publish
-# changes what visitors see.
+# changes what visitors see. Its own D1 (`nirmal-studio-admin-production`, both
+# migrations applied --remote on 2026-09-22) and its own KV (`UPLOADS_PRODUCTION`). Apply
+# every future migration to BOTH databases with --remote before pushing code that uses it.
 [env.production.vars]
 PUBLISH_BRANCH = "main"
 
 [[env.production.d1_databases]]
 binding = "DB"
-database_name = "nirmal-studio-admin"
-database_id = "e7ad1b9c-6e35-4c73-acfb-da633e5dc5a4"
+database_name = "nirmal-studio-admin-production"
+database_id = "df5cb296-b513-4d74-8ced-7b43353fd82a"
 
 [[env.production.kv_namespaces]]
 binding = "UPLOADS"
-id = "0e6f4561ba3d42acb4725a6a5b0eea91"
+id = "20e0a6dd65944927aa2411cc19380be5"

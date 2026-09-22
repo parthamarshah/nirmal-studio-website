@@ -378,9 +378,7 @@ against them rather than rediscovering them by chance:
   apart with no filler history entries — the tab leaves the page and CDP reports
   "Inspected target navigated or closed". Careful constructing that test: if you push
   filler entries at the *same URL* first, popping two still leaves `location.href`
-  unchanged and the test passes while the bug is present. **`ImageViewer.jsx` (its
-  `onClose`/history integration) still has the identical unguarded shape** — pre-existing
-  and not yet fixed; do it next time that file is open.
+  unchanged and the test passes while the bug is present. `ImageViewer.jsx` had the identical shape and has since been fixed the same way.
 - **`font-display: optional` on a third-party font host silently loses its race far more
   often than it looks, and `document.fonts.check()` will not tell you.** Measured in
   headless Chrome on 2026-09-20, before fonts were self-hosted: the "nirmal" wordmark
@@ -404,7 +402,8 @@ against them rather than rediscovering them by chance:
   `0002_publish_kind.sql` passed 36 local tests while the remote table still lacked the
   column. Deployed in that state, every publish would have committed to GitHub and then
   failed to record itself, leaving Undo permanently unavailable. The impact review caught
-  it. Apply each new migration with `--remote` **before** pushing the code that uses it
+  it. Apply each new migration with `--remote` — **to both** `nirmal-studio-admin` (preview)
+  and `nirmal-studio-admin-production`, separate since step 7 — **before** pushing the code that uses it
   (additive changes only, so old code keeps working), and confirm with
   `SELECT group_concat(name) FROM pragma_table_info('<table>')` on `--remote`.
 - **Responses that each hit GitHub arrive out of order.** `/api/admin/publish` GET reads

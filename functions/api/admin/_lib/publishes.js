@@ -58,8 +58,8 @@ export const shapePublish = (r) =>
     undoneAt: r.undone_at,
   }
 
-// Per branch: preview and production share one D1 database today (a deferred step-7
-// decision), so an unfiltered "latest" on the preview could be a production publish.
+// Per branch. Preview and production have had separate D1 databases since step 7, so this
+// filter is now belt-and-braces: it keeps "latest" honest if they are ever shared again.
 export const latestPublish = (db, branch) =>
   db.prepare('SELECT * FROM publishes WHERE branch = ? ORDER BY id DESC LIMIT 1').bind(branch).first()
 

@@ -20,21 +20,34 @@ real PIN (2026-09-22), so the auth chain is proven on a real deployment.
    field, Publish, and wait for "Live ✓", then Undo it. The machinery is proven locally
    against real GitHub (see STEP 6 below), but "reports Live" on the real preview needs
    his PIN. If he hasn't, that's the first thing to walk him through, one step at a time.
-3. **Step 7, hardening.** One item is now a **launch blocker**: preview and production
-   share one D1 database, and **drafts are not branch-scoped**. Once production has
-   `functions/`, a draft saved on the preview would be pending on production, and Publish
-   there would send it to `main` (the stale-base check catches most such drafts, but not
-   all of them). Fix it with a separate D1 for preview (recommended; the deferred
-   decision) or a `branch` column on `drafts`. Also in step 7: a pane switch during the
+   **DONE 2026-09-22 — passed on the real preview.** Parth published a Settings change
+   (short address → empty; commit `d2a1b23`), the admin showed **Live ✓**, then Undo
+   (`22821bb`, restores "Ambavadi, Ahmedabad") and `/_version.json` reported `22821bb`.
+   So the deployed Worker's publish → GitHub → rebuild → status → undo chain is proven.
+   Step 6 is closed.
+3. **Step 7, hardening.** ~~Launch blocker: shared D1~~ **done 2026-09-22**: production now
+   has its own D1 `nirmal-studio-admin-production` (`df5cb296-…`, both migrations applied
+   `--remote` and verified per column) and its own KV `UPLOADS_PRODUCTION` (`20e0a6dd…`),
+   wired in `wrangler.toml`'s `env.production` blocks only. The preview kept the original
+   DB/KV (and with them its sessions, drafts and publish history). **Every future migration
+   goes to BOTH databases with `--remote`.** Parth confirmed (by "proceed") that referential
+   safety and upload staging get built with the Phase 3 editors, not in step 7. Also in step 7: a pane switch during the
    800ms autosave delay flushes the save from the editor that is unmounting, and if that
    save hits a 409 the edit is lost silently. Warn, or hold the pane switch, while
-   `isEditorBusy()`. Then the rest: referential safety, upload staging, PIN change, and
+   `isEditorBusy()`. Then: PIN change (revokes all sessions), the four deferred
+   login/session findings under "decide these before production" (lockout fails open when
+   D1 writes run out; no pruning; no session renewal; a numeric PIN burns attempts), and
    the review gate.
 
 **Before any admin-test → main merge (the launch), also:** run
 `git diff main admin-test -- content/` (preview publishes are real commits and would carry
-test values to the live site), check `SELECT COUNT(*) FROM drafts` on the remote D1, and
-give production its own secrets.
+test values to the live site), check `SELECT COUNT(*) FROM drafts` on the remote **production** D1 (`nirmal-studio-admin-production`; should be 0), and
+give production its own secrets (`ADMIN_PIN_HASH` ≤100k iterations, `GITHUB_TOKEN`, and a
+**new** `SESSION_SECRET`, different from the preview's). **Merge the whole branch** — never
+cherry-pick `functions/` onto `main` without the new `wrangler.toml`, because `main`'s copy
+still points production at the preview's database. After launch: `npm run check:domains`,
+sign in on nirmalstudio.com/admin, then `npx wrangler d1 execute DB --remote --env production
+--command "SELECT COUNT(*) FROM sessions"` should be 1 (proves production uses its own DB).
 
 **STEP 6 DONE (2026-09-22): Publish, Undo, "is it live yet?"** It's on `admin-test` and
 still needs Parth's live check (START HERE item 2).
@@ -129,7 +142,9 @@ Pages → nirmal-studio → Settings → **Preview**. `PUBLISH_BRANCH=admin-test
   missing; `400 Expected JSON.` = secrets *and* the D1 binding are both present, because
   that branch runs after the config check and before any failure is recorded.
 
-**Waiting on Parth (not blocking step 6):**
+**Waiting on Parth:**
+- Keep or revoke the now-unused `nirmal-studio-build-status` Cloudflare token (step 6 reads
+  status from `/_version.json` instead).
 - Keep the PIN **masked by default** (with Show), or show digits as typed? Masked is live.
 - He approved renaming the nav **button** to "Talk with Us"; the panel **heading** was
   renamed to match on my judgment — confirm or revert.
@@ -398,11 +413,10 @@ locally or on PATH, so they need `npx` (only `test:auth` worked, because it alre
 tests for malformed hashes, which need no server, plus 23 integration tests).
 
 **Not fixed, deliberately — decide these before production:**
-- **Preview and production share one D1** (same `database_id` in all three wrangler.toml
-  blocks), so they share `login_attempts` — including the `global` bucket. Once
-  production has secrets, a scanner hitting the *preview* login 20 times locks Parth and
-  Tej out of the **live** /admin. Give preview its own D1 before production is configured,
-  not after. Same argument for a distinct `SESSION_SECRET` per environment.
+- ~~Preview and production share one D1~~ — **fixed 2026-09-22 (step 7)**: production has
+  its own D1 and KV, so a scanner on the preview login can no longer lock out the live
+  /admin. **Still open:** production's `SESSION_SECRET` must be a *new* value, not the
+  preview's, so a preview cookie can never be valid on production.
 - **The lockout fails open if D1 runs out of writes.** Each failed login writes 2 rows;
   the free tier allows ~100k/day. Past that `recordFailure` throws, the counter stops
   climbing, and guessing proceeds unmetered. Needs a deliberate call, not a patch.
