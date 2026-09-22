@@ -5,6 +5,71 @@ live in `CLAUDE.md` — read that first if you're picking this up cold.
 
 ## Resume here
 
+### ▶ START HERE (updated 2026-09-22, end of session)
+
+**Where things stand:** Phase 1 is complete and live. **Phase 2 (the `/admin` backend) has
+steps 1–5 of 7 done**, on the `admin-test` branch, deployed to the preview at
+**https://admin-test.nirmal-studio.pages.dev/admin/** — and **Parth has signed in there
+with his real PIN** (2026-09-22). That is the whole auth chain proven on a real
+deployment: the 100k PBKDF2 hash verifies on Cloudflare, the `__Host-` session cookie
+works in his actual browser, and sessions persist in D1.
+
+**Do these first, in this order:**
+1. **`git checkout admin-test`** — that is where Phase 2 lives. `main` deliberately has no
+   `functions/` (see the ⚠ BRANCH LAYOUT note below; read it).
+2. **Check `git status`.** This `/save` updated `progress.md`, `CLAUDE.md` and the plan
+   file but did **not** commit (the `/save` command never commits). If they're still
+   uncommitted, commit them on `admin-test`, then bring `progress.md` and `CLAUDE.md`
+   onto `main` with `git checkout admin-test -- progress.md CLAUDE.md` on main — the two
+   branches are meant to carry the same docs; only the backend and admin app differ.
+   Push both over SSH (see "Pushing needs SSH" below).
+3. **Build step 6 — Publish** (plan: `~/.claude-personal/plans/nirmal-studio-phase-2-admin.md`).
+   Validate the draft → one commit via the GitHub Git Data API touching only `content/`,
+   built on the branch's *current* head, retry ×3 on a non-fast-forward → a `publishes`
+   row → fill `drafts.base_sha` (still NULL today, deliberately) → status polling of
+   Cloudflare deployments → Undo as a *new* commit restoring `content/`. Target
+   `PUBLISH_BRANCH`, which is `admin-test` on preview — publishing from the preview
+   changes the preview, never nirmalstudio.com.
+4. Then step 7 (hardening), including the **deferred decision to give preview its own
+   D1** — see "Not fixed, deliberately" below. It is more pressing now that preview has
+   real secrets.
+
+**Preview secrets are SET (2026-09-22)** — `ADMIN_PIN_HASH` (Parth's, 100k iterations),
+a **preview-only** `SESSION_SECRET` (freshly generated, deliberately different from the
+local one — nobody needs to know it), and `GITHUB_TOKEN`, all as encrypted secrets in
+Pages → nirmal-studio → Settings → **Preview**. `PUBLISH_BRANCH=admin-test` comes from
+`wrangler.toml`. **Production has no admin secrets, on purpose** — `main` has no
+`functions/`, and production gets its own secrets as part of the launch decision.
+
+**Two traps from setting them, worth keeping:**
+- **With a `wrangler.toml` present, the dashboard only accepts *secrets***, not plain
+  variables — its own orange note says so. Plain vars come from `wrangler.toml`.
+- **Secrets attach only to deployments created after them, and the branch alias lags.**
+  After the redeploy, the new deployment's own URL (`f2fbc2be.…`) already answered
+  correctly while `admin-test.nirmal-studio.pages.dev` still answered 503 for a short
+  while. Check the deployment's hash URL before concluding a secret is missing.
+- **How to test that config arrived WITHOUT spending a lockout attempt:** POST
+  `/api/admin/login` with a malformed body (`--data 'not json'`). `503` = something is
+  missing; `400 Expected JSON.` = secrets *and* the D1 binding are both present, because
+  that branch runs after the config check and before any failure is recorded.
+
+**Waiting on Parth (not blocking step 6):**
+- Keep the PIN **masked by default** (with Show), or show digits as typed? Masked is live.
+- He approved renaming the nav **button** to "Talk with Us"; the panel **heading** was
+  renamed to match on my judgment — confirm or revert.
+- **Founder photos + bios for all four** — the longest-lead item for launch; the founders
+  section cannot appear until every person has both.
+- Older open questions are listed further down ("Open questions for Parth").
+
+**Cosmetic, noted not fixed:** at Parth's laptop window width the grey detail text on the
+admin Projects rows wraps onto a second line ("5 sections · 6 / images"). Those rows are
+replaced by the Phase 3 editors, so it wasn't worth churning now.
+
+---
+
+*Everything below is the running log, newest phases first. Earlier "next up" notes are
+kept for their reasoning, but the block above is the current state.*
+
 **Session status (2026-09-20 — Phase 1 of the v1 plan is COMPLETE).**
 Plan file for this session: `/Users/parth/.claude-personal/plans/moonlit-wobbling-kurzweil.md`.
 
@@ -302,8 +367,8 @@ with `--branch main`.** Every direct upload prints "Uploading Functions bundle" 
 commit to notice it in: the four-minute-exposure incident again, but invisible. A
 production deploy goes through Git from a `main` checkout, and is `curl`-verified after.
 
-**Preview secrets are still not set, and that is a permissions wall, not a design
-choice.** `wrangler pages secret put` has no `--env` flag in 4.135, and both the
+**~~Preview secrets are still not set~~ — RESOLVED 2026-09-22, Parth set them in the
+dashboard (see START HERE).** Original note, kept for why it took a dashboard trip: `wrangler pages secret put` has no `--env` flag in 4.135, and both the
 sandbox's credential classifier denials (reading the OAuth token, running the secret
 command) blocked the API route. So `/api/admin/login` on the preview still answers
 503 "not configured" — which is why step 3 was settled with a probe that needed no
@@ -311,7 +376,9 @@ secrets at all. Setting `ADMIN_PIN_HASH` + a *preview-specific* `SESSION_SECRET`
 Pages → Settings → Environment variables (as **encrypted secrets**, not plaintext vars)
 is the first thing step 4 needs.
 
-**One thing to verify in a real browser at step 4:** the 35 tests exercise the
+**~~One thing to verify in a real browser at step 4~~ — VERIFIED**, first in headless
+Chrome over http://localhost (step 4) and then by Parth signing in on the real preview
+(2026-09-22). Original note: the 35 tests exercise the
 `__Host-` cookie through curl, and **curl does not enforce cookie-prefix rules at all** —
 it echoes back whatever header it is handed. Browsers do enforce them, and
 `wrangler pages dev` serves plain `http://localhost:8788`. Check in a real browser that
@@ -449,8 +516,8 @@ Also closed here: inputs are 16px at phone widths. Below that iOS Safari zooms t
 focus and does not zoom back — the UX review flagged it for whenever the first form landed.
 
 **Next (steps 6-7):** publish (validate → GitHub Git Data API, `content/` paths only → a
-`publishes` row) → status polling → undo → the remaining hardening. **Step 6 is the first
-step that needs `GITHUB_TOKEN` on a deployment**, and preview still has no secrets at all.
+`publishes` row) → status polling → undo → the remaining hardening. Step 6 is the first
+step that needs `GITHUB_TOKEN` on a deployment — **it is now set on preview** (2026-09-22).
 
 
 **DONE (2026-09-21), and it closes the last open Phase 1 item.** Parth asked for both:
@@ -470,11 +537,10 @@ and phone number with it. Both anchors stay, still gated by CSS, as the no-JS fa
 "Hi Tej"** — internal and recipient names, not the label; neither was renamed.
 Verified on the LIVE site at 1440 and 390, homepage and a project page: 31 checks.
 
-**Next up — Phase 2 (backend foundation). Both API tokens are now CREATED** (2026-09-20,
-walked through one step at a time; see CLAUDE.md's "Phase 2 credentials" section for
-scopes and where they're stored). Remaining before Phase 2 can be finished: Parth's
-**6-digit `/admin` PIN**, which he types into a secret prompt when the login is built —
-never into chat, so there is nothing to collect in advance.
+**(Historical) Phase 2 prerequisites — all done.** Both API tokens were created
+2026-09-20 (see CLAUDE.md's "Phase 2 credentials" for scopes and where they're stored),
+and Parth set his PIN via `npm run admin:secrets` — re-run on 2026-09-22 so it is hashed
+at 100k iterations, the Cloudflare Workers ceiling.
 
 Worth knowing for next session:
 - GitHub's default for a new fine-grained token is **no repository access and no
@@ -493,7 +559,11 @@ Worth knowing for next session:
   error but is really just two concurrent `wrangler login` runs.
 - Cloudflare **Web Analytics is already on**, so Phase 3 item 4 is partly done.
 
-**Two UX-review findings deliberately NOT acted on — they are Parth's calls, not mine:**
+**Two UX-review findings — BOTH NOW DECIDED BY PARTH (2026-09-21), see the "DONE
+(2026-09-21)" entry above.** He routed "Book a Consultation" through the panel (finding 1)
+and chose to rename the nav button to "Talk with Us" rather than rename the CTA (his
+answer to finding 2 — the CTA wording stays "Book a Consultation", and it now opens a
+panel of ways to get in touch). Don't re-raise either. Original notes:
 1. **The Contact section's "Book a Consultation" CTA bypasses the Talk-to-Tej helper.**
    The nav pill opens the panel (what / city / stage → a pre-written first message, plus
    the desktop QR); the Contact CTA jumps straight out to WhatsApp with only the generic
