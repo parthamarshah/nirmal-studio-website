@@ -20,3 +20,8 @@
   Cache-Control: no-store
   Referrer-Policy: same-origin
   X-Frame-Options: DENY
+
+# Build marker read by the /admin publish status check. It must never be cached, or
+# "is it live yet?" would keep answering with the previous build.
+/_version.json
+  Cache-Control: no-store

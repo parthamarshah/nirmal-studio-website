@@ -154,7 +154,8 @@ button {
 
 .admin-col {
   display: grid;
-  grid-template-rows: auto 1fr;
+  /* top bar, publish strip (present only when it has something to say), panes */
+  grid-template-rows: auto auto 1fr;
   min-width: 0;
 }
 
@@ -196,6 +197,8 @@ button {
 /* ---------------------------------------------------------------- panes */
 
 .admin-panes {
+  /* Always the last, stretching row — even when the publish strip isn't rendered. */
+  grid-row: 3;
   display: grid;
   grid-template-columns: 1fr var(--admin-inspector);
   min-height: 0;
@@ -644,4 +647,98 @@ button {
   .admin-tag {
     justify-self: start;
   }
+}
+
+/* ---------------------------------------------------------------- publish strip */
+
+.admin-pubbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px var(--space-sm);
+  padding: 10px var(--space-md);
+  border-bottom: 1px solid var(--admin-line);
+  background: #fbfaf7;
+  font-size: 14px;
+}
+
+.admin-pubbar p {
+  margin: 0;
+}
+
+.admin-pubbar > p:first-child,
+.admin-pubbar > div:first-child {
+  flex: 1 1 320px;
+}
+
+.admin-pubbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}
+
+.admin-pubbar--ask {
+  background: #f4efe6;
+}
+
+.admin-pubbar--ok {
+  background: #eef4ec;
+}
+
+.admin-pubbar--warn {
+  background: #fbf1e6;
+}
+
+.admin-pubbar-changes {
+  margin: 6px 0 0;
+  padding-left: 1.2em;
+  overflow-wrap: anywhere;
+}
+
+.admin-pubbar-sub {
+  margin-top: 4px !important;
+  color: var(--color-stone-dark);
+  font-size: 13px;
+}
+
+/* Undo's confirm must not look like Publish's: opposite actions, different colour. */
+.admin-btn--danger {
+  background: #8a3b2a;
+  border-color: #8a3b2a;
+}
+
+.admin-pubbar-note {
+  flex-basis: 100%;
+  color: var(--color-stone-dark);
+  font-size: 13px;
+}
+
+@media (max-width: 767px) {
+  .admin-pubbar {
+    padding: 10px 16px;
+  }
+
+  .admin-btn,
+  .admin-publish {
+    min-height: 44px;
+  }
+
+  .admin-pubbar-view {
+    display: inline-block;
+    padding: 12px 4px;
+  }
+}
+
+/* The settings fields sit in a <fieldset> so one `disabled` locks them all while a
+   publish is in flight; without this it would draw a browser-default box. */
+fieldset.admin-fields {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+.admin-btn:disabled {
+  opacity: 0.6;
+  cursor: progress;
 }

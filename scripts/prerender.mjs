@@ -6,6 +6,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { execFileSync } from 'node:child_process'
 import { build } from 'vite'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -76,3 +77,17 @@ for (const p of visibleProjects) {
 
 fs.rmSync(SSR_OUT, { recursive: true, force: true })
 console.log(`✓ Pre-rendered ${count} project page${count === 1 ? '' : 's'}`)
+
+// Which commit this build is. The /admin status check reads it to answer "is my publish
+// live yet?" by looking at the site itself (functions/api/admin/status.js explains why
+// not the Cloudflare API). Cloudflare's Git builds set CF_PAGES_COMMIT_SHA; a local or
+// direct-upload build falls back to the checked-out commit.
+let commit = process.env.CF_PAGES_COMMIT_SHA || null
+if (!commit) {
+  try {
+    commit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim()
+  } catch {
+    commit = null
+  }
+}
+fs.writeFileSync(path.join(DIST, '_version.json'), JSON.stringify({ commit }) + '\n')

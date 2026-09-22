@@ -1,0 +1,12 @@
+-- v1 Phase 2 step 6: Publish and Undo share the `publishes` table.
+--
+-- An Undo is itself a commit on the branch, so it is recorded like a publish — the
+-- history then reads in the same order git does. `kind` tells them apart, so an Undo is
+-- never offered for undoing (that would be "redo", and it is just a publish).
+--
+-- `files` (already present) holds, for each content/ path touched, the git blob sha
+-- before and after: [{ "path": "...", "before": "<sha>|null", "after": "<sha>|null" }].
+-- Undo restores `before`, and refuses unless the file still holds `after`.
+--
+-- Additive only: an ADD COLUMN with a default, safe to apply while the old code runs.
+ALTER TABLE publishes ADD COLUMN kind TEXT NOT NULL DEFAULT 'publish';

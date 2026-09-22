@@ -1,4 +1,6 @@
 import { requireSession, json } from './_lib/auth.js'
+import { DOC_ID as ID, pathFor } from './_lib/documents.js'
+import { github, isBranchName, explainGitHubError } from './_lib/github.js'
 
 // Drafts: the work-in-progress copy of one content document.
 //
@@ -11,8 +13,8 @@ import { requireSession, json } from './_lib/auth.js'
 // PUT    /api/admin/draft              → save (optimistic concurrency, see below)
 // DELETE /api/admin/draft              → discard, back to whatever is published
 
-// Only these documents exist. An unchecked id would let any string become a row.
-const ID = /^(site|founders|project:[a-z0-9][a-z0-9-]{0,79})$/
+// Only these documents exist (DOC_ID in _lib/documents.js). An unchecked id would let
+// any string become a row.
 
 // D1 rows are capped, and a runaway doc would fail the write in a confusing way. The
 // largest real document (a project with a full image pool) is a few tens of KB.
@@ -27,10 +29,43 @@ const nextStamp = 'MAX(?, drafts.updated_at + 1)'
 
 const row = (db, id) => db.prepare('SELECT * FROM drafts WHERE id = ?').bind(id).first()
 
+const SHA = /^[0-9a-f]{40}$/
+
+// With no draft, the editor starts from what is published — read from GitHub at the
+// publish branch's head, NOT from the copy bundled into the admin page. The bundle is only
+// as new as the last build: right after a publish (before the rebuild lands) or an Undo,
+// it is out of date, and an edit started from it would quietly bring the old values back.
+// The blob sha travels with it and is stored on the draft as base_sha, so Publish can
+// tell whether the file changed underneath the draft in the meantime.
+//
+// It does NOT quietly fall back to the bundle when GitHub can't be read: a draft started
+// from a stale copy with no base would, on publish, bring back whatever the last publish
+// changed. The caller gets `unavailable` and the editor says it can't load yet.
+// A file that simply doesn't exist yet (a new project) is `{ doc: null, sha: null }`.
+async function published(env, id) {
+  const branch = env.PUBLISH_BRANCH
+  if (!env.GITHUB_TOKEN || !isBranchName(branch)) return { unavailable: 'Publishing isn’t set up on this deployment, so the live version can’t be read.' }
+  try {
+    const gh = github(env)
+    const file = await gh.file(pathFor(id), await gh.head(branch))
+    return file ? { doc: JSON.parse(file.text), sha: file.sha } : { doc: null, sha: null }
+  } catch (err) {
+    return { unavailable: explainGitHubError(err, '') }
+  }
+}
+
 const shape = (r) =>
   r
     ? { exists: true, id: r.id, doc: JSON.parse(r.doc), updatedAt: r.updated_at, updatedBy: r.updated_by, baseSha: r.base_sha }
     : { exists: false }
+
+// What a 409 hands back. If the draft is gone — the other person published or discarded
+// it — the published version comes too, so "keep mine" re-bases on what is live now
+// rather than on the version this tab started from.
+async function current(env, id) {
+  const r = await row(env.DB, id)
+  return r ? shape(r) : { exists: false, published: await published(env, id) }
+}
 
 export async function onRequestGet(context) {
   const session = await requireSession(context)
@@ -39,7 +74,9 @@ export async function onRequestGet(context) {
   const id = new URL(context.request.url).searchParams.get('id') || ''
   if (!ID.test(id)) return badRequest('Unknown document.')
 
-  return json(shape(await row(context.env.DB, id)))
+  const cur = await current(context.env, id)
+  if (cur.published?.unavailable) return json({ error: `Couldn’t load the live version to start from. ${cur.published.unavailable}` }, { status: 502 })
+  return json(cur)
 }
 
 export async function onRequestPut(context) {
@@ -53,8 +90,9 @@ export async function onRequestPut(context) {
     return badRequest('Expected JSON.')
   }
 
-  const { id, doc, ifUpdatedAt = null } = body || {}
+  const { id, doc, ifUpdatedAt = null, baseSha = null } = body || {}
   if (!ID.test(String(id || ''))) return badRequest('Unknown document.')
+  if (baseSha !== null && !SHA.test(String(baseSha))) return badRequest('baseSha must be a git sha.')
   if (!doc || typeof doc !== 'object' || Array.isArray(doc)) return badRequest('A draft must be a JSON object.')
 
   const serialized = JSON.stringify(doc)
@@ -72,10 +110,12 @@ export async function onRequestPut(context) {
   // login lockout counter — see _lib/auth.js's recordFailure.)
   const result =
     ifUpdatedAt == null
-      ? // The client believes no draft exists. If one does, another tab made it.
+      ? // The client believes no draft exists. If one does, another tab made it. The base
+        // is recorded only here, when the draft is born — later saves build on the draft,
+        // not on git, so they must not move it.
         await db
-          .prepare('INSERT INTO drafts (id, doc, base_sha, updated_at, updated_by) VALUES (?, ?, NULL, ?, ?) ON CONFLICT(id) DO NOTHING')
-          .bind(id, serialized, now, by)
+          .prepare('INSERT INTO drafts (id, doc, base_sha, updated_at, updated_by) VALUES (?, ?, ?, ?, ?) ON CONFLICT(id) DO NOTHING')
+          .bind(id, serialized, baseSha, now, by)
           .run()
       : // The client believes the draft is still at ifUpdatedAt. If it moved, somebody
         // else saved in between and this write must not silently flatten their work.
@@ -87,7 +127,7 @@ export async function onRequestPut(context) {
   if (!result.meta?.changes) {
     // Hand back what is actually stored, so the editor can show the difference rather
     // than just refusing.
-    return json({ error: 'This was changed somewhere else — in another tab, or by the other person.', current: shape(await row(db, id)) }, { status: 409 })
+    return json({ error: 'This was changed somewhere else — in another tab, or by the other person.', current: await current(context.env, id) }, { status: 409 })
   }
 
   const saved = await row(db, id)
@@ -116,7 +156,7 @@ export async function onRequestDelete(context) {
   const result = await db.prepare('DELETE FROM drafts WHERE id = ? AND updated_at = ?').bind(id, ifUpdatedAt).run()
 
   if (!result.meta?.changes) {
-    return json({ error: 'This was changed somewhere else — in another tab, or by the other person.', current: shape(await row(db, id)) }, { status: 409 })
+    return json({ error: 'This was changed somewhere else — in another tab, or by the other person.', current: await current(context.env, id) }, { status: 409 })
   }
 
   return json({ ok: true })

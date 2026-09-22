@@ -399,6 +399,20 @@ against them rather than rediscovering them by chance:
   wordmark (it is what killed the two-font flash) but it makes discovery latency the
   whole ballgame. Don't "fix" a fallback render by changing the display mode; make the
   file arrive sooner.
+- **A D1 migration applied locally is NOT applied to the shared remote database, and
+  every test here runs against `--local`, so none of them can catch it.** Step 6's
+  `0002_publish_kind.sql` passed 36 local tests while the remote table still lacked the
+  column. Deployed in that state, every publish would have committed to GitHub and then
+  failed to record itself, leaving Undo permanently unavailable. The impact review caught
+  it. Apply each new migration with `--remote` **before** pushing the code that uses it
+  (additive changes only, so old code keeps working), and confirm with
+  `SELECT group_concat(name) FROM pragma_table_info('<table>')` on `--remote`.
+- **Responses that each hit GitHub arrive out of order.** `/api/admin/publish` GET reads
+  GitHub, so two overlapping requests can land newest-first. The older one then overwrote
+  the Publish confirmation with a change that had already been corrected. That was caught
+  in a real headless run, not by review. `usePublish.js` applies only the newest request
+  (`seqRef`). Any future client state fed by slow and overlapping requests needs the same
+  guard.
 - **(Closed by the Phase 0 image pipeline, kept as background.)** A `<picture>`'s
   `<source>` does not fall back to the `<img>` on a 404 — only on an unsupported
   `type`/`media`. The old `webp()` helper derived `.webp` sibling paths with no existence
@@ -448,7 +462,7 @@ out-of-range hash with a plain-English 503 instead of an uncaught throw.
 | what | where it's saved | scope |
 |---|---|---|
 | GitHub fine-grained PAT | `github.com` / user name `nirmal-studio-backend-token` | **only** `parthamarshah/nirmal-studio-website`; Contents: Read and write; Metadata: Read (auto) |
-| Cloudflare API token | `cloudflare.com` / user name `nirmal-studio-build-status` | Gurjar account only; **Cloudflare Pages: Read** — build status only, no edit rights anywhere |
+| Cloudflare API token | `cloudflare.com` / user name `nirmal-studio-build-status` | Gurjar account only; **Cloudflare Pages: Read** — build status only, no edit rights anywhere. **Currently unused**: step 6 reads status from the site's `/_version.json` instead (see `functions/api/admin/status.js`). Keep or revoke, Parth's call |
 
 - The GitHub token is named `nirmal-studio-backen` in GitHub's UI (the trailing "d" was
   truncated at creation) — cosmetic, don't be confused by it.

@@ -23,6 +23,9 @@ export function useDraft(id, published) {
   // The token for the row we are building on: the draft's updatedAt, or null when no
   // draft row exists yet.
   const tokenRef = useRef(null)
+  // Which published file (git blob sha) this draft started from. Sent only when the draft
+  // row is first created, so Publish can tell if the site changed underneath it.
+  const baseRef = useRef(null)
   const docRef = useRef(null)
   const timerRef = useRef(null)
   const savingRef = useRef(false)
@@ -46,7 +49,11 @@ export function useDraft(id, published) {
     setState('saving')
     setMessage(null)
     try {
-      const res = await api('draft', { method: 'PUT', body: { id, doc: docRef.current, ifUpdatedAt: tokenRef.current } })
+      const creating = tokenRef.current == null
+      const res = await api('draft', {
+        method: 'PUT',
+        body: { id, doc: docRef.current, ifUpdatedAt: tokenRef.current, ...(creating ? { baseSha: baseRef.current } : {}) },
+      })
       tokenRef.current = res.updatedAt
       setHasDraft(true)
       savingRef.current = false
@@ -76,9 +83,13 @@ export function useDraft(id, published) {
     setConflict(null)
     try {
       const res = await api(`draft?id=${encodeURIComponent(id)}`)
-      const next = res.exists ? res.doc : structuredClone(published)
+      // With no draft, start from what the server says is published (read from GitHub),
+      // not the copy bundled into this page: right after a publish or an Undo, the bundle
+      // is a build behind. The bundled copy is only the fallback if GitHub didn't answer.
+      const next = res.exists ? res.doc : structuredClone(res.published?.doc ?? published)
       docRef.current = next
       tokenRef.current = res.exists ? res.updatedAt : null
+      baseRef.current = res.exists ? (res.baseSha ?? null) : (res.published?.sha ?? null)
       setDoc(next)
       setHasDraft(!!res.exists)
       setState('clean')
@@ -88,10 +99,17 @@ export function useDraft(id, published) {
     }
   }, [id, published])
 
+  // Leaving the pane mid-debounce used to drop the last few keystrokes: the cleanup
+  // cleared the timer and nothing saved. Flush instead.
   useEffect(() => {
     load()
-    return clearTimer
-  }, [load])
+    return () => {
+      if (timerRef.current) {
+        clearTimer()
+        save()
+      }
+    }
+  }, [load, save])
 
   // An edit while a conflict is unresolved would be building on a version we already
   // know is stale, so the caller must resolve first.
@@ -135,6 +153,8 @@ export function useDraft(id, published) {
   const keepMine = useCallback(async () => {
     if (!conflict) return
     tokenRef.current = conflict.exists ? conflict.updatedAt : null
+    // The draft is gone (published or discarded elsewhere): re-base on what is live now.
+    if (!conflict.exists) baseRef.current = conflict.published?.sha ?? baseRef.current
     setConflict(null)
     await save()
   }, [conflict, save])

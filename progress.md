@@ -5,34 +5,107 @@ live in `CLAUDE.md` — read that first if you're picking this up cold.
 
 ## Resume here
 
-### ▶ START HERE (updated 2026-09-22, end of session)
+### ▶ START HERE (updated 2026-09-22, step 6 done)
 
 **Where things stand:** Phase 1 is complete and live. **Phase 2 (the `/admin` backend) has
-steps 1–5 of 7 done**, on the `admin-test` branch, deployed to the preview at
-**https://admin-test.nirmal-studio.pages.dev/admin/** — and **Parth has signed in there
-with his real PIN** (2026-09-22). That is the whole auth chain proven on a real
-deployment: the 100k PBKDF2 hash verifies on Cloudflare, the `__Host-` session cookie
-works in his actual browser, and sessions persist in D1.
+steps 1–6 of 7 done**, on the `admin-test` branch, deployed to the preview at
+**https://admin-test.nirmal-studio.pages.dev/admin/**. Parth has signed in there with his
+real PIN (2026-09-22), so the auth chain is proven on a real deployment.
 
 **Do these first, in this order:**
-1. **`git checkout admin-test`** — that is where Phase 2 lives. `main` deliberately has no
-   `functions/` (see the ⚠ BRANCH LAYOUT note below; read it).
-2. **Check `git status`.** This `/save` updated `progress.md`, `CLAUDE.md` and the plan
-   file but did **not** commit (the `/save` command never commits). If they're still
-   uncommitted, commit them on `admin-test`, then bring `progress.md` and `CLAUDE.md`
-   onto `main` with `git checkout admin-test -- progress.md CLAUDE.md` on main — the two
-   branches are meant to carry the same docs; only the backend and admin app differ.
-   Push both over SSH (see "Pushing needs SSH" below).
-3. **Build step 6 — Publish** (plan: `~/.claude-personal/plans/nirmal-studio-phase-2-admin.md`).
-   Validate the draft → one commit via the GitHub Git Data API touching only `content/`,
-   built on the branch's *current* head, retry ×3 on a non-fast-forward → a `publishes`
-   row → fill `drafts.base_sha` (still NULL today, deliberately) → status polling of
-   Cloudflare deployments → Undo as a *new* commit restoring `content/`. Target
-   `PUBLISH_BRANCH`, which is `admin-test` on preview — publishing from the preview
-   changes the preview, never nirmalstudio.com.
-4. Then step 7 (hardening), including the **deferred decision to give preview its own
-   D1** — see "Not fixed, deliberately" below. It is more pressing now that preview has
-   real secrets.
+1. **`git checkout admin-test`**, then **`git pull`**. A Publish from the preview is now a
+   real commit on `admin-test`, so the branch moves without anyone pushing. `main`
+   deliberately has no `functions/` (see the ⚠ BRANCH LAYOUT note below).
+2. **Has Parth done the live check yet?** Sign in on the preview, change one Settings
+   field, Publish, and wait for "Live ✓", then Undo it. The machinery is proven locally
+   against real GitHub (see STEP 6 below), but "reports Live" on the real preview needs
+   his PIN. If he hasn't, that's the first thing to walk him through, one step at a time.
+3. **Step 7, hardening.** One item is now a **launch blocker**: preview and production
+   share one D1 database, and **drafts are not branch-scoped**. Once production has
+   `functions/`, a draft saved on the preview would be pending on production, and Publish
+   there would send it to `main` (the stale-base check catches most such drafts, but not
+   all of them). Fix it with a separate D1 for preview (recommended; the deferred
+   decision) or a `branch` column on `drafts`. Then do the rest of step 7: referential
+   safety, upload staging, PIN change, and the review gate.
+
+**Before any admin-test → main merge (the launch), also:** run
+`git diff main admin-test -- content/` (preview publishes are real commits and would carry
+test values to the live site), check `SELECT COUNT(*) FROM drafts` on the remote D1, and
+give production its own secrets.
+
+**STEP 6 DONE (2026-09-22): Publish, Undo, "is it live yet?"** It's on `admin-test` and
+still needs Parth's live check (START HERE item 2).
+
+- **Publish** (`functions/api/admin/publish.js`) turns every pending draft into **one**
+  commit on `PUBLISH_BRANCH`, using the Git Data API (tree on `base_tree` → commit → ref
+  with `force: false`, up to 3 retries on a non-fast-forward). The request names the
+  `{id, updatedAt}` it means, so a double-click or the other person's save can't widen it.
+  Every path it writes passes `isContentPath` (only `content/site.json`,
+  `founders.json`, `projects/<slug>.json`). Founders and project drafts are refused until
+  their editors, and their checks, exist.
+- **Validation on publish** covers only the contact block. Every other part of `site.json`
+  must be identical to what's published, because those parts point into other documents
+  that only the build can check. **The contact rules now live in three places**
+  (`build-content.mjs`, `SettingsEditor.jsx` FIELDS, `_lib/documents.js`). Each copy
+  names the other two in a comment. Change one, change all three.
+- **Stale drafts.** With no draft, the editor starts from the published file **read from
+  GitHub**, not from the admin bundle. The bundle is a build behind right after a publish
+  or Undo. The draft stores that file's blob sha as `base_sha`.
+  - At publish time, a draft whose bytes already equal the file is a no-op, whatever its
+    base. That is how a publish whose commit landed but whose clean-up failed recovers
+    itself.
+  - Otherwise, if the base doesn't match the file, the publish is refused ("changed on
+    the site after this draft was started"). This includes a NULL base on an existing file.
+  - If GitHub can't be read, the editor refuses to load. It does not fall back to the
+    bundle.
+- **Undo** (`undo.js`) is a new commit. It sets exactly the files that publish touched back
+  to their pre-publish blob shas, and never rewinds the branch. It only works on the
+  newest publish, and only if each file still holds what that publish wrote. `publishes`
+  now has `kind` (migration 0002, **applied to the remote D1 on 2026-09-22**), and `files`
+  holds `{path, before, after}` per file.
+- **Status is read from the site, not from Cloudflare's API.** Each build writes
+  `/_version.json` (the commit sha; `scripts/prerender.mjs`, and `no-store` in `_headers`).
+  `status.js` fetches it from the branch's own URL and checks containment through GitHub's
+  compare API.
+  - So the `nirmal-studio-build-status` Cloudflare token is **unused**. Parth can keep it
+    for later or revoke it; his call.
+  - The editor can't tell "building" from "failed". It says so after 5 minutes and stops
+    after 20 minutes, rather than guessing.
+- **Tests:**
+  - `npm run test:publish`: **36/36** against real GitHub, on a throwaway branch
+    `admin-publish-test`. It covers one commit touching only `content/site.json`, byte
+    equality, a double-fire producing a single commit, the stale-after-Undo refusal, the
+    recovery case, the baseless-draft refusal, and Undo restoring the original bytes.
+  - Headless Chrome **30/30** at 1440 and 390.
+  - `test:auth` 23/23 + 12/12.
+  - Public `dist` is byte-identical to before, apart from `_headers` and the new
+    `_version.json`.
+- **Review gate ran** (impact, edge-case, UX, production-safety). Fixed:
+  - The strip took the panes' `1fr` grid row.
+  - The recovery path was unreachable: the stale check came first.
+  - A bookkeeping failure gave a false "Undo isn't available".
+  - A timed-out ref update gave a false "Nothing was published". It now re-reads the head.
+  - A silent fallback to the bundle created a baseless draft.
+  - Keystrokes were lost when the editor remounted mid-publish. Fields now lock while
+    confirming or sending, and Publish refuses if a save is in flight.
+  - The confirmation named the document but not the values. It now lists old → new.
+  - An unmount mid-debounce dropped the last edit. It now flushes.
+  - No stopped state after 20 minutes.
+  - Undo was styled like Cancel.
+  - Phone tap targets were too small.
+  - A session-id prefix appeared in public commit messages.
+  - The WhatsApp check trimmed in the editor but not in the build.
+  - Found in the UI run, not by the reviews: out-of-order overview responses made the
+    confirmation list an already-corrected typo. Each response now carries a sequence
+    number, and "Publish now" waits for the fresh list.
+- **Not fixed, noted:**
+  - A pane switch mid-debounce whose flush-save then hits a 409 loses that edit silently,
+    because the conflict lands in the unmounted editor. It's a narrow window.
+  - Undo shows on the Projects/Founders panes too; its summary names what it undoes.
+  - Branch aliases longer than ~28 characters would break `siteFor()`. Current names
+    are fine.
+- **The throwaway branch `admin-publish-test` was deleted** after the tests; recreate it
+  as shown in `scripts/test-admin-publish.sh` to re-run them.
 
 **Preview secrets are SET (2026-09-22)** — `ADMIN_PIN_HASH` (Parth's, 100k iterations),
 a **preview-only** `SESSION_SECRET` (freshly generated, deliberately different from the
@@ -220,7 +293,9 @@ cherry-pick the docs commit, or merge admin-test into main when it is time to la
 `SESSION_SECRET` and `PUBLISH_BRANCH=admin-test`. Nobody knows the PIN, including Claude
 — `npm run test:auth` swaps in a throwaway one and restores the real file via a trap.
 Commands: `npm run admin:secrets` (re-enter secrets), `npm run admin:dev` (local server
-on :8788), `npm run admin:migrate` (apply schema locally), `npm run test:auth`.
+on :8788), `npm run admin:migrate` (apply schema locally: 0001 then 0002; 0002 is an
+ADD COLUMN, so a second run fails harmlessly with "duplicate column"), `npm run test:auth`,
+`npm run test:publish` (real commits, against a throwaway branch; see STEP 6).
 
 **PHASE 2 IN PROGRESS (2026-09-20, later session).** Build plan:
 `~/.claude-personal/plans/nirmal-studio-phase-2-admin.md` — read it before continuing,
@@ -500,10 +575,8 @@ Details worth not rediscovering:
 - **Discard requires the version too.** An unguarded `DELETE` would throw away whatever
   arrived after the caller last looked; a caller with no draft has nothing to discard, so
   there is no legitimate null case.
-- **`base_sha` is still NULL.** It exists so a stale draft can be caught at publish time,
-  and it gets filled in step 6 when the GitHub client arrives. The draft's *base* today is
-  the content embedded in the admin bundle at build time, which is current as of the last
-  deploy — fine now, and exactly what `base_sha` is for once publishing exists.
+- **(Superseded in step 6.)** `base_sha` was NULL during step 5. Since step 6 it is filled
+  when a draft is created, from the blob sha of the published file read from GitHub.
 
 **The Settings pane is now a real editor** (studio contact details), because step 5 needed
 something editable to exercise any of this and that is the smallest honest slice. It

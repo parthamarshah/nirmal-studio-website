@@ -9,7 +9,8 @@ import { useDraft } from './useDraft.js'
 
 // Mirrors scripts/build-content.mjs's rules so a mistake is caught while it is being
 // typed, not as a failed publish later. The build stays the backstop, never the first
-// place an error appears.
+// place an error appears. functions/api/admin/_lib/documents.js's validate() re-checks
+// the same rules on Publish — change one of the three, change all three.
 const FIELDS = [
   { key: 'phoneDisplay', label: 'Phone, as shown on the site', required: true, hint: 'e.g. 910 699 8434' },
   { key: 'phone', label: 'Phone, for the dial link', required: true, hint: 'With country code, e.g. +919106998434' },
@@ -23,27 +24,40 @@ const FIELDS = [
 const problem = (f, value) => {
   const v = (value ?? '').trim()
   if (!v) return f.required ? 'This can’t be empty.' : null
-  if (f.pattern && !f.pattern.test(v)) return f.patternError
+  // Tested untrimmed, exactly as the build and the Publish check test it: a trailing
+  // space passing here would only fail later, as a refused publish.
+  if (f.pattern && !f.pattern.test(value)) return f.patternError
   return null
 }
 
-export default function SettingsEditor({ onStateChange }) {
+// `locked` while a publish or undo is being confirmed or sent — the editor reloads right
+// after, so anything typed in that window would be lost. `live` picks the wording for
+// where published changes go.
+export default function SettingsEditor({ onStateChange, locked = false, live = false }) {
   const draft = useDraft('site', site)
-  const { doc, state, message, conflict, hasDraft, update, discard, keepTheirs, keepMine } = draft
+  const { doc, state, message, conflict, hasDraft, update, discard, keepTheirs, keepMine, reload } = draft
 
   // Reported through an effect, never during render: calling a parent's setState while
   // this component renders is the "cannot update a component while rendering a
   // different component" warning, and it can loop.
+  // Counted here, above the early returns, so the top bar can hold Publish back while a
+  // field is invalid — the server would refuse it anyway, but later and less clearly.
+  const problemCount = doc ? FIELDS.filter((f) => problem(f, doc.contact?.[f.key])).length : 0
   useEffect(() => {
-    onStateChange?.({ state, hasDraft })
-  }, [onStateChange, state, hasDraft])
+    onStateChange?.({ state, hasDraft, problems: problemCount })
+  }, [onStateChange, state, hasDraft, problemCount])
 
   if (state === 'loading') return <p className="admin-hint">Loading your draft…</p>
   if (!doc) {
     return (
-      <p className="admin-error" role="alert">
-        {message || 'Could not load your draft.'}
-      </p>
+      <>
+        <p className="admin-error" role="alert">
+          {message || 'Could not load your draft.'}
+        </p>
+        <button type="button" className="admin-btn admin-btn--quiet" onClick={reload}>
+          Try again
+        </button>
+      </>
     )
   }
 
@@ -73,7 +87,7 @@ export default function SettingsEditor({ onStateChange }) {
         </div>
       )}
 
-      <div className="admin-fields">
+      <fieldset className="admin-fields" disabled={locked}>
         {FIELDS.map((f) => {
           const err = problem(f, contact[f.key])
           return (
@@ -100,7 +114,7 @@ export default function SettingsEditor({ onStateChange }) {
             </div>
           )
         })}
-      </div>
+      </fieldset>
 
       {problems.length > 0 && (
         <p className="admin-note admin-note--warn">
@@ -111,8 +125,9 @@ export default function SettingsEditor({ onStateChange }) {
 
       {hasDraft && (
         <p className="admin-note">
-          These are unpublished changes — the live site still shows what was published.{' '}
-          <button type="button" className="admin-link" onClick={discard}>
+          These are unpublished changes — {live ? 'nirmalstudio.com' : 'the test copy of the site'} still shows what was
+          published.{' '}
+          <button type="button" className="admin-link" onClick={discard} disabled={locked}>
             Discard them
           </button>{' '}
           to go back to the published version.
