@@ -25,8 +25,11 @@ real PIN (2026-09-22), so the auth chain is proven on a real deployment.
    `functions/`, a draft saved on the preview would be pending on production, and Publish
    there would send it to `main` (the stale-base check catches most such drafts, but not
    all of them). Fix it with a separate D1 for preview (recommended; the deferred
-   decision) or a `branch` column on `drafts`. Then do the rest of step 7: referential
-   safety, upload staging, PIN change, and the review gate.
+   decision) or a `branch` column on `drafts`. Also in step 7: a pane switch during the
+   800ms autosave delay flushes the save from the editor that is unmounting, and if that
+   save hits a 409 the edit is lost silently. Warn, or hold the pane switch, while
+   `isEditorBusy()`. Then the rest: referential safety, upload staging, PIN change, and
+   the review gate.
 
 **Before any admin-test → main merge (the launch), also:** run
 `git diff main admin-test -- content/` (preview publishes are real commits and would carry
