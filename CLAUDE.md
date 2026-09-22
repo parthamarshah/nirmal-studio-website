@@ -428,8 +428,22 @@ Merging `admin-test` into `main` is therefore a **launch decision**, not a routi
 
 ## Phase 2 credentials (created 2026-09-20, stored in Parth's Apple Passwords)
 
-Never in the repo, never in chat. Both are saved in the **Passwords** app, and both go
-into Cloudflare as encrypted secrets when the `/admin` Functions are built.
+Never in the repo, never in chat. Both are saved in the **Passwords** app.
+
+**Where they are set (2026-09-22):** the **Preview** environment of the `nirmal-studio`
+Pages project has `ADMIN_PIN_HASH`, `GITHUB_TOKEN` and a preview-only `SESSION_SECRET`,
+all as encrypted secrets (`PUBLISH_BRANCH` comes from `wrangler.toml`). **Production has
+none of them, deliberately** — `main` has no `functions/`, and giving production its own
+secrets is part of the launch decision. With `wrangler.toml` present the dashboard
+accepts only secrets, not plain variables, and `wrangler pages secret put` (4.135) has
+no `--env` flag — so setting a *preview* secret is a dashboard step.
+
+**The PIN hash must be ≤ 100,000 PBKDF2 iterations.** Cloudflare Workers refuses
+anything higher (`deriveBits` throws; measured: 100000 → 200, 100001 → 500), and
+`wrangler pages dev` does not enforce it, so a too-strong hash works locally and fails on
+every real login. `npm run admin:secrets` hashes at exactly 100k; Parth re-ran it on
+2026-09-22 after the original 210k constant was found. `verifyPin` now rejects an
+out-of-range hash with a plain-English 503 instead of an uncaught throw.
 
 | what | where it's saved | scope |
 |---|---|---|
