@@ -172,6 +172,12 @@ export default function Shell({ session, onSignedOut }) {
   // can appear while its own pane is open (a save that lands after the editor reloaded, or
   // a pane that won't load), and then there is nothing else on screen to explain it.
   const unsavedPanes = parked.map(paneFor)
+  // Same rule as the Sign out button, read at the moment of the click rather than
+  // captured at render: changing the PIN signs everyone out too.
+  const unsavedReason = () =>
+    hasLeftUnsaved() || isSaveInFlight()
+      ? 'There’s a change that hasn’t finished saving. Save or discard it first — changing the PIN signs everyone out straight away.'
+      : null
   const holdingPublish = unsavedPanes.length
     ? `Can’t publish yet — a change in ${unsavedPanes.map((p) => p.label).join(' and ')} still needs saving.`
     : flushing
@@ -316,7 +322,7 @@ export default function Shell({ session, onSignedOut }) {
                 <SettingsEditor key={editorKey} onStateChange={onDraftState} locked={locked} live={live} />
                 {/* Not part of the draft: the PIN changes immediately, it is never
                     published, and it has nothing to do with the site's content. */}
-                <ChangePin onSignedOut={onSignedOut} />
+                <ChangePin onSignedOut={onSignedOut} locked={locked} busyElsewhere={unsavedReason} />
               </>
             )}
           </main>

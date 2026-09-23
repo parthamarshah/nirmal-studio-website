@@ -38,13 +38,33 @@ function weak(pin) {
   return null
 }
 
+// Records a failed attempt. Returns a Response when the attempt could NOT be recorded —
+// failing closed, per the same rule as the lock check above — and null otherwise.
+async function countFailure(db, ip) {
+  try {
+    await recordFailure(db, ip)
+    return null
+  } catch {
+    return json({ error: 'The admin database isn’t reachable right now, so this can’t be checked. Try again in a minute.' }, { status: 503 })
+  }
+}
+
 export async function onRequestPost(context) {
   const { request, env } = context
   const session = await requireSession(context)
   if (session instanceof Response) return session
 
   const ip = clientIp(request)
-  const lock = await checkLock(env.DB, ip)
+  // Fail CLOSED if the lockout can't be read or written (Parth's call, 2026-09-23): the
+  // lockout is the only real defence for a six-digit PIN, so when D1 can't count
+  // failures — the free tier's daily write budget is the way this happens — nothing is
+  // accepted rather than everything.
+  let lock
+  try {
+    lock = await checkLock(env.DB, ip)
+  } catch {
+    return json({ error: 'The admin database isn’t reachable right now, so this can’t be checked. Try again in a minute.' }, { status: 503 })
+  }
   if (lock.locked) {
     const minutes = Math.max(1, Math.ceil((lock.until - Date.now()) / 60_000))
     return json({ error: `Too many incorrect PINs. Try again in ${minutes} minute${minutes === 1 ? '' : 's'}.`, lockedUntil: lock.until }, { status: 429 })
@@ -72,8 +92,7 @@ export async function onRequestPost(context) {
   // admin app treats every 401 as "your session ended" and throws you back to the login
   // screen — losing the form, and misexplaining what happened.
   if (typeof currentPin !== 'string' || !SIX_DIGITS.test(currentPin)) {
-    await recordFailure(env.DB, ip)
-    return json({ error: 'That current PIN is not correct.' }, { status: 403 })
+    return (await countFailure(env.DB, ip)) ?? json({ error: 'That current PIN is not correct.' }, { status: 403 })
   }
 
   let stored
@@ -93,8 +112,22 @@ export async function onRequestPost(context) {
   }
 
   if (!correct) {
-    await recordFailure(env.DB, ip)
-    const after = await checkLock(env.DB, ip)
+    // A retry of a change that already succeeded looks exactly like a wrong PIN: the old
+    // one no longer verifies. Say what actually happened instead of burning an attempt on
+    // it — this is reachable whenever the first response was lost (see the guarded tail
+    // below), and the alternative is someone locking themselves out of a PIN they set.
+    let already = false
+    try {
+      already = await verifyPin(newPin, stored)
+    } catch {
+      already = false
+    }
+    if (already) {
+      return json({ ok: true, alreadyChanged: true, note: 'That change had already gone through — the new PIN is in force.' })
+    }
+    const refused = await countFailure(env.DB, ip)
+    if (refused) return refused
+    const after = await checkLock(env.DB, ip).catch(() => ({ locked: false }))
     if (after.locked) {
       const minutes = Math.max(1, Math.ceil((after.until - Date.now()) / 60_000))
       return json({ error: `That current PIN is not correct. Too many attempts — locked for ${minutes} minutes.`, lockedUntil: after.until }, { status: 429 })
@@ -106,9 +139,35 @@ export async function onRequestPost(context) {
   // session is dead and the old PIN is still the one that works — locked out of your own
   // site by the act of securing it.
   const hash = await hashPin(newPin)
-  await storePinHash(env.DB, hash)
-  await revokeAllSessions(env.DB)
-  await clearFailures(env.DB, ip)
+  let stored_ok
+  try {
+    stored_ok = await storePinHash(env.DB, hash, stored === env.ADMIN_PIN_HASH ? null : stored)
+  } catch {
+    return json({ error: 'The PIN could not be saved, so it has NOT changed. Nothing else was altered — try again in a minute.' }, { status: 503 })
+  }
+  if (!stored_ok) {
+    // Someone else changed the PIN between the check above and this write.
+    return json({ error: 'The PIN was changed somewhere else a moment ago, so this change was not applied. Ask the other person what it is now.' }, { status: 409 })
+  }
 
-  return json({ ok: true }, { headers: { 'Set-Cookie': clearedCookieHeader() } })
+  // Everything from here on is cleanup, and the PIN HAS ALREADY CHANGED. An uncaught
+  // throw here would reach the browser as a non-JSON 500, which the admin app classifies
+  // as "the backend isn't deployed" — telling the person the opposite of what happened,
+  // so they retry with the old PIN and lock themselves out of the PIN they just set.
+  const incomplete = []
+  try {
+    await revokeAllSessions(env.DB)
+  } catch {
+    incomplete.push('other devices may still be signed in')
+  }
+  try {
+    await clearFailures(env.DB, ip)
+  } catch {
+    // Nothing to tell the user: at worst an old failure count lingers and expires.
+  }
+
+  return json(
+    { ok: true, ...(incomplete.length ? { warning: `The PIN changed, but ${incomplete.join(' and ')}. Try signing out on those devices.` } : {}) },
+    { headers: { 'Set-Cookie': clearedCookieHeader() } },
+  )
 }

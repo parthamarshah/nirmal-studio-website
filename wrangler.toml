@@ -56,9 +56,10 @@ binding = "UPLOADS"
 id = "0e6f4561ba3d42acb4725a6a5b0eea91"
 
 # Production. PUBLISH_BRANCH is main here and only here — the one place a Publish
-# changes what visitors see. Its own D1 (`nirmal-studio-admin-production`, both
-# migrations applied --remote on 2026-09-22) and its own KV (`UPLOADS_PRODUCTION`). Apply
-# every future migration to BOTH databases with --remote before pushing code that uses it.
+# changes what visitors see. Its own D1 (`nirmal-studio-admin-production`) and its own KV
+# (`UPLOADS_PRODUCTION`). Every migration in migrations/ has been applied --remote to both
+# databases; apply each new one the same way (`npm run admin:migrate:remote -- <file>`)
+# BEFORE pushing the code that uses it.
 [env.production.vars]
 PUBLISH_BRANCH = "main"
 

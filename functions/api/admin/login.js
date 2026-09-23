@@ -50,7 +50,18 @@ export async function onRequestPost(context) {
     )
   }
 
-  const lock = await checkLock(env.DB, ip)
+  // Fail CLOSED when the lockout can't be read or written (Parth's call, 2026-09-23).
+  // The lockout is the whole defence for a six-digit PIN; if D1 can't count failures —
+  // the free tier's daily write budget is how that happens — refusing everyone for a
+  // while is the lesser harm against unmetered guessing. The public site is static and
+  // completely unaffected either way.
+  const UNAVAILABLE = 'Signing in isn’t available for a moment — the admin database isn’t answering. The site itself is unaffected. Try again shortly.'
+  let lock
+  try {
+    lock = await checkLock(env.DB, ip)
+  } catch {
+    return json({ error: UNAVAILABLE }, { status: 503 })
+  }
   if (lock.locked) {
     const minutes = Math.max(1, Math.ceil((lock.until - Date.now()) / 60_000))
     return json(
@@ -66,11 +77,20 @@ export async function onRequestPost(context) {
     return json({ error: 'Expected JSON.' }, { status: 400 })
   }
 
+  // A JSON number is accepted as the same PIN: `{"pin": 123456}` is a client bug, not a
+  // guess, and refusing it burned a lockout attempt on the real user. Leading zeros can't
+  // survive as a number, so only a six-digit number qualifies — anything else still fails.
+  if (typeof pin === 'number' && Number.isInteger(pin) && /^\d{6}$/.test(String(pin))) pin = String(pin)
+
   // Check the shape before hashing: PBKDF2 is intentionally slow, so making it run on
   // obvious junk is free denial-of-service. This costs nothing and is not a timing leak
   // — the format of a PIN is not a secret.
   if (typeof pin !== 'string' || !/^\d{6}$/.test(pin)) {
-    await recordFailure(env.DB, ip)
+    try {
+      await recordFailure(env.DB, ip)
+    } catch {
+      return json({ error: UNAVAILABLE }, { status: 503 })
+    }
     return json({ error: 'That PIN is not correct.' }, { status: 401 })
   }
 
@@ -87,8 +107,12 @@ export async function onRequestPost(context) {
   }
 
   if (!correct) {
-    await recordFailure(env.DB, ip)
-    const after = await checkLock(env.DB, ip)
+    try {
+      await recordFailure(env.DB, ip)
+    } catch {
+      return json({ error: UNAVAILABLE }, { status: 503 })
+    }
+    const after = await checkLock(env.DB, ip).catch(() => ({ locked: false }))
     if (after.locked) {
       const minutes = Math.max(1, Math.ceil((after.until - Date.now()) / 60_000))
       return json({ error: `That PIN is not correct. Too many attempts — locked for ${minutes} minutes.`, lockedUntil: after.until }, { status: 429 })
@@ -96,7 +120,9 @@ export async function onRequestPost(context) {
     return json({ error: 'That PIN is not correct.' }, { status: 401 })
   }
 
-  await clearFailures(env.DB, ip)
+  // Best-effort: a stale failure count expires on its own, and refusing a correct PIN
+  // over bookkeeping would be the fail-closed rule applied where it buys nothing.
+  await clearFailures(env.DB, ip).catch(() => {})
   const id = await createSession(env.DB, { userAgent: request.headers.get('User-Agent') })
   const signed = await signSessionId(env.SESSION_SECRET, id)
 

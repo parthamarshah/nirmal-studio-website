@@ -163,6 +163,37 @@ check "the new PIN works"                    "$(code -X POST -H "$J" -d "{\"pin\
 npx wrangler d1 execute nirmal-studio-admin --local --command "DELETE FROM settings WHERE key = 'pin_hash'" -y >/dev/null 2>&1
 check "removing the stored PIN restores the deployment's own" "$(code -X POST -H "$J" -d "{\"pin\":\"$TEST_PIN\"}" $BASE/login)" 200
 
+echo "--- the PIN form shares the lockout (no counter wiped first) ---"
+# Deliberately NOT clearing login_attempts around these: the point is that a wrong current
+# PIN in the change form counts toward the same lockout /login uses. Removing recordFailure
+# from pin.js used to leave every check in this file passing.
+npx wrangler d1 execute nirmal-studio-admin --local --command "DELETE FROM login_attempts" -y >/dev/null 2>&1
+code -D "$TMP/h4" -X POST -H "$J" -d "{\"pin\":\"$TEST_PIN\"}" $BASE/login > /dev/null
+COOKIE4=$(grep -i '^set-cookie:' "$TMP/h4" | sed 's/[Ss]et-[Cc]ookie: //' | cut -d';' -f1)
+for _ in 1 2 3 4; do
+  code -X POST -H "$J" -H "Cookie: $COOKIE4" --data-binary "{\"currentPin\":\"000001\",\"newPin\":\"$NEW_PIN\"}" "$BASE/pin" > /dev/null
+done
+FIFTH=$(code -X POST -H "$J" -H "Cookie: $COOKIE4" --data-binary "{\"currentPin\":\"000001\",\"newPin\":\"$NEW_PIN\"}" "$BASE/pin")
+check "a 5th wrong current PIN is locked out (429)" "$FIFTH" 429
+check "and /login is locked too — same buckets" "$(code -X POST -H "$J" -d "{\"pin\":\"$TEST_PIN\"}" $BASE/login)" 429
+npx wrangler d1 execute nirmal-studio-admin --local --command "DELETE FROM login_attempts WHERE bucket LIKE 'ip:%'" -y >/dev/null 2>&1
+check "signing in clears the global bucket its typos filled" "$(code -X POST -H "$J" -d "{\"pin\":\"$TEST_PIN\"}" $BASE/login)" 200
+GLOBAL_LEFT=$(npx wrangler d1 execute nirmal-studio-admin --local --json --command "SELECT COUNT(*) c FROM login_attempts WHERE bucket = 'global'" -y 2>/dev/null | python3 -c "import sys,json; print(json.load(sys.stdin)[0]['results'][0]['c'])" 2>/dev/null)
+check "nothing left in the global bucket" "${GLOBAL_LEFT:-none}" 0
+
+echo "--- a session in use renews itself ---"
+code -D "$TMP/h5" -X POST -H "$J" -d "{\"pin\":\"$TEST_PIN\"}" $BASE/login > /dev/null
+COOKIE5=$(grep -i '^set-cookie:' "$TMP/h5" | sed 's/[Ss]et-[Cc]ookie: //' | cut -d';' -f1)
+SID=${COOKIE5#*=}; SID=${SID%.*}
+EXPIRES_BEFORE=$(npx wrangler d1 execute nirmal-studio-admin --local --json --command "SELECT expires_at e FROM sessions WHERE id = '$SID'" -y 2>/dev/null | python3 -c "import sys,json; print(json.load(sys.stdin)[0]['results'][0]['e'])" 2>/dev/null)
+# Pretend the session was last used two hours ago — the renewal is hourly, so a fresh one
+# would not renew and this check would prove nothing.
+npx wrangler d1 execute nirmal-studio-admin --local --command "UPDATE sessions SET last_seen_at = last_seen_at - 7200000, expires_at = expires_at - 7200000 WHERE id = '$SID'" -y >/dev/null 2>&1
+code -H "Cookie: $COOKIE5" $BASE/me > /dev/null
+EXPIRES_AFTER=$(npx wrangler d1 execute nirmal-studio-admin --local --json --command "SELECT expires_at e FROM sessions WHERE id = '$SID'" -y 2>/dev/null | python3 -c "import sys,json; print(json.load(sys.stdin)[0]['results'][0]['e'])" 2>/dev/null)
+RENEWED=$([ "${EXPIRES_AFTER:-0}" -gt "${EXPIRES_BEFORE:-0}" ] && echo yes || echo no)
+check "using it pushes the 30 days out again" "$RENEWED" yes
+
 echo
 echo "passed: $pass   failed: $fail"
 [ "$fail" -eq 0 ] || exit 1

@@ -1,18 +1,24 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { api, ApiError } from './api.js'
 
 // Changing the PIN signs everyone out — including the person doing it. Everything here is
 // shaped around making that expected rather than alarming: it is stated before the form
 // is opened, restated on the button, and the sign-out that follows is presented as the
 // change having worked.
-export default function ChangePin({ onSignedOut }) {
+export default function ChangePin({ onSignedOut, busyElsewhere, locked = false }) {
   const [open, setOpen] = useState(false)
   const [currentPin, setCurrentPin] = useState('')
   const [newPin, setNewPin] = useState('')
   const [confirmPin, setConfirmPin] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
+  const [warning, setWarning] = useState(null)
   const [done, setDone] = useState(false)
+  // The sign-out is on a timer so the confirmation can be read. If this pane is left
+  // first, that timer must not fire a sign-out from a screen that never mentioned the
+  // PIN — and on this pane, leaving means the component is gone.
+  const signOutTimer = useRef(null)
+  useEffect(() => () => clearTimeout(signOutTimer.current), [])
 
   const digitsOnly = (v) => v.replace(/\D/g, '').slice(0, 6)
   const ready = currentPin.length === 6 && newPin.length === 6 && confirmPin.length === 6
@@ -34,15 +40,25 @@ export default function ChangePin({ onSignedOut }) {
       setError('The two new PINs don’t match.')
       return
     }
+    // Changing the PIN signs everyone out immediately, so it must not happen on top of
+    // work that hasn't reached the server — the same rule the Sign out button follows.
+    const blocked = busyElsewhere?.()
+    if (blocked) {
+      setError(blocked)
+      return
+    }
     setBusy(true)
     setError(null)
     try {
-      await api('pin', { method: 'POST', body: { currentPin, newPin } })
+      const res = await api('pin', { method: 'POST', body: { currentPin, newPin } })
+      // The server reports a PIN that changed but whose cleanup didn't finish; saying so
+      // beats a bare success the person can't act on.
+      if (res?.warning) setWarning(res.warning)
       setDone(true)
       // The session this page is holding was just revoked, so the app has to go back to
       // the login screen. Long enough to read what happened, short enough not to invite
       // clicking anything else first.
-      setTimeout(() => onSignedOut(), 2500)
+      signOutTimer.current = setTimeout(() => onSignedOut(), 2500)
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not change the PIN.')
       setBusy(false)
@@ -54,8 +70,8 @@ export default function ChangePin({ onSignedOut }) {
       <section className="admin-pin" aria-live="polite">
         <h2>PIN changed</h2>
         <p className="admin-hint">
-          Everyone signed in has been signed out, here and on any other device. Signing you back in
-          now — use the new PIN.
+          {warning || 'Everyone signed in has been signed out, here and on any other device.'} Signing
+          you back in now — use the new PIN.
         </p>
       </section>
     )
@@ -64,7 +80,11 @@ export default function ChangePin({ onSignedOut }) {
   return (
     <section className="admin-pin">
       <h2>PIN</h2>
-      {!open ? (
+      {locked ? (
+        <p className="admin-hint">
+          The PIN can’t be changed while a publish is going out. This will come back in a moment.
+        </p>
+      ) : !open ? (
         <>
           <p className="admin-hint">
             The 6-digit PIN you and Tej use to open this admin. Changing it signs everyone out, on

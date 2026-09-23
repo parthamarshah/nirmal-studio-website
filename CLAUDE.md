@@ -469,6 +469,20 @@ secrets is part of the launch decision. With `wrangler.toml` present the dashboa
 accepts only secrets, not plain variables, and `wrangler pages secret put` (4.135) has
 no `--env` flag — so setting a *preview* secret is a dashboard step.
 
+**The PIN can be changed from inside `/admin` (Settings → PIN) since 2026-09-23.** That
+stores a new hash in D1 (`settings.pin_hash`), which **outranks `ADMIN_PIN_HASH`**, and
+signs every session out. Two consequences worth knowing before you need them:
+
+- **`ADMIN_PIN_HASH` stays a break-glass PIN.** Deleting the stored row puts it back in
+  force, which is the recovery path — so a PIN changed *because the old one leaked* is not
+  fully retired until that secret is rotated in the dashboard too.
+- **Locked out? The runbook:**
+  `npx wrangler d1 execute nirmal-studio-admin --remote --command "DELETE FROM settings WHERE key='pin_hash'" -y`
+  (`nirmal-studio-admin-production` for the live site) restores the deployment's own PIN
+  immediately. If that secret is missing or also unusable, `npm run admin:secrets` first
+  and set it in the dashboard. A 15-minute lockout clears with
+  `DELETE FROM login_attempts` on the same database, or by waiting.
+
 **The PIN hash must be ≤ 100,000 PBKDF2 iterations.** Cloudflare Workers refuses
 anything higher (`deriveBits` throws; measured: 100000 → 200, 100001 → 500), and
 `wrangler pages dev` does not enforce it, so a too-strong hash works locally and fails on

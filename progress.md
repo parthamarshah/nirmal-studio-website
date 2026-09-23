@@ -46,7 +46,7 @@ real PIN (2026-09-22), so the auth chain is proven on a real deployment.
    without that it passed on the broken code too. Then: PIN change (revokes all sessions), the four deferred
    login/session findings under "decide these before production" (lockout fails open when
    D1 writes run out; no pruning; no session renewal; a numeric PIN burns attempts), and
-   the review gate.
+   the review gate. **PIN change done 2026-09-23** — see STEP 7 below.
 
 **Before any admin-test → main merge (the launch), also:** run
 `git diff main admin-test -- content/` (preview publishes are real commits and would carry
@@ -57,6 +57,17 @@ cherry-pick `functions/` onto `main` without the new `wrangler.toml`, because `m
 still points production at the preview's database. After launch: `npm run check:domains`,
 sign in on nirmalstudio.com/admin, then `npx wrangler d1 execute DB --remote --env production
 --command "SELECT COUNT(*) FROM sessions"` should be 1 (proves production uses its own DB).
+
+**STEP 7 IN PROGRESS.** Done so far: the production D1/KV split, the pane-switch edit-loss
+fix, and **changing the PIN from Settings** (migration `0003_admin_settings.sql`, applied
+`--remote` to both databases). The stored hash outranks `ADMIN_PIN_HASH`, so that secret is
+now a break-glass PIN — the recovery runbook is in CLAUDE.md, and rotating it is part of the
+launch checklist if the PIN is ever changed because the old one leaked. Two review rounds on
+this one: the endpoint's write tail is now guarded (a failure after the hash was stored used
+to surface as "the backend isn't running", so the person retried with the old PIN and locked
+themselves out of the PIN they had just set), the store is a compare-and-set, and a retry of
+a change that already went through is recognised instead of counted as a wrong PIN.
+**Still in step 7:** the review gate on the whole branch, then the launch decision.
 
 **STEP 6 DONE (2026-09-22): Publish, Undo, "is it live yet?"** It's on `admin-test` and
 still needs Parth's live check (START HERE item 2).
@@ -426,12 +437,16 @@ tests for malformed hashes, which need no server, plus 23 integration tests).
   its own D1 and KV, so a scanner on the preview login can no longer lock out the live
   /admin. **Still open:** production's `SESSION_SECRET` must be a *new* value, not the
   preview's, so a preview cookie can never be valid on production.
-- **The lockout fails open if D1 runs out of writes.** Each failed login writes 2 rows;
-  the free tier allows ~100k/day. Past that `recordFailure` throws, the counter stops
-  climbing, and guessing proceeds unmetered. Needs a deliberate call, not a patch.
-- Neither `login_attempts` nor `sessions` is ever pruned; sessions expire at 30 days with
-  no renewal (an editor gets logged out mid-edit); and a client-side bug sending
-  `{"pin": 123456}` as a *number* burns lockout attempts like a wrong PIN.
+- ~~The lockout fails open if D1 runs out of writes~~ — **decided by Parth 2026-09-23:
+  fail CLOSED.** If a failed attempt can't be read or recorded, `/login` and `/api/admin/pin`
+  answer 503 and accept nobody, rather than letting guessing proceed unmetered. The public
+  site is static and unaffected; the cost is that a D1 outage takes /admin offline. The
+  recovery is the runbook in CLAUDE.md.
+- ~~Nothing is pruned; sessions never renew; a numeric `pin` burns attempts~~ — **all three
+  fixed 2026-09-23.** A session in use renews to 30 days from the last visit (Parth's call)
+  and the same hourly write prunes expired and long-revoked sessions; `clearFailures` now
+  clears the `global` bucket its own typos filled; `{"pin": 123456}` as a JSON number is
+  read as that PIN instead of counting as a wrong one.
 
 **A trap for the admin frontend (step 4), found by the impact review:** unmatched paths
 return **200 with the homepage HTML**, not 404 — there is no `404.html`, so Pages falls

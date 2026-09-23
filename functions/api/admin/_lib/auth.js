@@ -37,28 +37,35 @@ const PIN_HASH_BYTES = 32
 // gets debugged for hours. Callers turn this into a plain 503 that says what to fix.
 export class PinHashUnusable extends Error {}
 
+// Where to look when the stored hash is unusable. Since the PIN can now be changed from
+// /admin, the hash in force may be the D1 row rather than the deployment's secret — and
+// the row outranks the secret, so "re-run admin:secrets" on its own is an instruction
+// that cannot fix it. Every PinHashUnusable message ends with this.
+const FIX_HINT =
+  'Fix it by removing the stored PIN (DELETE FROM settings WHERE key = \'pin_hash\' on that environment\'s D1), which puts the deployment\'s own ADMIN_PIN_HASH secret back in force; if that secret is missing or also unusable, run "npm run admin:secrets" and set it.'
+
 // Stored format: pbkdf2$sha256$<iterations>$<salt b64>$<hash b64>. Parameters travel
 // with the hash, so iterations can be changed later without invalidating existing PINs
 // — which matters if the platform ceiling above ever moves.
 export async function verifyPin(pin, stored) {
   const parts = String(stored || '').split('$')
-  if (parts.length !== 5) throw new PinHashUnusable('ADMIN_PIN_HASH is not in the expected pbkdf2$sha256$<iterations>$<salt>$<hash> format.')
+  if (parts.length !== 5) throw new PinHashUnusable(`The stored PIN is not in the expected pbkdf2$sha256$<iterations>$<salt>$<hash> format. ${FIX_HINT}`)
   const [scheme, algo, iterations, saltB64, hashB64] = parts
-  if (scheme !== 'pbkdf2' || algo !== 'sha256') throw new PinHashUnusable(`ADMIN_PIN_HASH uses an unsupported scheme (${scheme}/${algo}); expected pbkdf2/sha256.`)
+  if (scheme !== 'pbkdf2' || algo !== 'sha256') throw new PinHashUnusable(`The stored PIN uses an unsupported scheme (${scheme}/${algo}); expected pbkdf2/sha256. ${FIX_HINT}`)
 
   const rounds = Number(iterations)
   if (!Number.isInteger(rounds) || rounds < 1 || rounds > MAX_PBKDF2_ITERATIONS) {
-    throw new PinHashUnusable(`ADMIN_PIN_HASH asks for ${iterations} PBKDF2 iterations; Cloudflare Workers supports at most ${MAX_PBKDF2_ITERATIONS}. Re-run "npm run admin:secrets" and set the new hash.`)
+    throw new PinHashUnusable(`The stored PIN asks for ${iterations} PBKDF2 iterations; Cloudflare Workers supports at most ${MAX_PBKDF2_ITERATIONS}. ${FIX_HINT}`)
   }
 
   let expected
   try {
     expected = base64ToBytes(hashB64)
   } catch {
-    throw new PinHashUnusable('ADMIN_PIN_HASH ends in something that is not valid base64.')
+    throw new PinHashUnusable(`The stored PIN ends in something that is not valid base64. ${FIX_HINT}`)
   }
   if (expected.length !== PIN_HASH_BYTES) {
-    throw new PinHashUnusable(`ADMIN_PIN_HASH holds a ${expected.length}-byte hash; ${PIN_HASH_BYTES} bytes are required. It was probably truncated when it was copied.`)
+    throw new PinHashUnusable(`The stored PIN holds a ${expected.length}-byte hash; ${PIN_HASH_BYTES} bytes are required — it was probably truncated when it was copied. ${FIX_HINT}`)
   }
 
   const key = await crypto.subtle.importKey('raw', encoder.encode(pin), 'PBKDF2', false, ['deriveBits'])
@@ -105,11 +112,25 @@ export async function currentPinHash(env) {
   return env.ADMIN_PIN_HASH || null
 }
 
-export const storePinHash = (db, hash) =>
-  db
-    .prepare('INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at')
-    .bind(PIN_KEY, hash, Date.now())
+// Compare-and-set against the hash the caller verified against, so two people changing
+// the PIN at the same moment don't both get told it worked while only the second one's
+// PIN exists. `expected` is null when no row existed (the env secret was in force).
+// Returns false if someone got there first.
+export async function storePinHash(db, hash, expected) {
+  const now = Date.now()
+  if (expected == null) {
+    const r = await db
+      .prepare('INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO NOTHING')
+      .bind(PIN_KEY, hash, now)
+      .run()
+    return !!r.meta?.changes
+  }
+  const r = await db
+    .prepare('UPDATE settings SET value = ?, updated_at = ? WHERE key = ? AND value = ?')
+    .bind(hash, now, PIN_KEY, expected)
     .run()
+  return !!r.meta?.changes
+}
 
 // Constant-time compare. `===` on hex/base64 strings leaks how many leading characters
 // matched, which over many attempts narrows the search — cheap to avoid, so avoid it.
@@ -220,12 +241,23 @@ export async function getSession(env, request) {
   const row = await env.DB.prepare('SELECT * FROM sessions WHERE id = ?').bind(id).first()
   if (!row || row.revoked_at || row.expires_at < Date.now()) return null
 
-  // Touch last_seen_at at most hourly. Writing on every request would burn D1's free-tier
-  // write budget on a value nothing needs to the second. Nothing reads it either, so a
-  // failure here must never cost someone a valid session — hence the swallowed catch.
+  // Touch last_seen_at at most hourly, and extend the expiry with it: a session that is
+  // in use renews (Parth's call, 2026-09-23), so the 30 days run from the last visit
+  // rather than from the first — being signed out mid-edit because you started editing 30
+  // days ago is the failure this removes. Writing on every request would burn D1's
+  // free-tier write budget on a value nothing needs to the second. Nothing here is load-
+  // bearing for THIS request, so a failure must never cost someone a valid session.
   if (Date.now() - row.last_seen_at > 3600_000) {
+    const now = Date.now()
     try {
-      await env.DB.prepare('UPDATE sessions SET last_seen_at = ? WHERE id = ?').bind(Date.now(), id).run()
+      await env.DB.prepare('UPDATE sessions SET last_seen_at = ?, expires_at = ? WHERE id = ?')
+        .bind(now, now + SESSION_DAYS * 86400_000, id)
+        .run()
+      // Cheap enough to ride along with a write that already happens at most hourly, and
+      // it is the only thing that stops `sessions` growing for the life of the project.
+      await env.DB.prepare('DELETE FROM sessions WHERE expires_at < ? OR (revoked_at IS NOT NULL AND revoked_at < ?)')
+        .bind(now, now - 7 * 86400_000)
+        .run()
     } catch {
       // bookkeeping only
     }
@@ -289,8 +321,11 @@ export async function recordFailure(db, ip) {
   }
 }
 
+// The global bucket is cleared too. Without that, failures from one person's typos
+// accumulate there forever — a successful sign-in proves the person knows the PIN, and
+// leaving their own contribution behind eventually locks everyone out for no reason.
 export const clearFailures = (db, ip) =>
-  db.prepare('DELETE FROM login_attempts WHERE bucket = ?').bind(`ip:${ip}`).run()
+  db.prepare('DELETE FROM login_attempts WHERE bucket IN (?, ?)').bind(`ip:${ip}`, 'global').run()
 
 export const clientIp = (request) =>
   request.headers.get('CF-Connecting-IP') || request.headers.get('X-Forwarded-For')?.split(',')[0]?.trim() || 'unknown'
