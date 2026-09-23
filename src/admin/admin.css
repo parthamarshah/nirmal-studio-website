@@ -373,6 +373,32 @@ button {
   margin-top: 12px;
 }
 
+/* The PIN block sits under the settings fields but is not one of them: it is not part of
+   the draft, and it is the only control in the tool that signs people out. Separated by a
+   rule and its own heading so it can't be mistaken for another field to fill in. */
+.admin-pin {
+  max-width: 44rem;
+  margin-top: var(--space-lg);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--admin-line);
+}
+
+.admin-pin h2 {
+  margin: 0 0 6px;
+  font-size: 15px;
+}
+
+.admin-pin .admin-fields {
+  margin-top: var(--space-sm);
+}
+
+.admin-pin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  margin-top: var(--space-sm);
+}
+
 .admin-btn {
   min-height: 40px;
   padding: 8px 14px;

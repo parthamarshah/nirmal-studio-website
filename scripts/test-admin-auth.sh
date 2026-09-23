@@ -52,8 +52,11 @@ if ! curl -sf --max-time 2 "http://127.0.0.1:$PORT/" >/dev/null 2>&1; then
 fi
 
 # Lockout state persists in the local D1 between runs; a previous run's failures would
-# otherwise lock this one out before it starts.
+# otherwise lock this one out before it starts. The PIN row matters more: once the change-
+# PIN tests below have run, a stored hash outranks ADMIN_PIN_HASH, so leaving it behind
+# would make every later run sign in with the wrong PIN.
 npx wrangler d1 execute nirmal-studio-admin --local --command "DELETE FROM login_attempts" -y >/dev/null 2>&1
+npx wrangler d1 execute nirmal-studio-admin --local --command "DELETE FROM settings WHERE key = 'pin_hash'" -y >/dev/null 2>&1
 
 pass=0; fail=0
 check() {
@@ -130,6 +133,35 @@ echo "--- signing out revokes server-side ---"
 COOKIE2=$(grep -i '^set-cookie:' "$TMP/h" | sed 's/[Ss]et-[Cc]ookie: //' | cut -d';' -f1)
 code -X POST -H "Cookie: $COOKIE2" $BASE/logout > /dev/null
 check "cookie is dead after logout" "$(code -H "Cookie: $COOKIE2" $BASE/me)" 401
+
+echo "--- changing the PIN ---"
+NEW_PIN=735412
+npx wrangler d1 execute nirmal-studio-admin --local --command "DELETE FROM login_attempts" -y >/dev/null 2>&1
+check "changing the PIN needs a session" "$(code -X POST -H "$J" -d "{\"currentPin\":\"$TEST_PIN\",\"newPin\":\"$NEW_PIN\"}" $BASE/pin)" 401
+code -D "$TMP/h3" -X POST -H "$J" -d "{\"pin\":\"$TEST_PIN\"}" $BASE/login > /dev/null
+COOKIE3=$(grep -i '^set-cookie:' "$TMP/h3" | sed 's/[Ss]et-[Cc]ookie: //' | cut -d';' -f1)
+PIN_POST() { code -X POST -H "$J" -H "Cookie: $COOKIE3" --data-binary "$1" "$BASE/pin"; }
+# 403, not 401: a wrong CURRENT pin must not read as "your session ended" — the admin app
+# bounces to the login screen on any 401.
+check "wrong current PIN is refused (403, not 401)" "$(PIN_POST "{\"currentPin\":\"000001\",\"newPin\":\"$NEW_PIN\"}")" 403
+check "a six-times-repeated new PIN is refused"     "$(PIN_POST "{\"currentPin\":\"$TEST_PIN\",\"newPin\":\"111111\"}")" 400
+check "a straight run is refused"                   "$(PIN_POST "{\"currentPin\":\"$TEST_PIN\",\"newPin\":\"123456\"}")" 400
+check "a 5-digit new PIN is refused"                "$(PIN_POST "{\"currentPin\":\"$TEST_PIN\",\"newPin\":\"12345\"}")" 400
+check "the same PIN again is refused"               "$(PIN_POST "{\"currentPin\":\"$TEST_PIN\",\"newPin\":\"$TEST_PIN\"}")" 400
+npx wrangler d1 execute nirmal-studio-admin --local --command "DELETE FROM login_attempts" -y >/dev/null 2>&1
+# Run first, checked second. Called inline as check's argument, this request reported 200
+# while the PIN had not changed and no session had been revoked — the three assertions
+# after it then failed. Keep the assignment.
+CHANGE_CODE=$(PIN_POST "{\"currentPin\":\"$TEST_PIN\",\"newPin\":\"$NEW_PIN\"}")
+check "the PIN changes"                             "$CHANGE_CODE" 200
+check "the session that changed it is dead"  "$(code -H "Cookie: $COOKIE3" $BASE/me)" 401
+check "the session opened earlier is dead too" "$(code -H "Cookie: $COOKIE" $BASE/me)" 401
+check "the old PIN no longer works"          "$(code -X POST -H "$J" -d "{\"pin\":\"$TEST_PIN\"}" $BASE/login)" 401
+check "the new PIN works"                    "$(code -X POST -H "$J" -d "{\"pin\":\"$NEW_PIN\"}" $BASE/login)" 200
+# The stored hash outranks ADMIN_PIN_HASH, which is what makes a changed PIN survive a
+# redeploy. Removing the row puts the deployment's own secret back in force.
+npx wrangler d1 execute nirmal-studio-admin --local --command "DELETE FROM settings WHERE key = 'pin_hash'" -y >/dev/null 2>&1
+check "removing the stored PIN restores the deployment's own" "$(code -X POST -H "$J" -d "{\"pin\":\"$TEST_PIN\"}" $BASE/login)" 200
 
 echo
 echo "passed: $pass   failed: $fail"

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { logout, ApiError } from './api.js'
 import { people, foundersReady, projectsIncludingHidden, STATUS_LABELS } from '../lib/content.js'
 import SettingsEditor from './SettingsEditor.jsx'
+import ChangePin from './ChangePin.jsx'
 import { usePublish } from './usePublish.js'
 import { discardLeftUnsaved, hasLeftUnsaved, isSaveInFlight, useDraftActivity } from './useDraft.js'
 
@@ -310,7 +311,14 @@ export default function Shell({ session, onSignedOut }) {
           <main className="admin-main">
             {section === 'projects' && <Projects />}
             {section === 'founders' && <Founders />}
-            {section === 'settings' && <SettingsEditor key={editorKey} onStateChange={onDraftState} locked={locked} live={live} />}
+            {section === 'settings' && (
+              <>
+                <SettingsEditor key={editorKey} onStateChange={onDraftState} locked={locked} live={live} />
+                {/* Not part of the draft: the PIN changes immediately, it is never
+                    published, and it has nothing to do with the site's content. */}
+                <ChangePin onSignedOut={onSignedOut} />
+              </>
+            )}
           </main>
 
           <aside className="admin-inspector" aria-label="Inspector">

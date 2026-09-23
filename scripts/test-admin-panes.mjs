@@ -192,6 +192,33 @@ try {
   await click('Discard them')
   check('F: discard works with no version of its own', await waitFor(`document.getElementById('f-addressShort')?.value === ${JSON.stringify(publishedShort)}`, 10000), String(await fieldVal()) + ' | ' + (await text()).slice(0, 200))
   check('F: nothing left parked', !(await ev(`!!document.querySelector('.admin-pubbar--unsaved')`)))
+  // ── G: changing the PIN from the Settings pane. Last, because it signs this session
+  // out — which is the point of it, and the thing most worth seeing actually happen.
+  await click('Settings')
+  check('G: the PIN section is on the settings pane', await waitFor(`!!document.getElementById('f-addressShort') && document.body.innerText.includes('Changing it signs everyone out')`))
+  await click('Change PIN')
+  check('G: the form opens', await waitFor(`!!document.getElementById('pin-current')`))
+  const typeInto = async (id, value) => {
+    await ev(`(() => { const el = document.getElementById(${JSON.stringify(id)}); el.focus(); el.select() })()`)
+    await cdp('Input.insertText', { text: value })
+  }
+  await typeInto('pin-current', PIN)
+  await typeInto('pin-new', '735412')
+  await typeInto('pin-confirm', '735419')
+  await click('Change PIN and sign everyone out')
+  check('G: a mismatched confirmation is caught before it is sent', await waitFor(`document.body.innerText.includes('don’t match')`))
+  await typeInto('pin-confirm', '735412')
+  await typeInto('pin-current', '000001')
+  await click('Change PIN and sign everyone out')
+  check('G: a wrong current PIN is refused without signing you out', await waitFor(`document.body.innerText.includes('current PIN is not correct')`))
+  check('G: still signed in after that refusal', (await ev(`fetch('/api/admin/me').then((r) => r.status)`)) === 200)
+  await typeInto('pin-current', PIN)
+  await click('Change PIN and sign everyone out')
+  check('G: it confirms the change', await waitFor(`document.body.innerText.includes('PIN changed')`))
+  check('G: this session was signed out', await waitFor(`fetch('/api/admin/me').then((r) => r.status === 401)`, 5000))
+  check('G: the login screen comes back', await waitFor(`document.body.innerText.includes('Sign in to edit the site')`, 8000))
+  check('G: the old PIN no longer works', (await api('login', { method: 'POST', body: { pin: PIN } })).status === 401)
+  check('G: the new PIN does', (await api('login', { method: 'POST', body: { pin: '735412' } })).status === 200)
 } catch (e) { console.log('✗ threw', e.message); fails++ }
 finally { ws?.close(); chrome.kill('SIGKILL') }
 console.log(fails ? `\n${fails} failed` : '\nall passed'); process.exit(fails ? 1 : 0)

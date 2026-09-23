@@ -20,11 +20,14 @@ pkill -f "wrangler pages dev" 2>/dev/null; sleep 1
 npx wrangler pages dev --port 8788 > "$TMP/dev.log" 2>&1 &
 for _ in $(seq 1 60); do sleep 1; curl -sf --max-time 2 http://127.0.0.1:8788/ >/dev/null 2>&1 && break; done
 D1() { npx wrangler d1 execute nirmal-studio-admin --local --command "$1" -y >/dev/null 2>&1; }
-D1 "DELETE FROM login_attempts"; D1 "DELETE FROM drafts"; D1 "DELETE FROM publishes WHERE branch = 'admin-test'"
+D1 "DELETE FROM login_attempts"; D1 "DELETE FROM drafts"; D1 "DELETE FROM settings WHERE key = 'pin_hash'"; D1 "DELETE FROM publishes WHERE branch = 'admin-test'"
 # One past publish, so the publish strip ("Last published …") is on screen like it is in
 # real use. Without it the unsaved-edit bar is the only strip, and the layout bug it is
 # checked against — a second strip pushed below the panes — cannot appear at all.
 D1 "INSERT INTO publishes (commit_sha, branch, summary, files, parent_sha, created_at, kind) VALUES ('1111111111111111111111111111111111111111', 'admin-test', 'Studio settings — short address', '[]', '2222222222222222222222222222222222222222', $(( $(date +%s) * 1000 - 600000 )), 'publish')"
 PROFILE="$PROFILE" node scripts/test-admin-panes.mjs; rc=$?
 D1 "DELETE FROM drafts"
+# The PIN test stores a new hash, which outranks ADMIN_PIN_HASH — leaving it behind would
+# break the next run's sign-in.
+D1 "DELETE FROM settings WHERE key = 'pin_hash'"
 exit $rc

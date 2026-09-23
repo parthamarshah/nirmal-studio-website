@@ -1,4 +1,5 @@
 import {
+  currentPinHash,
   verifyPin,
   PinHashUnusable,
   createSession,
@@ -21,7 +22,18 @@ export async function onRequestPost(context) {
   const { request, env } = context
   const ip = clientIp(request)
 
-  if (!env.ADMIN_PIN_HASH || !env.SESSION_SECRET || !env.DB) {
+  // The PIN in force may be a stored one (changed from /admin) rather than the secret,
+  // so ask for it before deciding this deployment has no PIN at all.
+  let pinHash = null
+  if (env.DB) {
+    try {
+      pinHash = await currentPinHash(env)
+    } catch {
+      return json({ error: 'The admin database isn’t reachable right now, so signing in can’t be checked. Try again in a minute.' }, { status: 503 })
+    }
+  }
+
+  if (!pinHash || !env.SESSION_SECRET || !env.DB) {
     // A misconfigured deployment must not silently behave like a wrong PIN — that would
     // be debugged for hours. Say so clearly; it leaks nothing an attacker can use.
     //
@@ -64,7 +76,7 @@ export async function onRequestPost(context) {
 
   let correct
   try {
-    correct = await verifyPin(pin, env.ADMIN_PIN_HASH)
+    correct = await verifyPin(pin, pinHash)
   } catch (err) {
     // The stored hash itself is unusable — wrong format, truncated, or (the one that
     // actually happened) more PBKDF2 iterations than Cloudflare Workers will run. Say so

@@ -70,6 +70,47 @@ export async function verifyPin(pin, stored) {
   return timingSafeEqual(new Uint8Array(bits), expected)
 }
 
+// The iteration count NEW hashes are written with. Reading uses whatever count travels
+// with the stored hash, so this can move later without invalidating anyone's PIN — but it
+// can never exceed the platform ceiling above.
+const HASH_ITERATIONS = MAX_PBKDF2_ITERATIONS
+
+// Produces the same `pbkdf2$sha256$<iterations>$<salt>$<hash>` string as
+// `npm run admin:secrets`, so a PIN changed from inside /admin and one set from the
+// command line are indistinguishable afterwards.
+export async function hashPin(pin) {
+  const salt = crypto.getRandomValues(new Uint8Array(16))
+  const key = await crypto.subtle.importKey('raw', encoder.encode(pin), 'PBKDF2', false, ['deriveBits'])
+  const bits = await crypto.subtle.deriveBits(
+    { name: 'PBKDF2', hash: 'SHA-256', salt, iterations: HASH_ITERATIONS },
+    key,
+    PIN_HASH_BYTES * 8,
+  )
+  return ['pbkdf2', 'sha256', HASH_ITERATIONS, bytesToBase64(salt), bytesToBase64(new Uint8Array(bits))].join('$')
+}
+
+// ---------------------------------------------------------------- where the PIN lives
+
+const PIN_KEY = 'pin_hash'
+
+// The PIN in force right now: the stored one if the PIN has ever been changed from
+// /admin, otherwise the deployment's secret. A database that is unreachable must NOT
+// silently fall back to a PIN that was deliberately replaced, so the read is not
+// swallowed — a failure here surfaces as a 503, not as "the old PIN works again".
+export async function currentPinHash(env) {
+  if (env.DB) {
+    const row = await env.DB.prepare('SELECT value FROM settings WHERE key = ?').bind(PIN_KEY).first()
+    if (row?.value) return row.value
+  }
+  return env.ADMIN_PIN_HASH || null
+}
+
+export const storePinHash = (db, hash) =>
+  db
+    .prepare('INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at')
+    .bind(PIN_KEY, hash, Date.now())
+    .run()
+
 // Constant-time compare. `===` on hex/base64 strings leaks how many leading characters
 // matched, which over many attempts narrows the search — cheap to avoid, so avoid it.
 function timingSafeEqual(a, b) {
