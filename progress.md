@@ -37,8 +37,13 @@ real PIN (2026-09-22), so the auth chain is proven on a real deployment.
    Settings" and "Discard it", Publish is held while anything is parked or a flush is in
    flight, sign-out refuses, and reopening restores the edit (saving it straight away when
    nothing changed underneath, or showing the existing conflict block when it did). Covered
-   by `npm run test:panes` (35 checks in real headless Chrome), which fails on the old code
-   in exactly the case that lost the edit. Then: PIN change (revokes all sessions), the four deferred
+   by `npm run test:panes` (39 checks in real headless Chrome), which fails on the old code
+   in exactly the case that lost the edit. A second edge-case review of the committed fix
+   found seven follow-on holes (all closed in `5196644`) — worth reading if you touch this:
+   the first version could strand the editor after a discard, resurrect discarded content
+   from the still-rendered fields, and hold Publish with no reason on screen. **Case D holds
+   the reopen's GET open with CDP `Fetch.requestPaused`** rather than racing two clicks;
+   without that it passed on the broken code too. Then: PIN change (revokes all sessions), the four deferred
    login/session findings under "decide these before production" (lockout fails open when
    D1 writes run out; no pruning; no session renewal; a numeric PIN burns attempts), and
    the review gate.
