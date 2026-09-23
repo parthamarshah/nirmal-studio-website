@@ -30,7 +30,12 @@ let wsUrl
 for (let i = 0; i < 40 && !wsUrl; i++) { await sleep(250); try { wsUrl = (await (await fetch('http://127.0.0.1:9333/json/list')).json()).find((t) => t.type === 'page')?.webSocketDebuggerUrl } catch {} }
 if (!wsUrl) throw new Error('no chrome'); const ws = new WebSocket(wsUrl); await new Promise((r) => ws.addEventListener('open', r))
 let n = 0; const pending = new Map()
-ws.addEventListener('message', (m) => { const d = JSON.parse(m.data); if (d.id && pending.has(d.id)) { pending.get(d.id)(d); pending.delete(d.id) } })
+const events = new Map() // method -> handler
+ws.addEventListener('message', (m) => {
+  const d = JSON.parse(m.data)
+  if (d.id && pending.has(d.id)) { pending.get(d.id)(d); pending.delete(d.id) }
+  else if (d.method && events.has(d.method)) events.get(d.method)(d.params)
+})
 const cdp = (method, params = {}) => new Promise((r) => { const id = ++n; pending.set(id, r); ws.send(JSON.stringify({ id, method, params })) })
 const ev = async (expr) => { const r = await cdp('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true }); if (r.result?.exceptionDetails) throw new Error(JSON.stringify(r.result.exceptionDetails)); return r.result?.result?.value }
 const waitFor = async (expr, ms = 8000) => { const t = Date.now(); while (Date.now() - t < ms) { if (await ev(expr)) return true; await sleep(100) } return false }
@@ -124,26 +129,44 @@ try {
   check('C: use theirs loads theirs', await waitFor(`document.getElementById('f-addressShort')?.value === 'Theirs C'`))
   check('C: no notice left', !(await ev(`!!document.querySelector('.admin-pubbar--unsaved')`)))
 
-  // ── D: reopen the parked pane, then leave again before it finishes loading.
-  // The late-landing load must not quietly consume the parked edit (it used to).
+  // ── D: reopen the parked pane, then leave again WHILE THE LOAD IS IN FLIGHT. The draft
+  // GET is held open at the network layer so the unmount is guaranteed to land inside it —
+  // timing two clicks a few milliseconds apart is a coin flip, and a passing coin flip
+  // proves nothing. The late-landing response must not consume the parked edit.
   const c3 = (await api('draft?id=site')).data
   const t3 = structuredClone(c3.doc); t3.contact.addressShort = 'Theirs D'
   await api('draft', { method: 'PUT', body: { id: 'site', doc: t3, ifUpdatedAt: c3.updatedAt } })
   await typeShort('Mine D')
   await click('Projects')
   check('D: parked', await waitFor(`document.body.innerText.includes('didn’t finish saving')`))
-  await click('Settings'); await click('Projects')  // leave again mid-load
-  await sleep(2000)
+  let release = null
+  events.set('Fetch.requestPaused', ({ requestId, request }) => {
+    if (request.url.includes('/api/admin/draft?id=site')) release = () => cdp('Fetch.continueRequest', { requestId })
+    else cdp('Fetch.continueRequest', { requestId })
+  })
+  await cdp('Fetch.enable', { patterns: [{ urlPattern: '*/api/admin/draft*', requestStage: 'Request' }] })
+  await click('Settings')
+  for (let i = 0; i < 40 && !release; i++) await sleep(50)
+  check('D: the reopen\u2019s load is held mid-flight', !!release)
+  await click('Projects')   // unmount while that GET is still open
+  await release()
+  await cdp('Fetch.disable')
+  events.delete('Fetch.requestPaused')
+  await sleep(1500)
   check('D: still parked after an interrupted reopen', await ev(`!!document.querySelector('.admin-pubbar--unsaved')`))
   check('D: Publish still held', await ev(`document.querySelector('.admin-publish').disabled`))
+  check('D: the top line says why Publish is held', (await ev(`document.querySelector('.admin-state').textContent`)).includes('Can’t publish yet'))
   await click('Open Settings')
   check('D: the edit is still there', await waitFor(`document.getElementById('f-addressShort')?.value === 'Mine D'`), String(await fieldVal()))
+  // Reopening hands the edit back to the editor, so nothing is parked any more — the
+  // strip and the publish hold must both clear, or they would never clear at all.
+  check('D: reopening clears the strip and the hold', await waitFor(`!document.querySelector('.admin-pubbar--unsaved') && !document.querySelector('.admin-state').textContent.includes('Can’t publish yet')`))
 
   // ── E: sign-out is refused while an edit is parked, and "Discard it" is the way out.
   await click('Projects')
   check('E: parked again on leaving the conflict', await waitFor(`document.body.innerText.includes('didn’t finish saving')`))
   await click('Sign out')
-  check('E: sign-out refused', await waitFor(`document.body.innerText.includes('before signing out')`))
+  check('E: sign-out refused', await waitFor(`document.body.innerText.includes('Signing out would throw it away')`))
   check('E: still signed in', (await ev(`fetch('/api/admin/me').then((r) => r.status)`)) === 200)
   await click('Discard it')
   await click('Yes, throw it away')

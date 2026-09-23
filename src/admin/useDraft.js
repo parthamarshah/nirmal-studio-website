@@ -29,6 +29,7 @@ const listeners = new Set()
 // before that save and then collide with its own edit.
 const inflight = new Map() // id -> promise
 export const hasLeftUnsaved = () => leftUnsaved.size > 0
+export const isParked = (id) => leftUnsaved.has(id)
 // A save flushed by an editor that has already unmounted is not parked yet and no editor
 // reports it, so nothing else marks this window — and publishing inside it would commit
 // the version from before those keystrokes.
@@ -57,16 +58,23 @@ function unpark(id) {
   return entry
 }
 
-// For the Shell: which documents have an edit waiting for their editor to reopen.
-export function useLeftUnsaved() {
-  const [ids, setIds] = useState(() => [...leftUnsaved.keys()])
+// For the Shell: which documents have an edit waiting for their editor to reopen, and
+// whether a save is in flight right now. Both gate Publish, so both have to be reactive —
+// checking them only when the button is clicked leaves it looking enabled when it isn't.
+export function useDraftActivity() {
+  const read = () => ({ parked: [...leftUnsaved.keys()], flushing: inflight.size > 0 })
+  const [activity, setActivity] = useState(read)
   useEffect(() => {
-    const update = () => setIds([...leftUnsaved.keys()])
+    const update = () => setActivity((prev) => {
+      const next = read()
+      const same = next.flushing === prev.flushing && next.parked.length === prev.parked.length && next.parked.every((id, i) => id === prev.parked[i])
+      return same ? prev : next
+    })
     listeners.add(update)
     update()
     return () => listeners.delete(update)
   }, [])
-  return ids
+  return activity
 }
 
 // A parked edit is exactly as unsaved as one in an open editor, so closing the tab must
@@ -85,6 +93,8 @@ export function useDraft(id, published) {
   const [message, setMessage] = useState(null)
   const [conflict, setConflict] = useState(null)
   const [hasDraft, setHasDraft] = useState(false)
+  // True only while the document on screen is an edit recovered from a parked entry.
+  const [restored, setRestored] = useState(false)
 
   // The token for the row we are building on: the draft's updatedAt, or null when no
   // draft row exists yet.
@@ -111,6 +121,13 @@ export function useDraft(id, published) {
   // effect's dependency array throws "cannot access before initialization" on every
   // render, and this app has no error boundary (see CLAUDE.md's incident list).
   const save = useCallback(async () => {
+    // Nothing to send: the document was discarded. A queued save could otherwise chain
+    // into a PUT with `doc: null`, which the server rejects with a 400 and which would
+    // strand the editor in `error` straight after a successful discard.
+    if (!docRef.current) {
+      queuedRef.current = false
+      return
+    }
     if (savingRef.current) {
       queuedRef.current = true
       return
@@ -126,11 +143,15 @@ export function useDraft(id, published) {
         body: { id, doc: docRef.current, ifUpdatedAt: tokenRef.current, ...(creating ? { baseSha: baseRef.current } : {}) },
       })
       inflight.set(id, request)
+      notify()
       let res
       try {
         res = await request
       } finally {
-        if (inflight.get(id) === request) inflight.delete(id)
+        if (inflight.get(id) === request) {
+          inflight.delete(id)
+          notify()
+        }
       }
       tokenRef.current = res.updatedAt
       setHasDraft(true)
@@ -172,6 +193,7 @@ export function useDraft(id, published) {
     setState('loading')
     setMessage(null)
     setConflict(null)
+    setRestored(false)
     try {
       // A queued save chains straight into the next one, so keep waiting until none is
       // left — but never longer than FLUSH_WAIT_MS in total.
@@ -181,6 +203,16 @@ export function useDraft(id, published) {
           inflight.get(id).catch(() => {}),
           new Promise((r) => setTimeout(r, Math.max(0, until - Date.now()))),
         ])
+      }
+      // Gave up waiting: what comes back is the version from BEFORE that save, so load it
+      // to have something on screen, then reconcile when the save finally settles — its
+      // result went to the old instance's refs, which this one can't see. The reload's own
+      // sequence number makes this terminate (there is nothing in flight by then).
+      const stillFlushing = inflight.get(id)
+      if (stillFlushing) {
+        stillFlushing.catch(() => {}).then(() => {
+          if (!stale()) load()
+        })
       }
       const res = await api(`draft?id=${encodeURIComponent(id)}`)
       // Before unpark(): unparking for an editor that is gone would drop the edit.
@@ -198,6 +230,7 @@ export function useDraft(id, published) {
         docRef.current = parked.doc
         setDoc(parked.doc)
         setHasDraft(!!res.exists)
+        setRestored(true)
         // No draft on either side is only "unchanged" if the published version is the one
         // the edit started from; a publish in between means it is building on old content.
         const unchanged = serverToken === parked.token && (serverToken !== null || (res.published?.sha ?? null) === parked.base)
@@ -274,6 +307,10 @@ export function useDraft(id, published) {
     // while CREATING the draft — and the server (rightly) refuses a null with a 400. So
     // read the current version first, and treat "no draft row" as nothing to discard.
     let token = tokenRef.current
+    let refused = null
+    // A save can be queued behind one in flight; without this it would fire after the
+    // discard and re-create what was just thrown away.
+    queuedRef.current = false
     try {
       if (token == null) {
         const cur = await api(`draft?id=${encodeURIComponent(id)}`)
@@ -286,14 +323,24 @@ export function useDraft(id, published) {
         setMessage(err instanceof ApiError ? err.message : 'Could not discard.')
         return
       }
-      // A 409 on discard means somebody saved in the meantime; reloading shows what.
+      // A 409 means somebody saved between reading the version and deleting it, so nothing
+      // was discarded. Reload to show what is there now — and say so, or the click looks
+      // like it did nothing at all.
+      refused = err.message
     }
     // Deliberately before the reload: if the reload then fails, leaving the editor in
     // `error` with the discarded document still in docRef would park it on the next pane
     // switch — offering to restore, and to overwrite with, content just thrown away.
     docRef.current = null
+    // The state copy too: leaving the fields rendering the discarded values while
+    // `docRef` is null means one keystroke rebuilds the discarded document from them.
+    setDoc(null)
     unpark(id)
     await load()
+    if (refused) {
+      setState('error')
+      setMessage(`Nothing was discarded. ${refused}`)
+    }
   }, [id, load])
 
   // Conflict resolutions, both explicit. There is deliberately no automatic merge: these
@@ -338,5 +385,5 @@ export function useDraft(id, published) {
     return () => window.removeEventListener('beforeunload', onLeave)
   }, [state])
 
-  return { doc, state, message, conflict, hasDraft, update, save, discard, keepTheirs, keepMine, reload: load }
+  return { doc, state, message, conflict, hasDraft, restored, update, save, discard, keepTheirs, keepMine, reload: load }
 }

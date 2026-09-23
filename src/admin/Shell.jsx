@@ -3,7 +3,7 @@ import { logout, ApiError } from './api.js'
 import { people, foundersReady, projectsIncludingHidden, STATUS_LABELS } from '../lib/content.js'
 import SettingsEditor from './SettingsEditor.jsx'
 import { usePublish } from './usePublish.js'
-import { discardLeftUnsaved, hasLeftUnsaved, isSaveInFlight, useLeftUnsaved } from './useDraft.js'
+import { discardLeftUnsaved, hasLeftUnsaved, isSaveInFlight, useDraftActivity } from './useDraft.js'
 
 // The desktop-first shell: left rail, top bar with state and Publish, main pane, right
 // inspector. Phase 3 builds the real editors into these panes.
@@ -27,15 +27,24 @@ const dash = '—'
 // the person can actually see and click.
 const DRAFT_PANES = { site: { section: 'settings', label: 'Settings' } }
 // A parked edit whose pane isn't listed above would otherwise hold Publish back with
-// nothing on screen to explain it.
-const paneFor = (id) => ({ id, ...(DRAFT_PANES[id] ?? { section: 'settings', label: 'an editor' }) })
+// nothing on screen to explain it. Project and founder drafts land in their own panes, so
+// the fallback sends people to the right one rather than to a button that does nothing.
+const paneFor = (id) => ({
+  id,
+  ...(DRAFT_PANES[id] ?? {
+    section: id.startsWith('project:') ? 'projects' : id.startsWith('founder') ? 'founders' : 'settings',
+    label: 'an editor',
+  }),
+})
 
 // One line, in one place. Projects and Founders are still read-only; Settings is the
 // first pane with a real draft behind it.
-function stateLine(section, draft, unsavedElsewhere) {
+function stateLine(section, draft, holdingPublish) {
   // Whatever else is true, the reason Publish is greyed out comes first: the button's
-  // explanation lives in this line and nowhere else (never a tooltip).
-  if (unsavedElsewhere) return `Can’t publish yet — a change in ${unsavedElsewhere} still needs saving.`
+  // explanation lives in this line and nowhere else (never a tooltip). It names every
+  // parked pane, including the one you are looking at — being on that pane is not an
+  // explanation by itself, and a flush with nowhere to report counts too.
+  if (holdingPublish) return holdingPublish
   if (section !== 'settings') return 'Read-only for now. Editing arrives with the project and founder editors.'
   if (!draft) return 'Loading…'
   switch (draft.state) {
@@ -74,6 +83,10 @@ export default function Shell({ session, onSignedOut }) {
   const [signingOut, setSigningOut] = useState(false)
   // Which parked edit the "Discard it" confirmation is for, if any.
   const [discarding, setDiscarding] = useState(null)
+  // Declared here, above every effect whose dependency array names it: a `const` read by
+  // an earlier effect's deps throws "cannot access before initialization" on every render
+  // (CLAUDE.md's incident list — it white-screened the whole site once).
+  const { parked, flushing } = useDraftActivity()
   const [error, setError] = useState(null)
   // Reported up by whichever pane owns a draft, so the top bar can show one save state
   // for the whole screen rather than each editor growing its own.
@@ -97,6 +110,12 @@ export default function Shell({ session, onSignedOut }) {
   // Stable identity: SettingsEditor reports through an effect that depends on this.
   const onDraftState = useCallback((s) => setDraft(s), [])
 
+  // A confirmation left open for an edit that has since been saved (or discarded another
+  // way) would reappear against the NEXT parked edit, one click from destroying it.
+  useEffect(() => {
+    setDiscarding((d) => (d && parked.includes(d.id) ? d : null))
+  }, [parked])
+
   // Bumped after a publish or an undo: the editor remounts and reloads, because its
   // draft is gone (or its published version just changed) on the server.
   const [editorKey, setEditorKey] = useState(0)
@@ -114,7 +133,6 @@ export default function Shell({ session, onSignedOut }) {
     const d = draftRef.current
     return !!d && ['loading', 'dirty', 'saving', 'conflict', 'error'].includes(d.state)
   }, [])
-  const leftUnsaved = useLeftUnsaved()
   const pub = usePublish({ onContentChanged, isEditorBusy })
   const { refresh } = pub
 
@@ -130,7 +148,7 @@ export default function Shell({ session, onSignedOut }) {
     // Signing out drops every parked edit with it, so say so rather than discovering it
     // after the fact — the whole point of parking is that nothing disappears silently.
     if (hasLeftUnsaved()) {
-      setError('There’s an unsaved change waiting. Open that pane and save it, or discard it, before signing out.')
+      setError('There’s an unsaved change waiting — the bar at the top of the screen can save or discard it. Signing out would throw it away.')
       return
     }
     setSigningOut(true)
@@ -149,10 +167,15 @@ export default function Shell({ session, onSignedOut }) {
   const live = session.publishBranch === 'main'
   const pending = pub.overview?.pending ?? []
   const editorBusy = isEditorBusy()
-  // Shown as a strip on every other pane, and named in the top line wherever you are —
-  // otherwise Publish is greyed with its reason on a screen you aren't looking at.
-  const unsavedPanes = leftUnsaved.map(paneFor).filter((pane) => pane.section !== section)
-  const unsavedElsewhere = unsavedPanes.length ? unsavedPanes.map((p) => p.label).join(' and ') : null
+  // The strip appears for every parked edit, on whatever pane you are on: a parked edit
+  // can appear while its own pane is open (a save that lands after the editor reloaded, or
+  // a pane that won't load), and then there is nothing else on screen to explain it.
+  const unsavedPanes = parked.map(paneFor)
+  const holdingPublish = unsavedPanes.length
+    ? `Can’t publish yet — a change in ${unsavedPanes.map((p) => p.label).join(' and ')} still needs saving.`
+    : flushing
+      ? 'Can’t publish yet — a change is still being saved.'
+      : null
   // While a publish or undo is being confirmed or sent, the fields are locked: an edit
   // typed then would be lost when the editor reloads with the published version.
   const locked = ['publishing', 'undoing', 'confirm-publish', 'confirm-undo'].includes(pub.phase)
@@ -212,7 +235,7 @@ export default function Shell({ session, onSignedOut }) {
               lands. It also carries the explanation for the disabled Publish button,
               which used to exist only in a `title` tooltip: invisible on touch,
               invisible to a keyboard, and usually suppressed on a disabled element. */}
-          <p className="admin-state">{stateLine(section, draft, unsavedElsewhere)}</p>
+          <p className="admin-state">{stateLine(section, draft, holdingPublish)}</p>
           {/* Disabled while there is nothing to publish, while a save is in flight (it
               would publish the version before the last keystrokes), or while a field is
               invalid. The line to the left always says which — never a tooltip. */}
@@ -232,14 +255,18 @@ export default function Shell({ session, onSignedOut }) {
         {unsavedPanes.map((pane) => (
           <div className="admin-pubbar admin-pubbar--unsaved" role="alert" key={pane.id}>
             <p>
-              Your unsaved change to <strong>{pane.label}</strong> didn’t finish saving when you left
-              that pane. Nothing is lost — it’s still held in this tab. Open {pane.label} to save it.
+              Your unsaved change to <strong>{pane.label}</strong> didn’t finish saving.{' '}
+              {pane.section === section
+                ? 'Nothing is lost — it’s still held in this tab, and it comes back when this pane reloads.'
+                : `Nothing is lost — it’s still held in this tab. Open ${pane.label} to save it.`}{' '}
               Publishing is paused until then.
             </p>
             <div className="admin-pubbar-actions">
-              <button type="button" className="admin-btn" onClick={() => go(pane.section)}>
-                Open {pane.label}
-              </button>
+              {pane.section !== section && (
+                <button type="button" className="admin-btn" onClick={() => go(pane.section)}>
+                  Open {pane.label}
+                </button>
+              )}
               {/* Without this there is no way out of a parked edit that cannot be saved —
                   e.g. its pane won't load — and Publish stays held for the whole session. */}
               <button
@@ -255,7 +282,7 @@ export default function Shell({ session, onSignedOut }) {
 
         {/* Gone if that edit got saved (or discarded) in another way meanwhile, and hidden
             on the pane that owns it — there the editor's own controls are the right place. */}
-        {discarding && leftUnsaved.includes(discarding.id) && discarding.section !== section && (
+        {discarding && parked.includes(discarding.id) && (
           <div className="admin-pubbar admin-pubbar--unsaved" role="alert">
             <p>
               Throw away your unsaved change to <strong>{discarding.label}</strong>? What was already

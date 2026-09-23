@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { site } from '../lib/content.js'
-import { useDraft } from './useDraft.js'
+import { isParked, useDraft } from './useDraft.js'
 
 // The first real editor, and deliberately the smallest one: the studio's contact
 // details. It exists to exercise the draft machinery end to end — type, autosave,
@@ -35,25 +35,30 @@ const problem = (f, value) => {
 // where published changes go.
 export default function SettingsEditor({ onStateChange, locked = false, live = false }) {
   const draft = useDraft('site', site)
-  const { doc, state, message, conflict, hasDraft, update, discard, keepTheirs, keepMine, reload } = draft
+  const { doc, state, message, conflict, hasDraft, restored, update, discard, keepTheirs, keepMine, reload } = draft
 
   // Reported through an effect, never during render: calling a parent's setState while
   // this component renders is the "cannot update a component while rendering a
   // different component" warning, and it can loop.
   // Counted here, above the early returns, so the top bar can hold Publish back while a
   // field is invalid — the server would refuse it anyway, but later and less clearly.
-  const problemCount = doc ? FIELDS.filter((f) => problem(f, doc.contact?.[f.key])).length : 0
+  // null, not 0, when there is no document to count in: the top bar distinguishes "this
+  // pane wouldn't open" from "a field is invalid", and 0 would read as the latter.
+  const problemCount = doc ? FIELDS.filter((f) => problem(f, doc.contact?.[f.key])).length : null
   useEffect(() => {
     onStateChange?.({ state, hasDraft, problems: problemCount })
   }, [onStateChange, state, hasDraft, problemCount])
+
+  // Only claim something is still held when something actually is.
+  const restoredWaiting = isParked('site')
 
   if (state === 'loading') return <p className="admin-hint">Loading your draft…</p>
   if (!doc) {
     return (
       <>
         <p className="admin-error" role="alert">
-          {message || 'Could not load your draft.'} Nothing you typed has been thrown away — it is
-          still held here.
+          {message || 'Could not load your draft.'}
+          {restoredWaiting && ' Nothing you typed has been thrown away — it is still held here.'}
         </p>
         <button type="button" className="admin-btn admin-btn--quiet" onClick={reload}>
           Try again
@@ -70,20 +75,29 @@ export default function SettingsEditor({ onStateChange, locked = false, live = f
 
   return (
     <>
+      {/* An error that isn't a conflict and isn't a failed load — a refused discard, or a
+          save that failed for some other reason — has nowhere else to appear. */}
+      {state === 'error' && message && (
+        <p className="admin-error" role="alert">
+          {message}
+        </p>
+      )}
+
       {conflict !== null && (
         <div className="admin-conflict" role="alert">
           <strong>This was changed somewhere else.</strong>
-          {/* `message` is set when the draft got here by being parked on a pane switch —
-              the fields below are that unsaved edit, which is worth saying plainly before
-              offering a button that discards it. */}
+          {/* `restored` — not `message`, which every ordinary 409 sets too — means the
+              fields below are an unsaved edit recovered from a pane switch. Worth saying
+              plainly, right above a button that throws it away. */}
           <p>
-            {message ||
-              'Another tab — or the other person — saved these settings after you started. Nothing has been overwritten.'}{' '}
+            {restored
+              ? message
+              : 'Another tab — or the other person — saved these settings after you started. Nothing has been overwritten.'}{' '}
             Choose which version to keep.
           </p>
           <div className="admin-conflict-actions">
             <button type="button" className="admin-btn" onClick={keepTheirs}>
-              {message ? 'Use the other version — discard my change' : 'Use the other version'}
+              {restored ? 'Use the other version — discard my change' : 'Use the other version'}
             </button>
             <button type="button" className="admin-btn admin-btn--quiet" onClick={keepMine}>
               Keep mine and overwrite it
