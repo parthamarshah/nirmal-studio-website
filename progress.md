@@ -31,10 +31,14 @@ real PIN (2026-09-22), so the auth chain is proven on a real deployment.
    wired in `wrangler.toml`'s `env.production` blocks only. The preview kept the original
    DB/KV (and with them its sessions, drafts and publish history). **Every future migration
    goes to BOTH databases with `--remote`.** Parth confirmed (by "proceed") that referential
-   safety and upload staging get built with the Phase 3 editors, not in step 7. Also in step 7: a pane switch during the
-   800ms autosave delay flushes the save from the editor that is unmounting, and if that
-   save hits a 409 the edit is lost silently. Warn, or hold the pane switch, while
-   `isEditorBusy()`. Then: PIN change (revokes all sessions), the four deferred
+   safety and upload staging get built with the Phase 3 editors, not in step 7. ~~Pane-switch edit loss~~ **done 2026-09-23**: an edit
+   whose flushed save fails after its editor unmounted is now *parked* (in memory, per
+   document) instead of vanishing — the Shell shows a bar naming the pane, with "Open
+   Settings" and "Discard it", Publish is held while anything is parked or a flush is in
+   flight, sign-out refuses, and reopening restores the edit (saving it straight away when
+   nothing changed underneath, or showing the existing conflict block when it did). Covered
+   by `npm run test:panes` (35 checks in real headless Chrome), which fails on the old code
+   in exactly the case that lost the edit. Then: PIN change (revokes all sessions), the four deferred
    login/session findings under "decide these before production" (lockout fails open when
    D1 writes run out; no pruning; no session renewal; a numeric PIN burns attempts), and
    the review gate.

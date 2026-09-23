@@ -52,7 +52,8 @@ export default function SettingsEditor({ onStateChange, locked = false, live = f
     return (
       <>
         <p className="admin-error" role="alert">
-          {message || 'Could not load your draft.'}
+          {message || 'Could not load your draft.'} Nothing you typed has been thrown away — it is
+          still held here.
         </p>
         <button type="button" className="admin-btn admin-btn--quiet" onClick={reload}>
           Try again
@@ -72,13 +73,17 @@ export default function SettingsEditor({ onStateChange, locked = false, live = f
       {conflict !== null && (
         <div className="admin-conflict" role="alert">
           <strong>This was changed somewhere else.</strong>
+          {/* `message` is set when the draft got here by being parked on a pane switch —
+              the fields below are that unsaved edit, which is worth saying plainly before
+              offering a button that discards it. */}
           <p>
-            Another tab — or the other person — saved these settings after you started. Nothing has
-            been overwritten. Choose which version to keep.
+            {message ||
+              'Another tab — or the other person — saved these settings after you started. Nothing has been overwritten.'}{' '}
+            Choose which version to keep.
           </p>
           <div className="admin-conflict-actions">
             <button type="button" className="admin-btn" onClick={keepTheirs}>
-              Use the other version
+              {message ? 'Use the other version — discard my change' : 'Use the other version'}
             </button>
             <button type="button" className="admin-btn admin-btn--quiet" onClick={keepMine}>
               Keep mine and overwrite it

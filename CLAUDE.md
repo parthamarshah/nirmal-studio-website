@@ -363,6 +363,24 @@ against them rather than rediscovering them by chance:
   Phase 1a's rewrite dropped `type`/`location` from the homepage shape; FocusImage's
   caption silently lost them. Screenshot, page-height and image-count comparisons all
   passed — they don't catch lost text inside an element that still renders.
+- **A React component's async load must check "am I still mounted, and am I still the
+  newest request?" *before* it consumes one-shot state — not just before it calls
+  `setState`.** The /admin editor parks an unsaved edit when its save fails after the
+  editor unmounted, and hands it back on reopen. The reopen's `load()` removed the parked
+  edit from the map and *then* rendered it; open the pane and leave again while that GET
+  is in flight (it reads D1 *and* GitHub, so 200–800ms) and the edit was deleted into a
+  dead component — worse than the bug being fixed, and invisible. This is the same
+  out-of-order-response class as `usePublish.js`'s `seqRef` below, but destructive rather
+  than merely stale. Any async load that consumes a queue, a token or a one-shot flag
+  needs both guards, and a test that interrupts it mid-flight (`test:panes` case D).
+- **A CSS grid with a fixed `grid-template-rows` count silently auto-places any extra
+  child into an implicit row *after* the explicitly-placed ones.** `.admin-col` declared
+  three rows with `.admin-panes` pinned to `grid-row: 3`; adding a second strip above the
+  panes put it in row 4 — rendered 800px below the fold on a phone, measured, for a
+  warning whose entire job is to be seen. It looked correct whenever the *other* strip
+  happened to be absent, which is the state a fresh test database is in. Use a flex column
+  when the number of children varies, and assert position (`getBoundingClientRect` vs the
+  element it must precede), never just presence in the DOM.
 - **`history.back()` is async, so any overlay that closes through it needs a guard, or a
   fast second close request pops a second real history entry and navigates the visitor
   off the site.** Between the `back()` call and `popstate` landing, the overlay is still

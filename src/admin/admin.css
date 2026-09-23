@@ -153,9 +153,13 @@ button {
 /* ---------------------------------------------------------------- top bar */
 
 .admin-col {
-  display: grid;
-  /* top bar, publish strip (present only when it has something to say), panes */
-  grid-template-rows: auto auto 1fr;
+  /* Flex, not grid rows: the column's children are a top bar plus a variable number of
+     strips (publish state, and one per unsaved edit left in another pane), then the
+     panes. A fixed row count silently pushed any extra strip BELOW the panes — off the
+     bottom of a phone screen, which is exactly where the "your edit isn't saved yet"
+     warning must not be. */
+  display: flex;
+  flex-direction: column;
   min-width: 0;
 }
 
@@ -197,8 +201,8 @@ button {
 /* ---------------------------------------------------------------- panes */
 
 .admin-panes {
-  /* Always the last, stretching row — even when the publish strip isn't rendered. */
-  grid-row: 3;
+  /* Always last, and always the part that stretches, however many strips precede it. */
+  flex: 1;
   display: grid;
   grid-template-columns: 1fr var(--admin-inspector);
   min-height: 0;
@@ -687,6 +691,15 @@ button {
 
 .admin-pubbar--warn {
   background: #fbf1e6;
+}
+
+/* Its own treatment, not a shade of the publish strip: this one means "your work is not
+   saved and Publish is held", so it borrows the conflict block's bronze edge — the
+   established "you must deal with this" signal in this tool — rather than sitting as a
+   second cream band under a near-identical one. */
+.admin-pubbar--unsaved {
+  background: #fdf4ee;
+  border-left: 4px solid var(--color-bronze-dark);
 }
 
 .admin-pubbar-changes {
