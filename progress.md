@@ -5,61 +5,45 @@ live in `CLAUDE.md` — read that first if you're picking this up cold.
 
 ## Resume here
 
-### ▶ START HERE (updated 2026-09-22, step 6 done)
+### ▶ START HERE (updated 2026-09-24, step 7 all but the review gate)
 
-**Where things stand:** Phase 1 is complete and live. **Phase 2 (the `/admin` backend) has
-steps 1–6 of 7 done**, on the `admin-test` branch, deployed to the preview at
-**https://admin-test.nirmal-studio.pages.dev/admin/**. Parth has signed in there with his
-real PIN (2026-09-22), so the auth chain is proven on a real deployment.
+**Where things stand:** Phase 1 is live. **Phase 2 (the `/admin` backend) is on step 7 of 7**,
+on the `admin-test` branch, deployed to the preview at
+**https://admin-test.nirmal-studio.pages.dev/admin/**. Step 6 is closed: on 2026-09-22 Parth
+published a Settings change from the preview with his real PIN, watched it reach **Live ✓**,
+and undid it (`d2a1b23` then `22821bb`, `/_version.json` confirming each). That proves the
+whole deployed chain — publish → GitHub → rebuild → status → undo — on a real deployment.
 
 **Do these first, in this order:**
-1. **`git checkout admin-test`**, then **`git pull`**. A Publish from the preview is now a
-   real commit on `admin-test`, so the branch moves without anyone pushing. `main`
-   deliberately has no `functions/` (see the ⚠ BRANCH LAYOUT note below).
-2. **Has Parth done the live check yet?** Sign in on the preview, change one Settings
-   field, Publish, and wait for "Live ✓", then Undo it. The machinery is proven locally
-   against real GitHub (see STEP 6 below), but "reports Live" on the real preview needs
-   his PIN. If he hasn't, that's the first thing to walk him through, one step at a time.
-   **DONE 2026-09-22 — passed on the real preview.** Parth published a Settings change
-   (short address → empty; commit `d2a1b23`), the admin showed **Live ✓**, then Undo
-   (`22821bb`, restores "Ambavadi, Ahmedabad") and `/_version.json` reported `22821bb`.
-   So the deployed Worker's publish → GitHub → rebuild → status → undo chain is proven.
-   Step 6 is closed.
-3. **Step 7, hardening.** ~~Launch blocker: shared D1~~ **done 2026-09-22**: production now
-   has its own D1 `nirmal-studio-admin-production` (`df5cb296-…`, both migrations applied
-   `--remote` and verified per column) and its own KV `UPLOADS_PRODUCTION` (`20e0a6dd…`),
-   wired in `wrangler.toml`'s `env.production` blocks only. The preview kept the original
-   DB/KV (and with them its sessions, drafts and publish history). **Every future migration
-   goes to BOTH databases with `--remote`.** Parth confirmed (by "proceed") that referential
-   safety and upload staging get built with the Phase 3 editors, not in step 7. ~~Pane-switch edit loss~~ **done 2026-09-23**: an edit
-   whose flushed save fails after its editor unmounted is now *parked* (in memory, per
-   document) instead of vanishing — the Shell shows a bar naming the pane, with "Open
-   Settings" and "Discard it", Publish is held while anything is parked or a flush is in
-   flight, sign-out refuses, and reopening restores the edit (saving it straight away when
-   nothing changed underneath, or showing the existing conflict block when it did). Covered
-   by `npm run test:panes` (39 checks in real headless Chrome), which fails on the old code
-   in exactly the case that lost the edit. A second edge-case review of the committed fix
-   found seven follow-on holes (all closed in `5196644`) — worth reading if you touch this:
-   the first version could strand the editor after a discard, resurrect discarded content
-   from the still-rendered fields, and hold Publish with no reason on screen. **Case D holds
-   the reopen's GET open with CDP `Fetch.requestPaused`** rather than racing two clicks;
-   without that it passed on the broken code too. Then: PIN change (revokes all sessions), the four deferred
-   login/session findings under "decide these before production" (lockout fails open when
-   D1 writes run out; no pruning; no session renewal; a numeric PIN burns attempts), and
-   the review gate. **PIN change done 2026-09-23** — see STEP 7 below.
+1. **`git checkout admin-test`**, then **`git pull`**. A Publish from the preview is a real
+   commit on `admin-test`, so the branch moves without anyone pushing. `main` deliberately
+   has no `functions/` (see the ⚠ BRANCH LAYOUT note below).
+2. **Finish step 7: the review gate over the whole branch** — impact-tracker,
+   edge-case-checker, ux-reviewer across everything since `main`, not just the last commit.
+   Each piece was reviewed as it landed (and the reviews found real bugs both times — see
+   STEP 7 below), but the branch as a whole hasn't been.
+3. **Then the launch decision**, which is Parth's: merging `admin-test` into `main` is what
+   puts `/admin` on `nirmalstudio.com`. The checklist for it is immediately below.
 
-**Before any admin-test → main merge (the launch), also:** run
+**What is NOT in step 7, deliberately:** referential safety in the editor ("don't delete an
+image that's still a cover") and upload staging (size/type limits, HEIC). Parth moved both to
+Phase 3 on 2026-09-22, to be built with the project and founder editors they attach to —
+there is nothing to attach them to yet, since Settings is the only editor.
+
+**Before any admin-test → main merge (the launch):** run
 `git diff main admin-test -- content/` (preview publishes are real commits and would carry
-test values to the live site), check `SELECT COUNT(*) FROM drafts` on the remote **production** D1 (`nirmal-studio-admin-production`; should be 0), and
-give production its own secrets (`ADMIN_PIN_HASH` ≤100k iterations, `GITHUB_TOKEN`, and a
-**new** `SESSION_SECRET`, different from the preview's). **Merge the whole branch** — never
-cherry-pick `functions/` onto `main` without the new `wrangler.toml`, because `main`'s copy
-still points production at the preview's database. After launch: `npm run check:domains`,
-sign in on nirmalstudio.com/admin, then `npx wrangler d1 execute DB --remote --env production
---command "SELECT COUNT(*) FROM sessions"` should be 1 (proves production uses its own DB).
+test values to the live site), check `SELECT COUNT(*) FROM drafts` on the remote **production**
+D1 (`nirmal-studio-admin-production`; should be 0), and give production its own secrets
+(`ADMIN_PIN_HASH` ≤100k iterations, `GITHUB_TOKEN`, and a **new** `SESSION_SECRET`, different
+from the preview's). **Merge the whole branch** — never cherry-pick `functions/` onto `main`
+without the new `wrangler.toml`, because `main`'s copy still points production at the
+preview's database. After launch: `npm run check:domains`, sign in on nirmalstudio.com/admin,
+then `npx wrangler d1 execute DB --remote --env production --command "SELECT COUNT(*) FROM
+sessions"` should be 1 (proves production uses its own database).
 
-**STEP 7 IN PROGRESS.** Done so far: the production D1/KV split, the pane-switch edit-loss
-fix, and **changing the PIN from Settings** (migration `0003_admin_settings.sql`, applied
+**STEP 7 (2026-09-22/23): hardening.** Everything below is done, committed and pushed to
+`admin-test`; only the branch-wide review gate is left. Done: the production D1/KV split, the
+pane-switch edit-loss fix, and **changing the PIN from Settings** (migration `0003_admin_settings.sql`, applied
 `--remote` to both databases). The stored hash outranks `ADMIN_PIN_HASH`, so that secret is
 now a break-glass PIN — the recovery runbook is in CLAUDE.md, and rotating it is part of the
 launch checklist if the PIN is ever changed because the old one leaked. Two review rounds on
@@ -67,7 +51,18 @@ this one: the endpoint's write tail is now guarded (a failure after the hash was
 to surface as "the backend isn't running", so the person retried with the old PIN and locked
 themselves out of the PIN they had just set), the store is a compare-and-set, and a retry of
 a change that already went through is recognised instead of counted as a wrong PIN.
-**Still in step 7:** the review gate on the whole branch, then the launch decision.
+Parth's two calls on the deferred login/session findings, both implemented the same day:
+the lockout now **fails closed** (if a failed attempt can't be recorded, nobody is let in —
+D1's free-tier write budget is how that happens), and **a session in use renews** to 30 days
+from the last visit, with the same hourly write pruning expired and long-revoked rows. A
+numeric `{"pin": 123456}` is read as that PIN rather than counted as a wrong one, and
+`clearFailures` now clears the `global` bucket its own typos filled.
+
+**Test suites as of 2026-09-24:** `npm run test:auth` 40 checks (plus 12 hash unit tests),
+`npm run test:panes` 49 checks in real headless Chrome, `npm run test:publish` unchanged.
+All three run against the **local** D1 — they never touch the preview's or production's data,
+so a test run does not sign anyone out of the preview. `npm run admin:migrate:remote -- <file>`
+is the one way to apply a migration to both remote databases.
 
 **STEP 6 DONE (2026-09-22): Publish, Undo, "is it live yet?"** It's on `admin-test` and
 still needs Parth's live check (START HERE item 2).
@@ -163,6 +158,11 @@ Pages → nirmal-studio → Settings → **Preview**. `PUBLISH_BRANCH=admin-test
   that branch runs after the config check and before any failure is recorded.
 
 **Waiting on Parth:**
+- **The launch decision itself** (merge `admin-test` → `main`), once the branch-wide review
+  gate has run. Everything else in Phase 2 is done.
+- **If the PIN is ever changed because the old one leaked**, say so: the deployment's
+  `ADMIN_PIN_HASH` secret stays valid as a break-glass PIN until it is rotated in the
+  Cloudflare dashboard too (see CLAUDE.md's runbook).
 - Keep or revoke the now-unused `nirmal-studio-build-status` Cloudflare token (step 6 reads
   status from `/_version.json` instead).
 - Keep the PIN **masked by default** (with Show), or show digits as typed? Masked is live.
