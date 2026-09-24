@@ -59,7 +59,7 @@ numeric `{"pin": 123456}` is read as that PIN rather than counted as a wrong one
 `clearFailures` now clears the `global` bucket its own typos filled.
 
 **Test suites as of 2026-09-24:** `npm run test:auth` 40 checks (plus 12 hash unit tests),
-`npm run test:panes` 49 checks in real headless Chrome, `npm run test:publish` unchanged.
+`npm run test:panes` 53 checks in real headless Chrome, `npm run test:publish` unchanged.
 All three run against the **local** D1 — they never touch the preview's or production's data,
 so a test run does not sign anyone out of the preview. `npm run admin:migrate:remote -- <file>`
 is the one way to apply a migration to both remote databases.
