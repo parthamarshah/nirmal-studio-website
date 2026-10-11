@@ -10,6 +10,7 @@ import { isSectionOn } from '../lib/content'
 // video later is a prop change, not a rebuild.
 export default function Hero({ project }) {
   const imageRef = useRef(null)
+  const copyRef = useRef(null)
 
   useEffect(() => {
     if (prefersReducedMotion() || !imageRef.current) return
@@ -20,6 +21,24 @@ export default function Hero({ project }) {
       { scale: 1.12, duration: 20, ease: 'none' },
     )
     return () => tween.kill()
+  }, [])
+
+  // The headline's two sentences, then the line under it and the link, rise in
+  // one after another as the Loader's black overlay fades (it starts fading at
+  // 1.4s, see Loader.jsx). Reduced motion skips the Loader too, so the text is
+  // simply there.
+  useEffect(() => {
+    if (prefersReducedMotion() || !copyRef.current) return
+    const targets = copyRef.current.querySelectorAll('[data-hero-reveal]')
+    const tween = gsap.fromTo(
+      targets,
+      { opacity: 0, y: 24 },
+      { opacity: 1, y: 0, duration: 1.1, ease: 'power3.out', stagger: 0.15, delay: 1.3 },
+    )
+    return () => {
+      tween.kill()
+      gsap.set(targets, { clearProps: 'opacity,transform' })
+    }
   }, [])
 
   // Guard against a bad/missing data lookup (e.g. a renamed slug in
@@ -47,8 +66,9 @@ export default function Hero({ project }) {
             media={project.heroImage}
             mobile={project.heroImageMobile}
             imgRef={imageRef}
-            alt=""
-            aria-hidden="true"
+            // A real project, so name it; FocusImage and Philosophy stay alt=""
+            // (one has a visible caption, the other is atmosphere).
+            alt={project.name ? `${project.name} by Nirmal Studio` : ''}
             fetchPriority="high"
             style={{
               position: 'absolute',
@@ -73,6 +93,7 @@ export default function Hero({ project }) {
       />
 
       <div
+        ref={copyRef}
         style={{
           position: 'relative',
           zIndex: 1,
@@ -92,15 +113,18 @@ export default function Hero({ project }) {
             textShadow: '0 1px 16px rgba(0,0,0,0.6)',
           }}
         >
-          Most houses look beautiful. Few truly feel like home.
+          <span data-hero-reveal style={{ display: 'block', textWrap: 'balance' }}>Most houses look beautiful.</span>{' '}
+          <span data-hero-reveal style={{ display: 'block', textWrap: 'balance' }}>Few truly feel like home.</span>
         </h1>
         <p
+          data-hero-reveal
           style={{
             fontFamily: 'var(--font-body)',
             fontSize: 'clamp(0.95rem, 2vw, 1.25rem)',
             maxWidth: 560,
             marginBottom: 'var(--space-md)',
-            opacity: 0.9,
+            // Alpha on the colour, not `opacity` — the reveal animates opacity.
+            color: 'rgba(251, 250, 246, 0.9)',
             textShadow: '0 1px 16px rgba(0,0,0,0.6)',
           }}
         >
@@ -116,6 +140,7 @@ export default function Hero({ project }) {
             state doesn't desync. */}
         {isSectionOn('featuredProjects') && (
           <a
+            data-hero-reveal
             href="#projects"
             onClick={(e) => {
               e.preventDefault()

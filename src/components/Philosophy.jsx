@@ -16,6 +16,7 @@ const THEMES = ['Light', 'Movement', 'Context', 'Materials', 'Climate', 'Vastu',
 export default function Philosophy({ project }) {
   const textRef = useRef(null)
   const imageRef = useRef(null)
+  const tagsRef = useRef(null)
 
   useEffect(() => {
     if (prefersReducedMotion()) return
@@ -31,7 +32,7 @@ export default function Philosophy({ project }) {
             y: 0,
             duration: 1.2,
             ease: 'power2.out',
-            scrollTrigger: { trigger: textRef.current, start: 'top 75%' },
+            scrollTrigger: { trigger: textRef.current, start: 'clamp(top 75%)' },
           },
         ),
       )
@@ -46,7 +47,26 @@ export default function Philosophy({ project }) {
             scale: 1,
             duration: 1.4,
             ease: 'power2.out',
-            scrollTrigger: { trigger: imageRef.current, start: 'top 80%' },
+            scrollTrigger: { trigger: imageRef.current, start: 'clamp(top 80%)' },
+          },
+        ),
+      )
+    }
+    // The theme chips arrive one after another, just after the text block.
+    // Entrance only: they stay plain labels (see the chip comment below), so
+    // no hover behaviour that would make them read as buttons.
+    if (tagsRef.current) {
+      tweens.push(
+        gsap.fromTo(
+          tagsRef.current.children,
+          { opacity: 0, y: 8 },
+          {
+            opacity: 1,
+            y: 0,
+            duration: 0.6,
+            ease: 'power2.out',
+            stagger: 0.08,
+            scrollTrigger: { trigger: tagsRef.current, start: 'clamp(top 90%)' },
           },
         ),
       )
@@ -165,6 +185,7 @@ export default function Philosophy({ project }) {
             Guided by
           </p>
           <ul
+            ref={tagsRef}
             style={{
               display: 'flex',
               flexWrap: 'wrap',

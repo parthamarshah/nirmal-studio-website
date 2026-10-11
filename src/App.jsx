@@ -3,6 +3,7 @@ import { initScroll, destroyScroll, scrollTo } from './lib/scroll'
 import { homepageProject, isSectionOn } from './lib/content'
 import Loader from './components/Loader'
 import HomeNav from './components/HomeNav'
+import ScrollProgress from './components/ScrollProgress'
 import Hero from './components/Hero'
 import Statement from './components/Statement'
 import FocusImage from './components/FocusImage'
@@ -42,6 +43,9 @@ function App() {
       <Loader />
       <SectionBoundary name="Nav">
         <HomeNav />
+      </SectionBoundary>
+      <SectionBoundary name="Scroll progress">
+        <ScrollProgress />
       </SectionBoundary>
       <main>
         {section(null, 'Hero', <Hero project={homepageProject('hero')} />)}

@@ -371,7 +371,8 @@ export default function Process() {
               />
             ))}
           </div>
-          <span className="process-progress-label">
+          {/* Visual mirror of the dots, which already carry aria-current. */}
+          <span className="process-progress-label" aria-hidden="true">
             {String(activeIndex + 1).padStart(2, '0')} — {STAGES[activeIndex].name}
           </span>
         </div>

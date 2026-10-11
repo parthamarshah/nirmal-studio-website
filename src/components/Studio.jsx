@@ -24,13 +24,21 @@ const Founders = lazy(() => import('./Founders'))
 // seconds, and collapsing to nothing then expanding would shove everything below it down
 // under the reader's thumb mid-scroll. Scroll anchoring can't be relied on here — Lenis
 // drives the scroll.
+//
+// The wrapper is what HomeNav watches to underline "Studio": it exists from the
+// first render, whereas Founders' own <section id="studio"> only appears once its
+// lazy chunk arrives — after HomeNav has already looked for it.
 export default function Studio() {
-  return foundersReady ? (
-    <Suspense fallback={<div style={{ minHeight: '100svh' }} aria-hidden="true" />}>
-      <Founders />
-    </Suspense>
-  ) : (
-    <LegacyStudio />
+  return (
+    <div data-nav-target="#studio">
+      {foundersReady ? (
+        <Suspense fallback={<div style={{ minHeight: '100svh' }} aria-hidden="true" />}>
+          <Founders />
+        </Suspense>
+      ) : (
+        <LegacyStudio />
+      )}
+    </div>
   )
 }
 
@@ -63,7 +71,8 @@ function LegacyStudio() {
             // FeaturedProjects already guards against: a fixed 'top 75%'
             // can be unreachable if there isn't enough scroll room above
             // this trigger on a given viewport.
-            scrollTrigger: { trigger: ref.current, start: 'clamp(top 75%)' },
+            // 90%, not 75%: the FOLD block was fully on screen yet still blank on a phone.
+            scrollTrigger: { trigger: ref.current, start: 'clamp(top 90%)' },
           },
         ),
       )

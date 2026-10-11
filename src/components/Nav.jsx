@@ -6,6 +6,7 @@ import { isSectionOn, whatsappUrl } from '../lib/content'
 // Fetched on first use (and warmed when a pointer or keyboard focus reaches the
 // button), never during page load or hydration.
 import { loadTalk } from './loadTalk'
+import { NAV_LINKS } from './navLinks'
 
 // Persistent nav, used on every page. Transparent/light-text over the Hero
 // image until `scrolled` (driven by HomeNav.jsx's #hero ScrollTrigger on the
@@ -24,13 +25,6 @@ import { loadTalk } from './loadTalk'
 // transitioned) and takes effect the instant the class changes, with no
 // unmount/remount cycle to create the "reused DOM node keeps stale
 // pointer-events" or same-position click-through follow-on bugs either.
-const NAV_LINKS = [
-  { label: 'Work', href: '#projects', section: 'featuredProjects' },
-  { label: 'Studio', href: '#studio', section: 'studio' },
-  { label: 'Process', href: '#process', section: 'process' },
-  { label: 'Journal', href: '#journal', requiresJournal: true },
-  { label: 'Contact', href: '#contact', section: 'contact' },
-]
 
 // Presentational + menu behaviour only, so project pages can use it without
 // pulling in GSAP/Lenis. On the homepage, HomeNav.jsx supplies `scrolled` (from
@@ -41,7 +35,10 @@ const NAV_LINKS = [
 // No render-time browser reads (e.g. prefersReducedMotion()) — project pages
 // are pre-rendered and hydrated. Reduced motion is handled by index.css's
 // global transition override.
-export default function Nav({ scrolled = true, onNavigate }) {
+//
+// `activeHref` (homepage only) is the section currently in view, e.g. '#studio';
+// its link gets an underline and aria-current. Computed by HomeNav, never here.
+export default function Nav({ scrolled = true, onNavigate, activeHref = null }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [TalkPanel, setTalkPanel] = useState(null) // the loaded component while open, else null
   const [talkLoading, setTalkLoading] = useState(false) // instant feedback on slow connections
@@ -138,7 +135,13 @@ export default function Nav({ scrolled = true, onNavigate }) {
       <div className="site-nav-right">
         <div className="site-nav-links">
           {links.map((link) => (
-            <a key={link.href} href={linkHref(link.href)} className="site-nav-link" onClick={(e) => handleLinkClick(e, link.href)}>
+            <a
+              key={link.href}
+              href={linkHref(link.href)}
+              className={`site-nav-link${link.href === activeHref ? ' is-active' : ''}`}
+              aria-current={link.href === activeHref ? 'location' : undefined}
+              onClick={(e) => handleLinkClick(e, link.href)}
+            >
               {link.label}
             </a>
           ))}
@@ -181,6 +184,7 @@ export default function Nav({ scrolled = true, onNavigate }) {
             key={link.href}
             href={linkHref(link.href)}
             className="site-nav-menu-link"
+            aria-current={link.href === activeHref ? 'location' : undefined}
             onClick={(e) => handleLinkClick(e, link.href)}
           >
             {link.label}
@@ -286,6 +290,36 @@ export default function Nav({ scrolled = true, onNavigate }) {
           align-items: center;
           text-shadow: 0 1px 12px rgba(0, 0, 0, 0.5);
           transition: color 0.3s ease;
+          position: relative;
+        }
+        /* A hairline that draws in from the left on hover, and stays under the
+           section you're in. It retracts to the right, so it reads as passing
+           through rather than blinking off. */
+        .site-nav-link::after {
+          content: '';
+          position: absolute;
+          left: 0;
+          right: 0;
+          bottom: 10px;
+          height: 1px;
+          background: currentColor;
+          transform: scaleX(0);
+          transform-origin: right center;
+          transition: transform var(--duration-medium) var(--ease-luxury);
+        }
+        .site-nav-link:focus-visible::after,
+        .site-nav-link.is-active::after {
+          transform: scaleX(1);
+          transform-origin: left center;
+        }
+        /* Hover draws at half strength, so the section you're in (full line)
+           stays distinguishable from the link under the pointer. */
+        @media (hover: hover) {
+          .site-nav-link:not(.is-active):hover::after {
+            transform: scaleX(1);
+            transform-origin: left center;
+            opacity: 0.5;
+          }
         }
         .site-nav--scrolled .site-nav-link {
           color: var(--color-text);
@@ -345,6 +379,9 @@ export default function Nav({ scrolled = true, onNavigate }) {
           display: flex;
           align-items: center;
           border-top: 1px solid var(--color-beige);
+        }
+        .site-nav-menu-link[aria-current] {
+          color: var(--color-bronze-darker);
         }
 
         @media (min-width: 768px) {

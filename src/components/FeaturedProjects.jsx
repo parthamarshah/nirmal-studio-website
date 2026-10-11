@@ -58,12 +58,15 @@ export default function FeaturedProjects() {
         {
           opacity: 1,
           y: 0,
-          duration: 1,
+          duration: 0.7,
           ease: 'power2.out',
-          // clamp() — same CLAUDE.md incident IdeaTimeline hit twice: a fixed
-          // 'top 85%' trigger can fall past max scroll on a short/tall
-          // viewport with few rows, leaving the last cards stuck invisible.
-          scrollTrigger: { trigger: el, start: 'clamp(top 85%)' },
+          // Starts as the card's top edge enters, and is short, so a row is
+          // never sitting fully on screen half-faded (measured at 1440px: the
+          // old 'top 85%' + 1s left a whole row at ~70% opacity, which read as
+          // washed-out photos). clamp() — same CLAUDE.md incident IdeaTimeline
+          // hit twice: a fixed start can fall past max scroll and leave the
+          // last cards stuck invisible.
+          scrollTrigger: { trigger: el, start: 'clamp(top 95%)' },
         },
       ),
     )
@@ -539,6 +542,17 @@ export default function FeaturedProjects() {
           bottom: 0;
           padding: var(--space-sm);
           text-align: left;
+          transition: transform var(--duration-medium) var(--ease-luxury);
+        }
+        /* Hover-capable pointers only: on touch, a tap opens the card, and a
+           caption that jumps on tap would just read as a glitch. */
+        @media (hover: hover) {
+          .project-card:hover .project-card-info {
+            transform: translateY(-4px);
+          }
+        }
+        .project-card:focus-visible .project-card-info {
+          transform: translateY(-4px);
         }
         .project-card-meta {
           display: block;

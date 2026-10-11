@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import useEmblaCarousel from 'embla-carousel-react'
-import { gsap, prefersReducedMotion } from '../lib/scroll'
+import { gsap, prefersReducedMotion, ScrollTrigger } from '../lib/scroll'
 import { people, foundersIntro, personContacts } from '../lib/content'
 import Img from './Img'
 
@@ -119,6 +119,14 @@ function Person({ person, index, total, inRow }) {
 
 export default function Founders() {
   const sectionRef = useRef(null)
+
+  // This section arrives lazily, replacing a 100svh placeholder, so every
+  // scroll position measured below it (later sections, the top progress line)
+  // is stale until re-measured once it has laid out.
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => ScrollTrigger.refresh())
+    return () => cancelAnimationFrame(frame)
+  }, [])
   const snapRef = useRef(null)
   const [mode, setMode] = useState(currentMode)
   const [selected, setSelected] = useState(0)
@@ -214,7 +222,7 @@ export default function Founders() {
           // The same element later becomes a carousel slide; leave no inline transform behind.
           clearProps: 'transform',
           // clamp(): a fixed start can be unreachable near the end of the page (CLAUDE.md).
-          scrollTrigger: { trigger: el, start: 'clamp(top 80%)' },
+          scrollTrigger: { trigger: el, start: 'clamp(top 90%)' },
         },
       ),
     )
