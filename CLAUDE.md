@@ -454,23 +454,22 @@ against them rather than rediscovering them by chance:
 
 ## Branches right now — read this before pushing anything
 
-**`main` deliberately has NO `functions/` directory. Do not put it back yet.**
+**`/admin` is LIVE on `nirmalstudio.com` since 2026-10-11** (`admin-test` fast-forwarded
+into `main` at `5fa44bf`; Parth signed in, then published and undid a one-character change,
+`200b0a8` → `97e1194`, with **Live ✓** shown both times). So `main` now has `functions/`.
 
-Cloudflare Pages **auto-deploys anything in `functions/`** on the branch it builds. There
-is no switch for this and nothing in the dashboard to opt out of. So a commit of backend
-code to `main` publishes those endpoints on `nirmalstudio.com` immediately — which is
-exactly what happened on 2026-09-20: `/api/admin/me` and `/api/admin/login` were live on
-the real domain for about four minutes before being removed. Nothing was exposed beyond
-the endpoints' existence (production has no `ADMIN_PIN_HASH`/`SESSION_SECRET`, so login
-answered "not configured" and `/me` answered 401), but it was the opposite of the agreed
-"preview branch only" and it was caught by checking, not by design.
+Cloudflare Pages **auto-deploys anything in `functions/`** on the branch it builds, with no
+opt-out, so **any backend change pushed to `main` is live on the real domain immediately**.
+(On 2026-09-20 that put two endpoints live for four minutes by accident; that is why the
+backend was kept off `main` until launch.)
 
-- **`main`** — the live site. Contains `wrangler.toml`, `migrations/` and the admin
-  scripts, all of which are inert without `functions/`.
-- **`admin-test`** — the `/admin` backend lives here and deploys to its own preview URL.
-  All Phase 2 work goes here until Parth has reviewed it and the review agents have run.
-
-Merging `admin-test` into `main` is therefore a **launch decision**, not a routine merge.
+- **`main`** — the live site *and* the live `/admin`. A Publish from nirmalstudio.com/admin
+  is a real commit here, so **`git pull` before starting work.**
+- **`admin-test`** — the preview (`admin-test.nirmal-studio.pages.dev/admin/`, its own D1,
+  publishes to `admin-test`). Do Phase 3 / backend work here first, review it, then merge to
+  `main`. Merge `main` back into it before starting, since live publishes land on `main` only.
+- **New migrations:** apply `--remote` to **both** databases *before* pushing the code that
+  uses them (see the known-incident entry), now more than ever since `main` runs the backend.
 
 ## Phase 2 credentials (created 2026-09-20, stored in Parth's Apple Passwords)
 
@@ -478,9 +477,11 @@ Never in the repo, never in chat. Both are saved in the **Passwords** app.
 
 **Where they are set (2026-09-22):** the **Preview** environment of the `nirmal-studio`
 Pages project has `ADMIN_PIN_HASH`, `GITHUB_TOKEN` and a preview-only `SESSION_SECRET`,
-all as encrypted secrets (`PUBLISH_BRANCH` comes from `wrangler.toml`). **Production has
-none of them, deliberately** — `main` has no `functions/`, and giving production its own
-secrets is part of the launch decision. With `wrangler.toml` present the dashboard
+all as encrypted secrets (`PUBLISH_BRANCH` comes from `wrangler.toml`). **Production got
+its own three on 2026-10-11 (launch):** a **new PIN** (different from the preview's, which
+still uses the old one; the local `.dev.vars` has the new one), the same GitHub token, and
+its own freshly generated `SESSION_SECRET` (stored nowhere else; it never needs to be known).
+With `wrangler.toml` present the dashboard
 accepts only secrets, not plain variables, and `wrangler pages secret put` (4.135) has
 no `--env` flag — so setting a *preview* secret is a dashboard step.
 

@@ -5,6 +5,23 @@ live in `CLAUDE.md` — read that first if you're picking this up cold.
 
 ## Resume here
 
+### ▶ PHASE 2 LAUNCHED (2026-10-11): `/admin` is live on nirmalstudio.com
+- **Pre-checks:** `content/` identical on both branches; production D1 had 0 drafts, sessions,
+  settings rows, lockouts and publishes, and its schema matched the preview's.
+- **Production secrets** set by Parth in the dashboard: a **new PIN** (the preview keeps the old
+  one), the same GitHub token, and a new `SESSION_SECRET` (generated straight to his clipboard,
+  stored nowhere).
+- **Launch:** `admin-test` fast-forwarded into `main` at `5fa44bf`; `_version.json` and
+  `check:domains` (apex + www) passed; `/api/admin/me` answered 401.
+- **Live check:** Parth signed in (production `sessions` 0→1, preview unchanged at 1, so the
+  production binding switched), published a one-character WhatsApp-message change (`200b0a8`),
+  saw **Live ✓** on the real domain, and undid it (`97e1194`; content diff vs `5fa44bf` empty).
+- `admin-test` fast-forwarded to `main` afterwards. Branch rules for after launch: CLAUDE.md.
+**Next:** Phase 3 (project and founder editors, with referential image safety and upload
+staging), on `admin-test` first. Still-open items from the step 7 block below carry over,
+except the "publish and undo on the live site right after launch" one, which is now done.
+
+
 ### ▶ ANIMATIONS ROUND (2026-10-11), branch `animations`, merged to `main` and live 2026-10-11
 An outside review (WhatsApp, "nirmalstudio-animation-plan.md") was checked against the repo. About
 half its claims were wrong (it thought there was no React/GSAP, and that there were no project pages,
