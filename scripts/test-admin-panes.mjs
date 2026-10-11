@@ -190,6 +190,8 @@ try {
   // Discarding with no version of its own used to 400 and strand the editor in `error`.
   const publishedShort = pub0.published?.doc?.contact?.addressShort ?? ''
   await click('Discard them')
+  check('F: discard asks first, and nothing is thrown away yet', await waitFor(`document.body.innerText.includes('Throw away all your unpublished changes')`) && (await fieldVal()) === 'Mine F', String(await fieldVal()))
+  await click('Yes, throw them away')
   check('F: discard works with no version of its own', await waitFor(`document.getElementById('f-addressShort')?.value === ${JSON.stringify(publishedShort)}`, 10000), String(await fieldVal()) + ' | ' + (await text()).slice(0, 200))
   check('F: nothing left parked', !(await ev(`!!document.querySelector('.admin-pubbar--unsaved')`)))
   // ── G: changing the PIN from the Settings pane. Last, because it signs this session

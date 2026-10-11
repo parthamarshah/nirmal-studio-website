@@ -129,13 +129,28 @@ export async function onRequestPost(context) {
   const now = Date.now()
   const files = docs.filter((d) => d.after !== d.before).map((d) => ({ path: d.path, before: d.before, after: d.after }))
   let warning = null
+  // Two identical publishes fired within the same second (a double-click) build
+  // byte-identical commits — same tree, parent, message and timestamp — so they share
+  // one sha, and the second ref update is a no-op that also "succeeds". Exactly one
+  // commit landed; the conditional insert makes exactly one request own it. The other
+  // answers as a repeat, so the history gets one row and the UI one confirmation.
+  let recorded = true
   try {
-    await db
-      .prepare('INSERT INTO publishes (commit_sha, branch, summary, files, parent_sha, created_at, kind) VALUES (?, ?, ?, ?, ?, ?, ?)')
-      .bind(result.commit, branch, result.summary, JSON.stringify(files), result.parent, now, 'publish')
+    const res = await db
+      .prepare(
+        'INSERT INTO publishes (commit_sha, branch, summary, files, parent_sha, created_at, kind) ' +
+          'SELECT ?, ?, ?, ?, ?, ?, ? WHERE NOT EXISTS (SELECT 1 FROM publishes WHERE commit_sha = ? AND branch = ?)',
+      )
+      .bind(result.commit, branch, result.summary, JSON.stringify(files), result.parent, now, 'publish', result.commit, branch)
       .run()
+    recorded = Boolean(res.meta?.changes)
   } catch {
     warning = 'Published, but the record of it couldn’t be saved, so Undo isn’t available for this one.'
+  }
+  if (!recorded) {
+    await clearDrafts(db, docs).catch(() => {})
+    const state = await overview(context.env).catch(() => ({}))
+    return json({ ok: true, unchanged: true, ...state })
   }
   try {
     await clearDrafts(db, docs)

@@ -149,7 +149,7 @@ export default function Shell({ session, onSignedOut }) {
     // Signing out drops every parked edit with it, so say so rather than discovering it
     // after the fact — the whole point of parking is that nothing disappears silently.
     if (hasLeftUnsaved()) {
-      setError('There’s an unsaved change waiting — the bar at the top of the screen can save or discard it. Signing out would throw it away.')
+      setError('There’s an unsaved change waiting — the bar at the top of the screen can open or discard it. Signing out would throw it away.')
       return
     }
     setSigningOut(true)
@@ -528,7 +528,7 @@ function PublishBar({ pub, pending, live, editorBusy }) {
         <p>
           {phase === 'slow'
             ? 'Still not showing after five minutes. The build may have failed — if so, the site keeps showing the previous version, so nothing is broken. Still checking.'
-            : 'Stopped checking after 20 minutes — it probably didn’t build. The site is still showing the previous version, so nothing is broken. If this keeps happening, tell Parth.'}
+            : 'Stopped checking after 20 minutes — it probably didn’t build. The site is still showing the previous version, so nothing is broken. If this keeps happening, check the build in Cloudflare (Workers & Pages → nirmal-studio → Deployments).'}
         </p>
         {actions(
           phase === 'stopped' && (

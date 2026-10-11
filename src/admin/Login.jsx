@@ -99,7 +99,7 @@ export default function Login({ onSignedIn }) {
           <input
             id="admin-pin"
             ref={inputRef}
-            className="admin-pin"
+            className="admin-pin-input"
             // Masked by default so the PIN isn't readable over a shoulder or in a shared
             // screen, with a reveal toggle because six blind digits are easy to fumble.
             type={reveal ? 'text' : 'password'}

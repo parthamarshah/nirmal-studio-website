@@ -73,12 +73,17 @@ export async function onRequestPost(context) {
   let warning = null
   try {
     const now = Date.now()
-    // Guarded on undone_at so two racing undos can't both mark it; git already refused the
-    // second one's commit (the file no longer held `after`), so this is belt and braces.
+    // Guarded on undone_at so two racing undos can't both mark it. Git does NOT always
+    // refuse the second one: two undos fired within the same second build byte-identical
+    // commits (same tree, parent, message, timestamp), so they share a sha and the second
+    // ref update is a no-op that succeeds. The conditional insert keeps that to one row.
     await db.prepare('UPDATE publishes SET undone_at = ? WHERE id = ? AND undone_at IS NULL').bind(now, target.id).run()
     await db
-      .prepare('INSERT INTO publishes (commit_sha, branch, summary, files, parent_sha, created_at, kind) VALUES (?, ?, ?, ?, ?, ?, ?)')
-      .bind(result.commit, branch, result.summary, JSON.stringify(files.map((f) => ({ path: f.path, before: f.after, after: f.before }))), result.parent, now, 'undo')
+      .prepare(
+        'INSERT INTO publishes (commit_sha, branch, summary, files, parent_sha, created_at, kind) ' +
+          'SELECT ?, ?, ?, ?, ?, ?, ? WHERE NOT EXISTS (SELECT 1 FROM publishes WHERE commit_sha = ? AND branch = ?)',
+      )
+      .bind(result.commit, branch, result.summary, JSON.stringify(files.map((f) => ({ path: f.path, before: f.after, after: f.before }))), result.parent, now, 'undo', result.commit, branch)
       .run()
   } catch {
     warning = 'Undone, but the record of it couldn’t be saved.'

@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { site } from '../lib/content.js'
 import { isParked, useDraft } from './useDraft.js'
 
@@ -34,6 +34,9 @@ const problem = (f, value) => {
 // after, so anything typed in that window would be lost. `live` picks the wording for
 // where published changes go.
 export default function SettingsEditor({ onStateChange, locked = false, live = false }) {
+  // Discarding deletes the saved draft for good, so it asks first — same as the
+  // parked-edit "Discard it" in Shell.jsx.
+  const [confirmingDiscard, setConfirmingDiscard] = useState(false)
   const draft = useDraft('site', site)
   const { doc, state, message, conflict, hasDraft, restored, update, discard, keepTheirs, keepMine, reload } = draft
 
@@ -142,15 +145,40 @@ export default function SettingsEditor({ onStateChange, locked = false, live = f
         </p>
       )}
 
-      {hasDraft && (
+      {hasDraft && !confirmingDiscard && (
         <p className="admin-note">
           These are unpublished changes — {live ? 'nirmalstudio.com' : 'the test copy of the site'} still shows what was
           published.{' '}
-          <button type="button" className="admin-link" onClick={discard} disabled={locked}>
+          <button type="button" className="admin-link" onClick={() => setConfirmingDiscard(true)} disabled={locked}>
             Discard them
           </button>{' '}
           to go back to the published version.
         </p>
+      )}
+
+      {hasDraft && confirmingDiscard && (
+        <div className="admin-pubbar admin-pubbar--unsaved" role="alert">
+          <p>
+            Throw away all your unpublished changes here? The site keeps what was published. This can’t be
+            undone.
+          </p>
+          <div className="admin-pubbar-actions">
+            <button
+              type="button"
+              className="admin-btn"
+              disabled={locked}
+              onClick={() => {
+                setConfirmingDiscard(false)
+                discard()
+              }}
+            >
+              Yes, throw them away
+            </button>
+            <button type="button" className="admin-btn admin-btn--quiet" onClick={() => setConfirmingDiscard(false)}>
+              Keep them
+            </button>
+          </div>
+        </div>
       )}
     </>
   )

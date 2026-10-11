@@ -70,8 +70,8 @@ export default function ChangePin({ onSignedOut, busyElsewhere, locked = false }
       <section className="admin-pin" aria-live="polite">
         <h2>PIN changed</h2>
         <p className="admin-hint">
-          {warning || 'Everyone signed in has been signed out, here and on any other device.'} Signing
-          you back in now — use the new PIN.
+          {warning || 'Everyone signed in has been signed out, here and on any other device.'} Taking
+          you to the sign-in screen — use your new PIN.
         </p>
       </section>
     )

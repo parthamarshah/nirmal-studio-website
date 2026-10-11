@@ -275,7 +275,7 @@ button {
    slowly at a glance — fine for a one-word pill, not for three words. */
 .admin-tag {
   justify-self: end;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--color-bronze-darker);
   background: var(--color-beige);
   padding: 3px 8px;
@@ -459,7 +459,7 @@ button {
   margin-bottom: 8px;
 }
 
-.admin-pin {
+.admin-pin-input {
   width: 100%;
   padding: 12px 14px;
   font-size: 22px;
@@ -475,7 +475,7 @@ button {
   color: #fff;
 }
 
-.admin-pin::placeholder {
+.admin-pin-input::placeholder {
   color: rgb(255 255 255 / 0.45);
   letter-spacing: 0.35em;
 }
@@ -485,7 +485,7 @@ button {
   position: relative;
 }
 
-.admin-pin-wrap .admin-pin {
+.admin-pin-wrap .admin-pin-input {
   padding-right: 68px;
 }
 
@@ -494,7 +494,7 @@ button {
   top: 50%;
   right: 6px;
   transform: translateY(-50%);
-  min-height: 36px;
+  min-height: 44px;
   padding: 0 10px;
   border: 0;
   border-radius: var(--admin-radius);

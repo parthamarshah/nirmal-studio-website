@@ -100,6 +100,14 @@ check "truncated UTF-8 escape"                    "$(code -H "Cookie: junk=%E0%A
 # shadow the real session.
 check "a shadowing duplicate cannot replace the session" "$(code -H "Cookie: $COOKIE; __Host-nirmal_admin=bogus" $BASE/me)" 200
 
+# Cross-origin writes (functions/api/admin/_middleware.js). erp.nirmalstudio.com is the same
+# *site*, so SameSite=Strict still sends the cookie from there; Origin is what tells them apart.
+check "a write from another origin is refused" "$(code -X POST -H "Cookie: $COOKIE" -H "Origin: https://erp.nirmalstudio.com" -H "Content-Type: text/plain" -d x $BASE/logout)" 403
+check "Sec-Fetch-Site: same-site is refused too" "$(code -X POST -H "Cookie: $COOKIE" -H "Sec-Fetch-Site: same-site" $BASE/logout)" 403
+check "...and the session survived both" "$(code -H "Cookie: $COOKIE" $BASE/me)" 200
+check "a read from another origin still works" "$(code -H "Cookie: $COOKIE" -H "Origin: https://erp.nirmalstudio.com" $BASE/me)" 200
+check "a same-origin write gets through" "$(code -X POST -H "$J" -H "Origin: http://127.0.0.1:$PORT" -H "Sec-Fetch-Site: same-origin" $BASE/login)" 400
+
 echo "--- lockout after repeated failures ---"
 npx wrangler d1 execute nirmal-studio-admin --local --command "DELETE FROM login_attempts" -y >/dev/null 2>&1
 for i in 1 2 3 4; do code -X POST -H "$J" -d '{"pin":"000009"}' $BASE/login > /dev/null; done
