@@ -24,11 +24,34 @@ UX and edge-case reviews applied):
 - `Founders.jsx` now calls `ScrollTrigger.refresh()` once mounted (its lazy load changed the page
   height with no re-measure). It is untested in a browser until `foundersReady` is true.
 **Next:** Parth reviews the branch preview → merge to `main` → `npm run check:domains`. Then
-~~merge `main` into `admin-test`~~ done 2026-10-11. The admin step-7 review gate below is
-still pending.
+~~merge `main` into `admin-test`~~ done 2026-10-11. **Parth's calls (2026-10-11):** body font stays the
+system sans; the scroll-progress line was removed (`main` `b021041`).
+
+### ▶ STEP 7 REVIEW GATE: DONE (2026-10-11), launch is next
+Branch-wide impact, edge-case, production-safety and UX reviews ran over everything since `main`.
+All findings are fixed in `27c30bf`, `d3e599c` and the commit after them. The highlights:
+- **Security:** an origin check refuses cross-site writes (`erp.nirmalstudio.com` is same-site).
+- **Lost edits:** fixed for a save that hits a 401, and closing the tab after a failed save now warns.
+- **Duplicate records:** a double-fired Publish or Undo records one history row.
+- **Lockout:**
+  - Each attempt is counted *before* its PIN is checked (`reserveAttempt`). A broken hash gives
+    back the attempt it counted.
+  - Parth **accepted the global-lockout risk** (CLAUDE.md).
+- **Sign-in screen:**
+  - A transient database 503 carries `retry: true` (kind `unavailable`). The PIN stays typed and
+    the form stays usable. A `misconfigured` 503 still blocks it.
+  - It says why it's showing after a forced sign-out or a PIN change.
+- **PIN-change retry:** a retry of a change that already went through really does sign everyone out.
+- **Undo confirmation:** it lists what it will put back (`GET publish?undo=1`). Its button waits
+  for that list.
+- **Phone layout:** the top bar is pinned on phones.
+
+Suites: auth 51, panes all passed (cases H and I), publish 38.
+**Next: the launch, which is Parth's go-ahead.** Run the checklist below. Parth sets the 3 production
+secrets himself; he will enter the PIN and decide whether to reuse the preview's.
 
 
-### ▶ START HERE (updated 2026-09-24, step 7 all but the review gate)
+### ▶ START HERE (updated 2026-09-24; step 7 gate since done, see above)
 
 **Where things stand:** Phase 1 is live. **Phase 2 (the `/admin` backend) is on step 7 of 7**,
 on the `admin-test` branch, deployed to the preview at

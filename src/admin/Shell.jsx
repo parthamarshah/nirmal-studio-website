@@ -253,7 +253,7 @@ export default function Shell({ session, onSignedOut }) {
             aria-expanded={pub.phase === 'confirm-publish'}
             onClick={() => pub.phase !== 'confirm-publish' && pub.askPublish()}
           >
-            {pub.phase === 'publishing' ? 'Publishing…' : 'Publish'}
+            {pub.phase === 'publishing' ? 'Publishing…' : pub.phase === 'confirm-publish' && !pub.confirmReady ? 'Checking…' : 'Publish'}
           </button>
         </header>
 
@@ -430,11 +430,15 @@ function PublishBar({ pub, pending, live, editorBusy }) {
 
   // Focus the primary action when a confirmation opens, and let Escape back out.
   const primaryRef = useRef(null)
+  const barRef = useRef(null)
   const { cancel } = pub
   // Re-run when "Checking…" turns into "Publish now": a disabled button can't hold focus.
   const ready = pub.confirmReady
   useEffect(() => {
     if (!confirming) return
+    // On a phone the Publish button is pinned but this strip isn't — tapped halfway down
+    // a form, the confirmation would open out of sight.
+    barRef.current?.scrollIntoView?.({ block: 'nearest' })
     primaryRef.current?.focus()
     const onKey = (e) => {
       if (e.key === 'Escape') cancel()
@@ -497,12 +501,27 @@ function PublishBar({ pub, pending, live, editorBusy }) {
     tone = 'ask'
     body = (
       <>
-        <p>
-          Undo <strong>{latest.summary}</strong>? {cap(where)} goes back to how it was before that publish.
-        </p>
+        <div>
+          <p>
+            Undo <strong>{latest.summary}</strong>? {cap(where)} goes back to how it was before that publish.
+          </p>
+          {!pub.confirmReady && <p className="admin-pubbar-sub">Checking what it will change back…</p>}
+          {pub.confirmReady && overview?.undoChanges == null && (
+            <p className="admin-pubbar-sub">Couldn’t list the individual changes just now — Undo still puts back everything from before that publish.</p>
+          )}
+          {pub.confirmReady && overview?.undoChanges?.length > 0 && (
+            <ul className="admin-pubbar-changes">
+              {overview.undoChanges.map((c) => (
+                <li key={c.field}>
+                  <strong>{cap(c.field)}:</strong> {shown(c.from)} → {shown(c.to)}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
         {actions(
-          <button key="go" ref={primaryRef} type="button" className="admin-btn admin-btn--danger" onClick={pub.undo}>
-            Yes, undo it
+          <button key="go" ref={primaryRef} type="button" className="admin-btn admin-btn--danger" onClick={pub.undo} disabled={!pub.confirmReady}>
+            {pub.confirmReady ? 'Yes, undo it' : 'Checking…'}
           </button>,
           <button key="no" type="button" className="admin-btn admin-btn--quiet" onClick={pub.cancel}>
             Keep it
@@ -595,7 +614,7 @@ function PublishBar({ pub, pending, live, editorBusy }) {
   if (!body && !extra.length) return null
   // aria-live so a screen reader hears "Published", "Live" without having to hunt.
   return (
-    <div className={`admin-pubbar${tone ? ` admin-pubbar--${tone}` : ''}`} aria-live="polite">
+    <div ref={barRef} className={`admin-pubbar${tone ? ` admin-pubbar--${tone}` : ''}`} aria-live="polite">
       {body}
       {extra.map((t) => (
         <p key={t} className="admin-pubbar-note">

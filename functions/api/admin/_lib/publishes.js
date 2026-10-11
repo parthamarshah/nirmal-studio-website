@@ -83,9 +83,14 @@ export function safeParse(text) {
 // the branch now — one GitHub read per draft, so only the GET that feeds the Publish
 // confirmation asks for it. If GitHub can't be read, `changes` is null and the
 // confirmation says it couldn't list them (Publish itself re-reads and re-checks).
-export async function overview(env, { withChanges = false } = {}) {
+//
+// `withUndoChanges` adds `undoChanges`: what Undo would put back, read from the files at
+// the publish's own commit and at the one before it. null when it can't be worked out —
+// the confirmation then just doesn't list them; Undo itself re-checks every file.
+export async function overview(env, { withChanges = false, withUndoChanges = false } = {}) {
   const branch = env.PUBLISH_BRANCH
   const latest = await latestPublish(env.DB, branch)
+  const undoChanges = withUndoChanges && canUndo(latest) ? await changesUndoWouldMake(env, latest) : null
   const rows = await pendingRows(env.DB)
   let head = null
   if (withChanges && rows.length && env.GITHUB_TOKEN && isBranchName(branch)) {
@@ -104,5 +109,35 @@ export async function overview(env, { withChanges = false } = {}) {
       }
     }),
   )
-  return { branch, pending, latest: shapePublish(latest), canUndo: canUndo(latest) }
+  return { branch, pending, latest: shapePublish(latest), canUndo: canUndo(latest), ...(withUndoChanges ? { undoChanges } : {}) }
+}
+
+const ID_FOR_PATH = { 'content/site.json': 'site', 'content/founders.json': 'founders' }
+
+// Field-by-field, from what the publish wrote back to what was there before it. Only the
+// contact details are listed field by field today (`listChanges`), same as the Publish
+// confirmation — other documents contribute nothing rather than something misleading.
+async function changesUndoWouldMake(env, row) {
+  if (!row.parent_sha || !env.GITHUB_TOKEN) return null
+  let files
+  try {
+    files = JSON.parse(row.files)
+  } catch {
+    return null
+  }
+  if (!Array.isArray(files)) return null
+  try {
+    const gh = github(env)
+    const lists = await Promise.all(
+      files.map(async (f) => {
+        const id = ID_FOR_PATH[f?.path] ?? (f?.path?.startsWith('content/projects/') ? `project:${f.path.slice(17, -5)}` : null)
+        if (!id) return []
+        const [now, before] = await Promise.all([gh.file(f.path, row.commit_sha), gh.file(f.path, row.parent_sha)])
+        return listChanges(id, before ? safeParse(before.text) : null, now ? safeParse(now.text) : null)
+      }),
+    )
+    return lists.flat()
+  } catch {
+    return null
+  }
 }

@@ -7,6 +7,7 @@ import {
   sessionCookie,
   checkLock,
   recordFailure,
+  reserveAttempt,
   clearFailures,
   clientIp,
   json,
@@ -29,7 +30,7 @@ export async function onRequestPost(context) {
     try {
       pinHash = await currentPinHash(env)
     } catch {
-      return json({ error: 'The admin database isn’t reachable right now, so signing in can’t be checked. Try again in a minute.' }, { status: 503 })
+      return json({ error: 'The admin database isn’t reachable right now, so signing in can’t be checked. Try again in a minute.', retry: true }, { status: 503 })
     }
   }
 
@@ -60,7 +61,7 @@ export async function onRequestPost(context) {
   try {
     lock = await checkLock(env.DB, ip)
   } catch {
-    return json({ error: UNAVAILABLE }, { status: 503 })
+    return json({ error: UNAVAILABLE, retry: true }, { status: 503 })
   }
   if (lock.locked) {
     const minutes = Math.max(1, Math.ceil((lock.until - Date.now()) / 60_000))
@@ -89,9 +90,26 @@ export async function onRequestPost(context) {
     try {
       await recordFailure(env.DB, ip)
     } catch {
-      return json({ error: UNAVAILABLE }, { status: 503 })
+      return json({ error: UNAVAILABLE, retry: true }, { status: 503 })
     }
     return json({ error: 'That PIN is not correct.' }, { status: 401 })
+  }
+
+  // Count this attempt before checking it (see `reserveAttempt`). A guess that arrives
+  // past the limit — the tail of a parallel burst that all got through the lock check
+  // above — is refused without being tried, so even the right PIN can't win from there.
+  let allowed
+  try {
+    allowed = await reserveAttempt(env.DB, ip)
+  } catch {
+    return json({ error: UNAVAILABLE, retry: true }, { status: 503 })
+  }
+  if (!allowed) {
+    // Always with an end time: without one the login form blocks and never unblocks.
+    const now = await checkLock(env.DB, ip).catch(() => ({ locked: false }))
+    const until = now.locked ? now.until : Date.now() + 15 * 60_000
+    const minutes = Math.max(1, Math.ceil((until - Date.now()) / 60_000))
+    return json({ error: `Too many incorrect PINs. Try again in ${minutes} minute${minutes === 1 ? '' : 's'}.`, lockedUntil: until }, { status: 429 })
   }
 
   let correct
@@ -102,16 +120,17 @@ export async function onRequestPost(context) {
     // actually happened) more PBKDF2 iterations than Cloudflare Workers will run. Say so
     // rather than recording a failure: the person typing is not the problem, and letting
     // this burn lockout attempts would lock them out of a backend that cannot work yet.
-    if (err instanceof PinHashUnusable) return json({ error: err.message }, { status: 503 })
+    if (err instanceof PinHashUnusable) {
+      // reserveAttempt already counted this one; give it back, or five reloads of a
+      // misconfigured backend lock the person out behind "too many incorrect PINs".
+      await clearFailures(env.DB, ip).catch(() => {})
+      return json({ error: err.message }, { status: 503 })
+    }
     throw err
   }
 
   if (!correct) {
-    try {
-      await recordFailure(env.DB, ip)
-    } catch {
-      return json({ error: UNAVAILABLE }, { status: 503 })
-    }
+    // Already counted by reserveAttempt above.
     const after = await checkLock(env.DB, ip).catch(() => ({ locked: false }))
     if (after.locked) {
       const minutes = Math.max(1, Math.ceil((after.until - Date.now()) / 60_000))
@@ -121,10 +140,19 @@ export async function onRequestPost(context) {
   }
 
   // Best-effort: a stale failure count expires on its own, and refusing a correct PIN
-  // over bookkeeping would be the fail-closed rule applied where it buys nothing.
+  // over bookkeeping would be the fail-closed rule applied where it buys nothing. (If it
+  // fails, the attempt reserveAttempt counted for this correct PIN lingers until it expires.)
   await clearFailures(env.DB, ip).catch(() => {})
-  const id = await createSession(env.DB, { userAgent: request.headers.get('User-Agent') })
-  const signed = await signSessionId(env.SESSION_SECRET, id)
+  // Guarded: an uncaught throw reaches the browser as a non-JSON 500, which the admin app
+  // reads as "the backend isn't running" — the wrong thing to tell someone whose PIN was
+  // right and whose database just refused a write (the free tier's daily budget, say).
+  let signed
+  try {
+    const id = await createSession(env.DB, { userAgent: request.headers.get('User-Agent') })
+    signed = await signSessionId(env.SESSION_SECRET, id)
+  } catch {
+    return json({ error: 'Your PIN was right, but the admin database couldn’t save the sign-in. The site itself is unaffected. Try again in a few minutes.', retry: true }, { status: 503 })
+  }
 
   return json({ ok: true }, { headers: { 'Set-Cookie': sessionCookie(signed) } })
 }

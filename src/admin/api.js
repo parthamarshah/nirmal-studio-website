@@ -76,10 +76,12 @@ export async function api(path, { method = 'GET', body } = {}) {
   // 503 is the backend saying it is misconfigured — no PIN hash, no session secret, no
   // database binding, or a stored hash Cloudflare Workers cannot run. Its message names
   // the actual problem, so it is shown verbatim rather than replaced with something
-  // vaguer. Everything else carries its own message too.
+  // vaguer. A 503 marked `retry` is the database briefly not answering instead: worth
+  // trying again, so it must not be filed with the ones that can't fix themselves.
+  // Everything else carries its own message too.
   throw new ApiError(data?.error || `Request failed (${res.status}).`, {
     status: res.status,
-    kind: res.status === 503 ? 'misconfigured' : res.status === 429 ? 'locked' : 'error',
+    kind: res.status === 503 ? (data?.retry ? 'unavailable' : 'misconfigured') : res.status === 429 ? 'locked' : 'error',
     data,
   })
 }

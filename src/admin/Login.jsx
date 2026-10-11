@@ -7,7 +7,14 @@ import { login, ApiError } from './api.js'
 
 const minutesLeft = (until) => Math.max(1, Math.ceil((until - Date.now()) / 60_000))
 
-export default function Login({ onSignedIn }) {
+// Why the login screen is showing, when it isn't a first visit. Shown until the person
+// starts typing, so it never sits next to a fresh error and competes with it.
+const REASONS = {
+  ended: 'You’ve been signed out. Sign in again to carry on.',
+  'pin-changed': 'Your PIN has changed. Sign in with the new one.',
+}
+
+export default function Login({ onSignedIn, reason }) {
   const [pin, setPin] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
@@ -16,6 +23,7 @@ export default function Login({ onSignedIn }) {
   // somebody to type the right PIN over and over and conclude they have forgotten it.
   const [blocked, setBlocked] = useState(null)
   const [reveal, setReveal] = useState(false)
+  const [notice, setNotice] = useState(REASONS[reason] ?? null)
   const inputRef = useRef(null)
 
   useEffect(() => {
@@ -56,8 +64,11 @@ export default function Login({ onSignedIn }) {
         // Keep what was typed: it may well be correct, and it isn't the problem.
         setBlocked({ kind: err.kind })
       } else if (err instanceof ApiError && err.kind === 'locked') {
-        setBlocked({ kind: 'locked', until: err.lockedUntil })
+        setBlocked({ kind: 'locked', until: err.lockedUntil ?? Date.now() + 15 * 60_000 })
         setPin('')
+      } else if (err instanceof ApiError && err.kind === 'unavailable') {
+        // The database didn't answer; the PIN may well be right (the server says so when
+        // it knows). Keep it typed so trying again is one tap.
       } else {
         setPin('')
         inputRef.current?.focus()
@@ -93,6 +104,11 @@ export default function Login({ onSignedIn }) {
           </span>
         </h1>
         <p>Sign in to edit the site.</p>
+        {notice && (
+          <p className="admin-notice" role="status">
+            {notice}
+          </p>
+        )}
 
         <label htmlFor="admin-pin">Your 6-digit PIN</label>
         <div className="admin-pin-wrap">
@@ -117,6 +133,7 @@ export default function Login({ onSignedIn }) {
             disabled={busy || !!blocked}
             onChange={(e) => {
               setPin(e.target.value.replace(/\D/g, '').slice(0, 6))
+              setNotice(null)
               if (error && !blocked) setError(null)
             }}
           />

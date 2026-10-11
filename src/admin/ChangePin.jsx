@@ -58,7 +58,7 @@ export default function ChangePin({ onSignedOut, busyElsewhere, locked = false }
       // The session this page is holding was just revoked, so the app has to go back to
       // the login screen. Long enough to read what happened, short enough not to invite
       // clicking anything else first.
-      signOutTimer.current = setTimeout(() => onSignedOut(), 2500)
+      signOutTimer.current = setTimeout(() => onSignedOut('pin-changed'), 2500)
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not change the PIN.')
       setBusy(false)

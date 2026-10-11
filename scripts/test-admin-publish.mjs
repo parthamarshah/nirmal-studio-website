@@ -152,6 +152,14 @@ put = await call('draft', { method: 'PUT', body: { id: 'site', doc: stale, ifUpd
 const staleToken = put.data.updatedAt
 
 console.log('--- undo ---')
+const preview = await call('publish?undo=1')
+const back = preview.data?.undoChanges
+check(
+  'the Undo confirmation lists what it will put back',
+  Array.isArray(back) && back.length === 1 && back[0].from === marker && back[0].to === (published.contact.addressShort ?? null),
+  JSON.stringify(back),
+)
+check('a plain read does not include it', (await call('publish')).data?.undoChanges === undefined)
 check('undoing an older/unknown publish is refused', (await call('undo', { method: 'POST', body: { id: -1 } })).status === 409)
 r = await call('undo', { method: 'POST', body: { id: ov.data.latest.id } })
 check('undo succeeds', r.status === 200 && r.data?.commitSha, JSON.stringify(r.data))

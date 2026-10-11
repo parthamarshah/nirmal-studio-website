@@ -497,6 +497,11 @@ signs every session out. Two consequences worth knowing before you need them:
   immediately. If that secret is missing or also unusable, `npm run admin:secrets` first
   and set it in the dashboard. A 15-minute lockout clears with
   `DELETE FROM login_attempts` on the same database, or by waiting.
+- **Accepted risk (Parth, 2026-10-11): anyone can keep the admin locked.** The global
+  bucket locks everyone after 20 wrong PINs in 15 minutes, from any address, so a stranger
+  repeating that keeps both of you out indefinitely; the command above is the way back in.
+  Considered and declined: a per-device unlock. Each attempt is counted *before* its PIN is
+  checked (`reserveAttempt`), so a parallel burst can't get more guesses than the limit.
 
 **The PIN hash must be ≤ 100,000 PBKDF2 iterations.** Cloudflare Workers refuses
 anything higher (`deriveBits` throws; measured: 100000 → 200, 100001 → 500), and

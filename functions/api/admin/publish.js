@@ -18,7 +18,9 @@ import { publishSetup, commitToBranch, busyBranch, overview, pendingRows, safePa
 export async function onRequestGet(context) {
   const session = await requireSession(context)
   if (session instanceof Response) return session
-  return json(await overview(context.env, { withChanges: true }))
+  // ?undo=1 is the Undo confirmation asking what it would put back.
+  const withUndoChanges = new URL(context.request.url).searchParams.get('undo') === '1'
+  return json(await overview(context.env, { withChanges: true, withUndoChanges }))
 }
 
 export async function onRequestPost(context) {

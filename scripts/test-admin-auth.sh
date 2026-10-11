@@ -137,6 +137,19 @@ check "all 10 parallel failures were counted" "${COUNTED:-none}" 10
 check "and the account is locked"  "$(code -X POST -H "$J" -d "{\"pin\":\"$TEST_PIN\"}" $BASE/login)" 429
 npx wrangler d1 execute nirmal-studio-admin --local --command "DELETE FROM login_attempts" -y >/dev/null 2>&1
 
+echo "--- an attempt is counted before the PIN is checked ---"
+# The state the tail of a parallel burst is in: five failures already counted, but the
+# lock not yet visible to it (it passed the lock check before they landed). Counting only
+# AFTER a wrong answer let every such request be verified — so the right PIN could win
+# from there. Now the attempt is counted first, finds itself 6th, and is never tried.
+code -X POST -H "$J" -d '{"pin":"000009"}' $BASE/login > /dev/null
+npx wrangler d1 execute nirmal-studio-admin --local --command "UPDATE login_attempts SET failures = 5, locked_until = NULL WHERE bucket LIKE 'ip:%'" -y >/dev/null 2>&1
+check "the correct PIN past the limit is refused, not tried" "$(code -X POST -H "$J" -d "{\"pin\":\"$TEST_PIN\"}" $BASE/login)" 429
+npx wrangler d1 execute nirmal-studio-admin --local --command "DELETE FROM login_attempts" -y >/dev/null 2>&1
+check "a correct PIN still signs in from a clean slate" "$(code -X POST -H "$J" -d "{\"pin\":\"$TEST_PIN\"}" $BASE/login)" 200
+LEFT=$(npx wrangler d1 execute nirmal-studio-admin --local --json --command "SELECT COUNT(*) c FROM login_attempts" -y 2>/dev/null | python3 -c "import sys,json; print(json.load(sys.stdin)[0]['results'][0]['c'])" 2>/dev/null)
+check "...and leaves no counted attempt behind" "${LEFT:-none}" 0
+
 echo "--- signing out revokes server-side ---"
 COOKIE2=$(grep -i '^set-cookie:' "$TMP/h" | sed 's/[Ss]et-[Cc]ookie: //' | cut -d';' -f1)
 code -X POST -H "Cookie: $COOKIE2" $BASE/logout > /dev/null
@@ -165,7 +178,17 @@ check "the PIN changes"                             "$CHANGE_CODE" 200
 check "the session that changed it is dead"  "$(code -H "Cookie: $COOKIE3" $BASE/me)" 401
 check "the session opened earlier is dead too" "$(code -H "Cookie: $COOKIE" $BASE/me)" 401
 check "the old PIN no longer works"          "$(code -X POST -H "$J" -d "{\"pin\":\"$TEST_PIN\"}" $BASE/login)" 401
-check "the new PIN works"                    "$(code -X POST -H "$J" -d "{\"pin\":\"$NEW_PIN\"}" $BASE/login)" 200
+code -D "$TMP/h5" -X POST -H "$J" -d "{\"pin\":\"$NEW_PIN\"}" $BASE/login > "$TMP/c5"
+check "the new PIN works"                    "$(cat "$TMP/c5")" 200
+# A retry of the change after it already went through (its first answer lost). The screen
+# then says everyone was signed out, so that must be true — this session included.
+COOKIE5=$(grep -i '^set-cookie:' "$TMP/h5" | sed 's/[Ss]et-[Cc]ookie: //' | cut -d';' -f1)
+# Assigned first, checked second — the same inline-in-check quirk as CHANGE_CODE above.
+AGAIN_CODE=$(code -X POST -H "$J" -H "Cookie: $COOKIE5" --data-binary "{\"currentPin\":\"$TEST_PIN\",\"newPin\":\"$NEW_PIN\"}" "$BASE/pin")
+AGAIN_BODY=$(cat "$TMP/body")
+check "repeating a change that went through answers ok" "$AGAIN_CODE" 200
+check "...as already done" "$(echo "$AGAIN_BODY" | grep -c alreadyChanged)" 1
+check "...and really does sign everyone out" "$(code -H "Cookie: $COOKIE5" $BASE/me)" 401
 # The stored hash outranks ADMIN_PIN_HASH, which is what makes a changed PIN survive a
 # redeploy. Removing the row puts the deployment's own secret back in force.
 npx wrangler d1 execute nirmal-studio-admin --local --command "DELETE FROM settings WHERE key = 'pin_hash'" -y >/dev/null 2>&1

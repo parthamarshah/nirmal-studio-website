@@ -15,7 +15,10 @@ const POLL_MS = 5000
 export const SLOW_MS = 5 * 60_000
 const GIVE_UP_MS = 20 * 60_000
 
-const pick = (res) => (res && Array.isArray(res.pending) ? { branch: res.branch, pending: res.pending, latest: res.latest, canUndo: res.canUndo } : null)
+const pick = (res) =>
+  res && Array.isArray(res.pending)
+    ? { branch: res.branch, pending: res.pending, latest: res.latest, canUndo: res.canUndo, undoChanges: res.undoChanges }
+    : null
 
 // `isEditorBusy` is read at the moment of the click, not captured at render: an edit
 // typed after the confirmation opened must still stop the publish (it would otherwise be
@@ -40,14 +43,22 @@ export function usePublish({ onContentChanged, isEditorBusy }) {
   // from several saves ago. Found in a real run: the Publish confirmation listed an email
   // typo that had already been corrected. Only the newest request may write.
   const seqRef = useRef(0)
+  // Only the Undo confirmation's read carries `undoChanges`; any other read (a save
+  // settling while it is open) keeps the list it fetched, as long as it is still about
+  // the same publish.
   const apply = (seq, next) => {
-    if (next && seq === seqRef.current) setOverview(next)
+    if (!next || seq !== seqRef.current) return
+    setOverview((prev) =>
+      next.undoChanges === undefined
+        ? { ...next, undoChanges: prev && prev.latest?.id === next.latest?.id ? (prev.undoChanges ?? null) : null }
+        : next,
+    )
   }
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async ({ undo = false } = {}) => {
     const seq = ++seqRef.current
     try {
-      const next = pick(await api('publish'))
+      const next = pick(await api(undo ? 'publish?undo=1' : 'publish'))
       apply(seq, next)
       return next
     } catch {
@@ -182,7 +193,12 @@ export function usePublish({ onContentChanged, isEditorBusy }) {
       refresh().finally(() => setConfirmReady(true))
     },
     confirmReady,
-    askUndo: () => setPhase('confirm-undo'),
+    // Same re-read, asking also for what Undo would put back.
+    askUndo: () => {
+      setPhase('confirm-undo')
+      setConfirmReady(false)
+      refresh({ undo: true }).finally(() => setConfirmReady(true))
+    },
     cancel: () => setPhase(settledPhase()),
     dismiss: () => {
       setPhase(settledPhase())

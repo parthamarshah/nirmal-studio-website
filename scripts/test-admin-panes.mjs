@@ -231,6 +231,7 @@ try {
   await typeShort('Mine H')
   check('H: the other device changes the PIN', (await api('pin', { method: 'POST', body: { currentPin: '735412', newPin: '582916' } })).status === 200)
   check('H: the save hits the ended session and the login screen comes back', await waitFor(`document.body.innerText.includes('Sign in to edit the site')`, 8000))
+  check('H: the login screen says why it is there', await ev(`document.body.innerText.includes('You’ve been signed out')`))
   await ev(`(() => { const el = document.getElementById('admin-pin'); el.focus(); el.select() })()`)
   await cdp('Input.insertText', { text: '582916' })
   await ev(`document.querySelector('form').requestSubmit()`)
@@ -239,6 +240,13 @@ try {
   const back = await waitFor(`document.getElementById('f-addressShort')?.value === 'Mine H'`, 8000)
     || (await ev(`document.body.innerText.includes('didn’t finish saving')`) && (await click('Open Settings'), await waitFor(`document.getElementById('f-addressShort')?.value === 'Mine H'`, 8000)))
   check('H: the edit came back', back, String(await fieldVal()) + ' | ' + (await text()).slice(0, 200))
+  // ── I: on a phone the top bar (state line + Publish) stays pinned down a long form, and
+  // the page's scroll padding clears it, so a focused field never lands underneath it.
+  await ev(`window.scrollTo(0, document.documentElement.scrollHeight)`); await sleep(300)
+  const bar = await ev(`(() => { const r = document.querySelector('.admin-top').getBoundingClientRect(); return { top: Math.round(r.top), h: Math.round(r.height), pad: parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop), y: scrollY } })()`)
+  check('I: the page actually scrolled', bar.y > 0, JSON.stringify(bar))
+  check('I: the top bar stays pinned at the top', bar.top === 0, JSON.stringify(bar))
+  check('I: scroll padding clears the pinned bar', bar.pad >= bar.h, JSON.stringify(bar))
 } catch (e) { console.log('✗ threw', e.message); fails++ }
 finally { ws?.close(); chrome.kill('SIGKILL') }
 console.log(fails ? `\n${fails} failed` : '\nall passed'); process.exit(fails ? 1 : 0)

@@ -34,7 +34,9 @@ export default function Admin() {
   // One place decides what an expired or revoked session means, so no future editor call
   // has to. Sessions last 30 days, so this will fire mid-edit eventually.
   useEffect(() => {
-    setSessionEndedHandler(() => setState((s) => (s.status === 'in' ? { status: 'out' } : s)))
+    // `reason` makes the login screen say why it is there: being dropped on it mid-edit
+    // with no explanation reads as the site having crashed.
+    setSessionEndedHandler(() => setState((s) => (s.status === 'in' ? { status: 'out', reason: 'ended' } : s)))
     return () => setSessionEndedHandler(null)
   }, [])
 
@@ -69,7 +71,7 @@ export default function Admin() {
     )
   }
 
-  if (state.status === 'out') return <Login onSignedIn={refresh} />
+  if (state.status === 'out') return <Login onSignedIn={refresh} reason={state.reason} />
 
-  return <Shell session={state.session} onSignedOut={() => setState({ status: 'out' })} />
+  return <Shell session={state.session} onSignedOut={(reason) => setState({ status: 'out', reason })} />
 }

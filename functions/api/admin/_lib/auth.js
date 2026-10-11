@@ -296,14 +296,19 @@ export async function checkLock(db, ip) {
 //
 // `stale` below is the same rule as before: a failure long after the last one starts a
 // fresh count, so an honest typo today doesn't combine with one from last week.
+//
+// Returns `{ over }`: true when this attempt went PAST a bucket's limit. Callers count an
+// attempt before checking the PIN (`reserveAttempt`), so `over` is how a burst of parallel
+// guesses that all slipped past the lock check finds out only the first few may be tried.
 export async function recordFailure(db, ip) {
   const now = Date.now()
   const window = LOCK_MINUTES * 60_000
+  let over = false
   for (const bucket of [`ip:${ip}`, 'global']) {
     // The global bucket is more tolerant — it exists to stop distributed guessing, not
     // to let one person's typo lock out the other legitimate user.
     const limit = bucket === 'global' ? MAX_FAILURES * 4 : MAX_FAILURES
-    await db
+    const row = await db
       .prepare(
         `INSERT INTO login_attempts (bucket, failures, first_failed, locked_until)
          VALUES (?1, 1, ?2, CASE WHEN 1 >= ?4 THEN ?2 + ?3 ELSE NULL END)
@@ -314,11 +319,24 @@ export async function recordFailure(db, ip) {
                                THEN ?2 ELSE login_attempts.first_failed END,
            locked_until = CASE WHEN (CASE WHEN ?2 - login_attempts.first_failed > ?3
                                           THEN 1 ELSE login_attempts.failures + 1 END) >= ?4
-                               THEN ?2 + ?3 ELSE NULL END`,
+                               THEN ?2 + ?3 ELSE NULL END
+         RETURNING failures`,
       )
       .bind(bucket, now, window, limit)
-      .run()
+      .first()
+    if (row && row.failures > limit) over = true
   }
+  return { over }
+}
+
+// Counts an attempt BEFORE the PIN is checked, and says whether it may be checked at all.
+// Counting only after a wrong answer let a burst of simultaneous guesses all pass the lock
+// check and all be verified before any of them was recorded — the lockout capped guesses
+// per request round, not per 15 minutes. A correct PIN then clears the count it just added
+// (`clearFailures`), so the honest path ends where it did before.
+export async function reserveAttempt(db, ip) {
+  const { over } = await recordFailure(db, ip)
+  return !over
 }
 
 // The global bucket is cleared too. Without that, failures from one person's typos

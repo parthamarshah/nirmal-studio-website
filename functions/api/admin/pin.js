@@ -8,6 +8,7 @@ import {
   revokeAllSessions,
   checkLock,
   recordFailure,
+  reserveAttempt,
   clearFailures,
   clientIp,
   clearedCookieHeader,
@@ -103,11 +104,28 @@ export async function onRequestPost(context) {
   }
   if (!stored) return json({ error: 'This deployment has no PIN set, so there is nothing to change.' }, { status: 503 })
 
+  // Counted before it is checked, like /login (see `reserveAttempt`), so parallel
+  // requests can't each get a free guess past the limit.
+  let allowed
+  try {
+    allowed = await reserveAttempt(env.DB, ip)
+  } catch {
+    return json({ error: 'The admin database isn’t reachable right now, so this can’t be checked. Try again in a minute.' }, { status: 503 })
+  }
+  if (!allowed) {
+    return json({ error: 'Too many incorrect PINs. Try again in 15 minutes.', lockedUntil: Date.now() + 15 * 60_000 }, { status: 429 })
+  }
+
   let correct
   try {
     correct = await verifyPin(currentPin, stored)
   } catch (err) {
-    if (err instanceof PinHashUnusable) return json({ error: err.message }, { status: 503 })
+    if (err instanceof PinHashUnusable) {
+      // reserveAttempt already counted this one; give it back, or five reloads of a
+      // misconfigured backend lock the person out behind "too many incorrect PINs".
+      await clearFailures(env.DB, ip).catch(() => {})
+      return json({ error: err.message }, { status: 503 })
+    }
     throw err
   }
 
@@ -123,10 +141,28 @@ export async function onRequestPost(context) {
       already = false
     }
     if (already) {
-      return json({ ok: true, alreadyChanged: true, note: 'That change had already gone through — the new PIN is in force.' })
+      // Finish the job the first request may not have: the caller's own session is still
+      // alive (requireSession passed), so either its revoke failed or someone signed in
+      // since. Revoking again makes "everyone was signed out" — what the screen says next —
+      // true rather than hopeful. Knowing the new PIN also earns the attempt counted above.
+      await clearFailures(env.DB, ip).catch(() => {})
+      let revoked = true
+      try {
+        await revokeAllSessions(env.DB)
+      } catch {
+        revoked = false
+      }
+      return json(
+        {
+          ok: true,
+          alreadyChanged: true,
+          note: 'That change had already gone through — the new PIN is in force.',
+          ...(revoked ? {} : { warning: 'The PIN changed, but other devices may still be signed in. Try signing out on those devices.' }),
+        },
+        { headers: { 'Set-Cookie': clearedCookieHeader() } },
+      )
     }
-    const refused = await countFailure(env.DB, ip)
-    if (refused) return refused
+    // Already counted by reserveAttempt above.
     const after = await checkLock(env.DB, ip).catch(() => ({ locked: false }))
     if (after.locked) {
       const minutes = Math.max(1, Math.ceil((after.until - Date.now()) / 60_000))
