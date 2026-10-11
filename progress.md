@@ -5,6 +5,29 @@ live in `CLAUDE.md` — read that first if you're picking this up cold.
 
 ## Resume here
 
+### ▶ ANIMATIONS ROUND (2026-10-11), branch `animations`, not merged
+An outside review (WhatsApp, "nirmalstudio-animation-plan.md") was checked against the repo. About
+half its claims were wrong (it thought there was no React/GSAP, and that there were no project pages,
+etc.). Parth chose: skip the hairline library, skip the magnetic CTA, see a body-font comparison
+first (https://claude.ai/artifact/LD7UrtE1rc6QGnSzSR1VJn, decision pending), and **B4
+self-drawing floor plans waits for Tej's vector or CAD exports** (never trace the JPEGs).
+Built on `animations` (verified in headless Chrome at 390 and 1440 plus reduced motion; impact,
+UX and edge-case reviews applied):
+- **Fixes:** the project-card reveal starts earlier and runs shorter (a row sat on screen at about 70% opacity); Studio and Founders
+  reveals start at 90%; the Process progress label is hidden from screen readers; the Hero image has alt text.
+- **Motion:** the hero headline reveals sentence by sentence after the Loader; project captions lift 4px on hover; the nav
+  gets a hover underline plus a "you are here" underline (`HomeNav` IntersectionObserver; `Studio.jsx`
+  wraps both layouts in `data-nav-target` so the lazy Founders layout still registers); a 2px bronze
+  scroll-progress line (`ScrollProgress.jsx`, homepage only, off under reduced motion);
+  Statement words darken as you scroll; Philosophy chips stagger in (no hover highlight: only 5 of 7
+  match the copy, and the chips are deliberately not controls).
+- `Founders.jsx` now calls `ScrollTrigger.refresh()` once mounted (its lazy load changed the page
+  height with no re-measure). It is untested in a browser until `foundersReady` is true.
+**Next:** Parth reviews the branch preview → merge to `main` → `npm run check:domains`. Then
+merge `main` into `admin-test` so the launch merge doesn't conflict. The admin step-7 review gate below is
+still pending.
+
+
 ### ▶ START HERE (updated 2026-09-22, step 6 done)
 
 **Where things stand:** Phase 1 is complete and live. **Phase 2 (the `/admin` backend) has
