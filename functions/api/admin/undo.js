@@ -1,5 +1,5 @@
 import { requireSession, json } from './_lib/auth.js'
-import { isContentPath } from './_lib/documents.js'
+import { isContentPath, isMediaPath } from './_lib/documents.js'
 import { explainGitHubError } from './_lib/github.js'
 import { publishSetup, commitToBranch, busyBranch, latestPublish, canUndo, overview } from './_lib/publishes.js'
 
@@ -46,9 +46,18 @@ export async function onRequestPost(context) {
   let result
   try {
     result = await commitToBranch(gh, branch, async (head) => {
+      const dirs = new Map()
       for (const f of files) {
-        const current = await gh.file(f.path, head)
-        if ((current?.sha ?? null) !== f.after) {
+        let now
+        if (isMediaPath(f.path)) {
+          // Images are checked by listing their folder — `file()` would download the image.
+          const dir = f.path.slice(0, f.path.lastIndexOf('/'))
+          if (!dirs.has(dir)) dirs.set(dir, await gh.listDir(dir, head))
+          now = dirs.get(dir).get(f.path.slice(dir.length + 1)) ?? null
+        } else {
+          now = (await gh.file(f.path, head))?.sha ?? null
+        }
+        if (now !== f.after) {
           return {
             stop: json(
               { error: `${f.path.replace(/^content\//, '')} has changed since that publish, so undoing it would also throw that change away. Nothing was changed.` },

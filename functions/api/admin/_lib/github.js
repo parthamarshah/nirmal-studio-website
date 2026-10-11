@@ -90,6 +90,31 @@ export function github(env) {
       }
     },
 
+    // A folder's files as Map(name → blob sha), without downloading any of them — the way
+    // to ask "is this image already in the repo?" (`file()` would fetch the whole image and
+    // decode it as text). A folder that doesn't exist yet is an empty map.
+    async listDir(dirPath, commitSha) {
+      try {
+        const list = await call('GET', `/contents/${dirPath}?ref=${commitSha}`)
+        if (!Array.isArray(list)) throw new GitHubError(`${dirPath} is not a folder`, 422, list)
+        // The Contents API lists at most 1,000 entries. A cut-off list would make files that
+        // ARE there look missing, so refuse rather than guess.
+        if (list.length >= 1000) throw new GitHubError(`${dirPath} holds too many files to check`, 413, null)
+        return new Map(list.filter((e) => e.type === 'file').map((e) => [e.name, e.sha]))
+      } catch (err) {
+        if (err instanceof GitHubError && err.status === 404) return new Map()
+        throw err
+      }
+    },
+
+    // Stores bytes (already base64, as the browser sent them — re-encoding here would cost
+    // CPU the free plan doesn't have) as a git blob. Not yet in any commit; the returned
+    // sha is placed into a tree at publish time.
+    async createBlob(base64) {
+      const blob = await call('POST', '/git/blobs', { content: base64, encoding: 'base64' })
+      return blob.sha
+    },
+
     // `entries` are { path, content } to write or { path, sha } to set (sha: null deletes).
     // base_tree means every path NOT listed is carried over unchanged — that is what
     // keeps a publish from ever touching code.
@@ -129,6 +154,10 @@ export function github(env) {
 }
 
 export const isFastForwardRefusal = (err) => err instanceof GitHubError && err.status === 422
+
+// createTree's answer when an entry names a blob GitHub no longer has (an upload's blob,
+// garbage-collected before it was ever published).
+export const isMissingObject = (err) => err instanceof GitHubError && err.status === 422 && /sha|object/i.test(err.message)
 
 function base64ToUtf8(b64) {
   const bin = atob(String(b64).replace(/\s/g, ''))

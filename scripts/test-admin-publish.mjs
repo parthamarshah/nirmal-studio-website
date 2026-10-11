@@ -177,6 +177,76 @@ check('the stale draft is refused, not published over the undo', r.status === 40
 check('...and the branch did not move', (await head()) === undoSha)
 await call('draft', { method: 'DELETE', body: { id: 'site', ifUpdatedAt: staleToken } })
 
+console.log('--- images: upload, publish with a document, undo ---')
+{
+  const sharp = (await import('sharp')).default
+  const jpeg = await sharp({ create: { width: 40, height: 50, channels: 3, background: { r: 120, g: 90, b: 60 } } }).jpeg().toBuffer()
+  const b64 = jpeg.toString('base64')
+  const up = (body, extra = {}) =>
+    fetch(`${BASE}/upload`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...(cookie ? { Cookie: cookie } : {}), ...extra }, body: JSON.stringify(body) })
+
+  const saved = cookie
+  cookie = ''
+  check('upload without a session is refused', (await up({ docId: 'founders', data: b64 })).status === 401)
+  cookie = saved
+  check('a cross-site upload is refused', (await up({ docId: 'founders', data: b64 }, { Origin: 'https://evil.example' })).status === 403)
+  check('a non-image is refused', (await up({ docId: 'founders', data: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"/>').toString('base64') })).status === 415)
+  check('a truncated JPEG is refused', (await up({ docId: 'founders', data: jpeg.subarray(0, jpeg.length - 40).toString('base64') })).status === 422)
+  check('a PNG is refused (the browser always sends JPEG)', (await up({ docId: 'founders', data: (await sharp({ create: { width: 4, height: 4, channels: 3, background: '#fff' } }).png().toBuffer()).toString('base64') })).status === 415)
+  check('a size that does not match the file is refused', (await up({ docId: 'founders', data: b64, width: 400, height: 500 })).status === 422)
+  check('an upload aimed at site.json is refused', (await up({ docId: 'site', data: b64 })).status === 400)
+  check('a hint cannot steer the folder', (await (await up({ docId: 'founders', data: b64, hint: '../../projects/x' })).json()).path?.startsWith('content/media/founders/projects-x-'))
+
+  const res = await up({ docId: 'founders', data: b64, width: 40, height: 50, hint: 'tej-shah' })
+  const u = await res.json()
+  const bytesSha = crypto.createHash('sha1').update(Buffer.concat([Buffer.from(`blob ${jpeg.length}\0`), jpeg])).digest('hex')
+  check('upload succeeds into the founders folder', res.status === 200 && /^content\/media\/founders\/tej-shah-[0-9a-f]{10}\.jpg$/.test(u.path), JSON.stringify(u))
+  check('the blob GitHub stored is exactly the uploaded bytes', u.sha === bytesSha, `${u.sha} vs ${bytesSha}`)
+  const pv = await fetch(`${BASE}/upload?path=${encodeURIComponent(u.path)}`, { headers: { Cookie: cookie } })
+  check('the staged copy can be previewed', pv.status === 200 && Buffer.from(await pv.arrayBuffer()).equals(jpeg))
+
+  const fg = await call('draft?id=founders')
+  const fBase = fg.data?.published?.sha
+  const fPub = fg.data?.published?.doc
+  const tejAt = fPub.people.findIndex((p) => p.id === 'tej-shah')
+
+  const ghost = structuredClone(fPub)
+  ghost.people[tejAt].photo = { file: 'never-uploaded-0000000000.jpg', crop: { x: 0, y: 0, w: 1, h: 1 }, zoom: 1, filter: 'original' }
+  let fp = await call('draft', { method: 'PUT', body: { id: 'founders', doc: ghost, ifUpdatedAt: null, baseSha: fBase } })
+  let fr = await call('publish', { method: 'POST', body: { drafts: [{ id: 'founders', updatedAt: fp.data.updatedAt }] } })
+  check('a photo that was never uploaded is refused before any commit', fr.status === 422 && fr.data?.problems?.some((p) => p.includes('isn’t uploaded')), JSON.stringify(fr.data))
+  let fTok = fp.data.updatedAt
+
+  const bio = structuredClone(fPub)
+  bio.people[tejAt].bio = 'Changed.'
+  fp = await call('draft', { method: 'PUT', body: { id: 'founders', doc: bio, ifUpdatedAt: fTok } })
+  fr = await call('publish', { method: 'POST', body: { drafts: [{ id: 'founders', updatedAt: fp.data.updatedAt }] } })
+  check('a founders change beyond the photo is refused (for now)', fr.status === 422 && fr.data?.problems?.some((p) => p.includes('bio')), JSON.stringify(fr.data))
+  fTok = fp.data.updatedAt
+
+  const withPhoto = structuredClone(fPub)
+  withPhoto.people[tejAt].photo = { file: u.file, crop: { x: 0, y: 0.1, w: 1, h: 0.8 }, zoom: 1.2, filter: 'warm' }
+  fp = await call('draft', { method: 'PUT', body: { id: 'founders', doc: withPhoto, ifUpdatedAt: fTok } })
+  ov = await call('publish')
+  const fch = ov.data?.pending?.[0]?.changes
+  check('the confirmation names the new photo', Array.isArray(fch) && fch.length === 1 && fch[0].to === 'a photo' && fch[0].from === 'no photo', JSON.stringify(fch))
+  const beforeImg = await head()
+  fr = await call('publish', { method: 'POST', body: { drafts: [{ id: 'founders', updatedAt: fp.data.updatedAt }] } })
+  check('publishing the photo succeeds', fr.status === 200 && fr.data?.commitSha, JSON.stringify(fr.data))
+  const ic = await gh(`/commits/${fr.data?.commitSha}`)
+  const names = ic.files.map((f) => f.filename).sort()
+  check('one commit with founders.json and the image, nothing else', names.length === 2 && names[0] === 'content/founders.json' && names[1] === u.path, names.join(','))
+  check('...on top of the previous head', ic.parents[0]?.sha === beforeImg)
+  check('the image in the repo is the uploaded blob', (await blobAt(u.path, fr.data.commitSha)) === u.sha)
+
+  ov = await call('publish')
+  r = await call('undo', { method: 'POST', body: { id: ov.data.latest.id } })
+  check('undoing the photo publish succeeds', r.status === 200 && r.data?.commitSha, JSON.stringify(r.data))
+  const uc = await gh(`/commits/${r.data?.commitSha}`)
+  check('undo removes the image and restores founders.json', uc.files.length === 2 && uc.files.some((f) => f.filename === u.path && f.status === 'removed'), uc.files.map((f) => `${f.filename}:${f.status}`).join(','))
+  check('founders.json is back to its original bytes', (await blobAt('content/founders.json', r.data.commitSha)) === fBase)
+}
+
 console.log('--- status ---')
 const st = await call(`status?commit=${undoSha}`)
 check('status answers with a site and a live flag', st.status === 200 && typeof st.data?.live === 'boolean' && st.data?.site?.includes('admin-publish-test'), JSON.stringify(st.data))

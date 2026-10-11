@@ -96,3 +96,11 @@ export const getSession = () =>
 
 export const login = (pin) => api('login', { method: 'POST', body: { pin } })
 export const logout = () => api('logout', { method: 'POST' })
+
+// Stage an image prepared by images.js. `docId` decides the folder ('founders' or
+// 'project:<slug>'); `hint` becomes the start of the file name the server makes.
+export const uploadImage = (docId, prepared, hint = '') =>
+  api('upload', { method: 'POST', body: { docId, data: prepared.base64, width: prepared.width, height: prepared.height, hint } })
+
+// Where the admin can show an uploaded image that isn't in the site's build yet.
+export const stagedImageUrl = (path) => `/api/admin/upload?path=${encodeURIComponent(path)}`

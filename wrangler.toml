@@ -28,9 +28,11 @@ binding = "DB"
 database_name = "nirmal-studio-admin"
 database_id = "e7ad1b9c-6e35-4c73-acfb-da633e5dc5a4"
 
-# Staged image uploads live here between "chosen in the editor" and "committed by
-# Publish", so a half-finished edit never touches the repo. Entries are written with a
-# TTL so abandoned drafts expire on their own rather than accumulating.
+# A copy of each image uploaded from /admin (base64), for previews before a rebuild and
+# to re-create its GitHub blob if that was garbage-collected before publishing. The
+# upload itself becomes a GitHub blob immediately — not in any commit, so nothing on the
+# site changes until Publish — and is recorded in D1's `uploads` table. KV copies expire
+# after 90 days (functions/api/admin/upload.js); the D1 rows are kept.
 [[kv_namespaces]]
 binding = "UPLOADS"
 id = "0e6f4561ba3d42acb4725a6a5b0eea91"

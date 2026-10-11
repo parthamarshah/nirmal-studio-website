@@ -1,5 +1,5 @@
 import { requireSession, json } from './_lib/auth.js'
-import { pathFor, isContentPath, serialize, validate, describeChange, label } from './_lib/documents.js'
+import { pathFor, isContentPath, serialize, validate, describeChange, label, referencedMedia, isMediaPath, mediaKvKey as kvKey } from './_lib/documents.js'
 import { gitBlobSha, explainGitHubError } from './_lib/github.js'
 import { publishSetup, commitToBranch, busyBranch, overview, pendingRows, safeParse } from './_lib/publishes.js'
 
@@ -60,6 +60,24 @@ export async function onRequestPost(context) {
     docs.push({ id: r.id, row: r, doc, path, text, after: await gitBlobSha(text) })
   }
 
+  // Images the drafts point at that were uploaded from here and are waiting. Read once:
+  // whether each is already in the repo is decided per attempt below, against that head.
+  const wantedMedia = [...new Set(docs.flatMap((d) => referencedMedia(d.id, d.doc)))]
+  const staged = new Map()
+  if (wantedMedia.length) {
+    try {
+      // D1 allows 100 bound values per statement; a project's image pool can exceed that.
+      for (let i = 0; i < wantedMedia.length; i += 90) {
+        const part = wantedMedia.slice(i, i + 90)
+        const res = await db.prepare(`SELECT path, doc_id, blob_sha FROM uploads WHERE path IN (${part.map(() => '?').join(',')})`).bind(...part).all()
+        for (const r of res.results || []) staged.set(r.path, r)
+      }
+    } catch {
+      return json({ error: 'The list of uploaded images couldn’t be read just now. Nothing was published; try again in a minute.', retry: true }, { status: 503 })
+    }
+  }
+
+  let media = []
   let result
   try {
     result = await commitToBranch(gh, branch, async (head) => {
@@ -67,6 +85,13 @@ export async function onRequestPost(context) {
       const stale = []
       const changes = []
       const summaries = []
+      media = []
+      const dirs = new Map()
+      const inRepo = async (path) => {
+        const dir = path.slice(0, path.lastIndexOf('/'))
+        if (!dirs.has(dir)) dirs.set(dir, await gh.listDir(dir, head))
+        return dirs.get(dir).has(path.slice(dir.length + 1))
+      }
       for (const d of docs) {
         const current = await gh.file(d.path, head)
         d.before = current?.sha ?? null
@@ -86,6 +111,16 @@ export async function onRequestPost(context) {
           continue
         }
         for (const p of validate(d.id, d.doc, published)) problems.push(`${label(d.id, d.doc)}: ${p}`)
+        // Every image the document points at must be in the repo already, or uploaded for
+        // THIS document and committed alongside it. Anything else would reach a build that
+        // can't find the file — and a failed build freezes the live site until it's fixed.
+        for (const path of referencedMedia(d.id, d.doc)) {
+          if (await inRepo(path)) continue
+          const up = staged.get(path)
+          const name = path.slice(path.lastIndexOf('/') + 1)
+          if (!up || up.doc_id !== d.id || !isMediaPath(path)) problems.push(`${label(d.id, d.doc)}: the image “${name}” isn’t uploaded any more. Remove it and add it again.`)
+          else if (!media.some((m) => m.path === path)) media.push({ path, sha: up.blob_sha })
+        }
         changes.push({ path: d.path, content: d.text })
         summaries.push(describeChange(d.id, d.doc, published))
       }
@@ -103,13 +138,16 @@ export async function onRequestPost(context) {
       if (!changes.length) return { stop: 'unchanged' }
       const summary = summaries.join('; ')
       return {
-        entries: changes,
+        entries: [...changes, ...media],
+        // An upload's blob may have been garbage-collected by GitHub if it sat unpublished
+        // for a long time. The KV copy re-creates it — same bytes, so the same sha.
+        repair: () => recreateBlobs(gh, context.env, media),
         summary,
         message: `Publish from /admin: ${summary}\n\nWritten by the /admin editor. This commit touches only content/ files.`,
       }
     })
   } catch (err) {
-    return json({ error: explainGitHubError(err) }, { status: 502 })
+    return json({ error: err?.plain ? `${err.message} Nothing was published.` : explainGitHubError(err) }, { status: 502 })
   }
 
   if (result.busy) return busyBranch()
@@ -129,7 +167,11 @@ export async function onRequestPost(context) {
   // bookkeeping. Order matters: the row first, then the drafts — if the drafts went first
   // and the row failed, Undo would have nothing to work from.
   const now = Date.now()
-  const files = docs.filter((d) => d.after !== d.before).map((d) => ({ path: d.path, before: d.before, after: d.after }))
+  const files = [
+    ...docs.filter((d) => d.after !== d.before).map((d) => ({ path: d.path, before: d.before, after: d.after })),
+    // Added by this publish, so Undo removes them (before: null deletes).
+    ...media.map((m) => ({ path: m.path, before: null, after: m.sha })),
+  ]
   let warning = null
   // Two identical publishes fired within the same second (a double-click) build
   // byte-identical commits — same tree, parent, message and timestamp — so they share
@@ -174,5 +216,14 @@ async function clearDrafts(db, docs) {
   for (const d of docs) {
     const res = await db.prepare('DELETE FROM drafts WHERE id = ? AND updated_at = ?').bind(d.id, d.row.updated_at).run()
     if (!res.meta?.changes) await db.prepare('UPDATE drafts SET base_sha = ? WHERE id = ?').bind(d.after, d.id).run()
+  }
+}
+
+async function recreateBlobs(gh, env, media) {
+  for (const m of media) {
+    const data = env.UPLOADS ? await env.UPLOADS.get(kvKey(m.path)) : null
+    if (!data) throw Object.assign(new Error(`The uploaded image ${m.path.slice(m.path.lastIndexOf('/') + 1)} has expired. Remove it and add it again.`), { plain: true })
+    const sha = await gh.createBlob(data)
+    if (sha !== m.sha) throw Object.assign(new Error('An uploaded image came back different from how it was uploaded. Remove it and add it again.'), { plain: true })
   }
 }

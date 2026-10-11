@@ -18,7 +18,7 @@
     "admin:secrets": "node scripts/setup-admin-secrets.mjs",
     "test:auth": "bash scripts/test-admin-auth.sh",
     "admin:dev": "npx wrangler pages dev --port 8788",
-    "admin:migrate": "npx wrangler d1 execute nirmal-studio-admin --local --file=migrations/0001_initial.sql && npx wrangler d1 execute nirmal-studio-admin --local --file=migrations/0002_publish_kind.sql && npx wrangler d1 execute nirmal-studio-admin --local --file=migrations/0003_admin_settings.sql",
+    "admin:migrate": "npx wrangler d1 execute nirmal-studio-admin --local --file=migrations/0001_initial.sql && npx wrangler d1 execute nirmal-studio-admin --local --file=migrations/0002_publish_kind.sql && npx wrangler d1 execute nirmal-studio-admin --local --file=migrations/0003_admin_settings.sql && npx wrangler d1 execute nirmal-studio-admin --local --file=migrations/0004_uploads.sql",
     "test:publish": "bash scripts/test-admin-publish.sh",
     "test:panes": "bash scripts/test-admin-panes.sh",
     "admin:migrate:remote": "bash scripts/migrate-remote.sh"
@@ -27,6 +27,7 @@
     "embla-carousel-react": "^8.6.0",
     "framer-motion": "^12.42.2",
     "gsap": "^3.15.0",
+    "heic-to": "1.5.2",
     "lenis": "^1.3.25",
     "qrcode-generator": "2.0.4",
     "react": "^19.2.7",

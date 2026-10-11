@@ -1,6 +1,6 @@
 // Shared by publish.js, undo.js and status.js: turning GitHub into one commit, and the
 // `publishes` rows that record it.
-import { github, isBranchName, isFastForwardRefusal } from './github.js'
+import { github, isBranchName, isFastForwardRefusal, isMissingObject } from './github.js'
 import { json } from './auth.js'
 import { label, pathFor, listChanges } from './documents.js'
 
@@ -25,7 +25,18 @@ export async function commitToBranch(gh, branch, plan) {
     const head = await gh.head(branch)
     const result = await plan(head)
     if (result.stop) return { stop: result.stop }
-    const tree = await gh.createTree(await gh.treeOf(head), result.entries)
+    const base = await gh.treeOf(head)
+    let tree
+    try {
+      tree = await gh.createTree(base, result.entries)
+    } catch (err) {
+      // A referenced blob GitHub no longer has (an upload that sat unpublished for long
+      // enough to be garbage-collected). `repair` re-creates it from the stored copy —
+      // same bytes, same sha — and the tree is tried once more.
+      if (!result.repair || !isMissingObject(err)) throw err
+      await result.repair()
+      tree = await gh.createTree(base, result.entries)
+    }
     const commit = await gh.createCommit(result.message, tree, head)
     try {
       await gh.moveBranch(branch, commit)
@@ -115,7 +126,7 @@ export async function overview(env, { withChanges = false, withUndoChanges = fal
 const ID_FOR_PATH = { 'content/site.json': 'site', 'content/founders.json': 'founders' }
 
 // Field-by-field, from what the publish wrote back to what was there before it. Only the
-// contact details are listed field by field today (`listChanges`), same as the Publish
+// contact details and founder photos are listed field by field today (`listChanges`), same as the Publish
 // confirmation — other documents contribute nothing rather than something misleading.
 async function changesUndoWouldMake(env, row) {
   if (!row.parent_sha || !env.GITHUB_TOKEN) return null

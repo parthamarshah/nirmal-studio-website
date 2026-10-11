@@ -5,6 +5,34 @@ live in `CLAUDE.md` — read that first if you're picking this up cold.
 
 ## Resume here
 
+### ▶ PHASE 3 STEP 1 (2026-10-11): image foundation, on `admin-test` (not on `main` yet)
+Order agreed with Parth: 1 images → 2 founders editor → 3 project editor → 4 project list →
+5 settings additions + draft preview → 6 tap counter. Each step lands on the preview first.
+- **Upload** (`functions/api/admin/upload.js`): the browser (`src/admin/images.js`) converts HEIC
+  (lazy `heic-to@1.5.2`, LGPL, separate chunk), applies EXIF rotation, strips metadata, shrinks to
+  `maxEdge` (2400 photos / 4000 drawings — pass `quality: 0.95` for drawings in step 3) and
+  sends JPEG as base64. The server accepts **JPEG only**, checks it ends like a complete JPEG and
+  reads its real pixel size from the header (≤50MP; the client's width/height must match), makes
+  the file name itself in a folder chosen from the document id, creates the **GitHub blob at once**,
+  records `path → blob sha` in D1 `uploads` (migration **0004, applied `--remote` to both DBs**),
+  and keeps a 90-day KV copy for previews (`GET upload?path=`) and blob repair.
+- **Publish** adds every referenced image that isn't in the repo yet, by blob sha, in the same
+  commit; a reference that is neither in the repo nor uploaded for THAT document is refused
+  before any commit (a failed build would freeze the live site). **Undo** removes them again.
+- **Founders** drafts are publishable, but only `people[].photo` may differ (rules copied from
+  build-content.mjs; a 29-case differential test agreed). Confirmations say "Tej Shah’s photo:
+  no photo → a photo".
+- Reviews: data-integrity GO, production-safety GO w/ precautions, impact + edge-case findings
+  all applied. `test:publish` 59/59 (17 new image checks), `test:auth` 51/51.
+**Open, before step 2 ships to `main`:**
+- **Measure CPU on the deployed preview** with a real ~1MB and ~4MB upload (`wrangler pages
+  deployment tail`), since `wrangler pages dev` doesn't enforce the free plan's limit. The costly
+  whole-string base64 regex was removed for this reason.
+- The garbage-collected-blob repair (`isMissingObject`) matches GitHub's error text by guess; untested.
+- `uploads` rows and orphan blobs are never cleaned up (storage only).
+- iOS: a 48MP photo is decoded at full size before shrinking; watch for memory errors.
+
+
 ### ▶ PHASE 2 LAUNCHED (2026-10-11): `/admin` is live on nirmalstudio.com
 - **Pre-checks:** `content/` identical on both branches; production D1 had 0 drafts, sessions,
   settings rows, lockouts and publishes, and its schema matched the preview's.
