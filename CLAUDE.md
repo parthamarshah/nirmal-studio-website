@@ -424,6 +424,21 @@ against them rather than rediscovering them by chance:
   and `nirmal-studio-admin-production`, separate since step 7 — **before** pushing the code that uses it
   (additive changes only, so old code keeps working), and confirm with
   `SELECT group_concat(name) FROM pragma_table_info('<table>')` on `--remote`.
+- **Two identical GitHub commits made in the same second share one sha.** Same tree,
+  parent, message and timestamp → byte-identical commit → the second `force: false` ref
+  update is a no-op that *succeeds*. A double-fired Publish or Undo therefore both "won", and
+  both recorded a history row; `test:publish`'s double-fire case failed only when the two
+  landed in the same second. Fixed 2026-10-11 with a conditional insert (`INSERT … SELECT …
+  WHERE NOT EXISTS` on `commit_sha`) — the loser answers as a repeat. Don't rely on GitHub
+  to refuse a duplicate commit.
+- **`npm run test:panes` serves `dist/` as built — it now runs `npm run build` first.** Before
+  2026-10-11 it didn't, so an `src/admin` fix tested against the previous build and a failing
+  run looked like the fix not working. The API suites are unaffected (wrangler compiles
+  `functions/` from source each run).
+- **A save that gets the 401 must park its edit.** `api.js` tells `Admin` the session ended
+  *before* throwing, so the editor unmounts in that same render batch while still `saving`
+  with no timer — its cleanup neither parks nor flushes, and the edit vanished (session ended
+  from another device mid-typing). `useDraft`'s catch parks on 401; `test:panes` case H.
 - **Responses that each hit GitHub arrive out of order.** `/api/admin/publish` GET reads
   GitHub, so two overlapping requests can land newest-first. The older one then overwrote
   the Publish confirmation with a change that had already been corrected. That was caught

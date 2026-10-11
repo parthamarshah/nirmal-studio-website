@@ -165,7 +165,12 @@ export function useDraft(id, published) {
     } catch (err) {
       savingRef.current = false
       queuedRef.current = false
-      if (!mountedRef.current) {
+      // A 401 also parks: api.js has already told Admin the session ended, so this editor
+      // unmounts in the same render batch, before it could ever show 'error' — and its
+      // cleanup, still reading 'saving', would neither park nor flush. Parked, the edit
+      // comes back when the editor reopens after signing in again (e.g. the PIN was
+      // changed on another device mid-typing).
+      if (!mountedRef.current || (err instanceof ApiError && err.status === 401)) {
         park(id, { doc: docRef.current, token: tokenRef.current, base: baseRef.current })
         return
       }
@@ -375,7 +380,10 @@ export function useDraft(id, published) {
   // Closing the tab mid-debounce would lose the last edit. The browser only shows its
   // own generic wording, but the prompt is what matters.
   useEffect(() => {
-    const unsaved = state === 'dirty' || state === 'saving' || state === 'conflict'
+    // 'error' counts only once something is loaded: a failed save keeps the edit on
+    // screen and nowhere else, whereas 'error' from a pane that never loaded has nothing to lose.
+    const unsaved =
+      state === 'dirty' || state === 'saving' || state === 'conflict' || (state === 'error' && docRef.current !== null)
     if (!unsaved) return
     const onLeave = (e) => {
       e.preventDefault()

@@ -16,6 +16,9 @@ const hash = ['pbkdf2','sha256',100000,salt.toString('base64'),pbkdf2Sync('42831
 const kept = fs.readFileSync('.dev.vars.real','utf8').split('\n').filter(l => !/^(ADMIN_PIN_HASH|SESSION_SECRET|PUBLISH_BRANCH)=/.test(l))
 kept.push('ADMIN_PIN_HASH=' + hash, 'SESSION_SECRET=' + randomBytes(32).toString('base64'), 'PUBLISH_BRANCH=admin-test')
 fs.writeFileSync('.dev.vars', kept.join('\n').replace(/\n+\$/,'') + '\n', { mode: 0o600 })"
+# wrangler serves dist/ as it is, so build first — otherwise the browser tests whatever
+# was last built, not the code on disk (a passing or failing run then means nothing).
+npm run build > "$TMP/build.log" 2>&1 || { echo "✗ build failed — see $TMP/build.log"; exit 1; }
 pkill -f "wrangler pages dev" 2>/dev/null; sleep 1
 npx wrangler pages dev --port 8788 > "$TMP/dev.log" 2>&1 &
 for _ in $(seq 1 60); do sleep 1; curl -sf --max-time 2 http://127.0.0.1:8788/ >/dev/null 2>&1 && break; done

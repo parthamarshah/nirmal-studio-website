@@ -221,6 +221,24 @@ try {
   check('G: the login screen comes back', await waitFor(`document.body.innerText.includes('Sign in to edit the site')`, 8000))
   check('G: the old PIN no longer works', (await api('login', { method: 'POST', body: { pin: PIN } })).status === 401)
   check('G: the new PIN does', (await api('login', { method: 'POST', body: { pin: '735412' } })).status === 200)
+  // ── H: the session ends from ANOTHER device while I'm typing. The save itself is the
+  // request that gets the 401, and the editor unmounts in the same render — the edit used
+  // to vanish here. It must come back after signing in with the new PIN.
+  const browserLogin = (pin) => ev(`fetch('/api/admin/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pin: '${pin}' }) }).then((r) => r.status)`)
+  check('H: signed back in with the new PIN', (await browserLogin('735412')) === 200)
+  await ev(`location.hash = '#/settings'; location.reload()`); await sleep(1500)
+  check('H: settings loaded', await waitFor(`!!document.getElementById('f-addressShort')`))
+  await typeShort('Mine H')
+  check('H: the other device changes the PIN', (await api('pin', { method: 'POST', body: { currentPin: '735412', newPin: '582916' } })).status === 200)
+  check('H: the save hits the ended session and the login screen comes back', await waitFor(`document.body.innerText.includes('Sign in to edit the site')`, 8000))
+  await ev(`(() => { const el = document.getElementById('admin-pin'); el.focus(); el.select() })()`)
+  await cdp('Input.insertText', { text: '582916' })
+  await ev(`document.querySelector('form').requestSubmit()`)
+  check('H: signed in again', await waitFor(`!document.body.innerText.includes('Sign in to edit the site')`, 8000))
+  await ev(`location.hash = '#/settings'`)
+  const back = await waitFor(`document.getElementById('f-addressShort')?.value === 'Mine H'`, 8000)
+    || (await ev(`document.body.innerText.includes('didn’t finish saving')`) && (await click('Open Settings'), await waitFor(`document.getElementById('f-addressShort')?.value === 'Mine H'`, 8000)))
+  check('H: the edit came back', back, String(await fieldVal()) + ' | ' + (await text()).slice(0, 200))
 } catch (e) { console.log('✗ threw', e.message); fails++ }
 finally { ws?.close(); chrome.kill('SIGKILL') }
 console.log(fails ? `\n${fails} failed` : '\nall passed'); process.exit(fails ? 1 : 0)
