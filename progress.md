@@ -48,6 +48,22 @@ All findings are fixed in `27c30bf`, `d3e599c` and the commit after them. The hi
 Suites: auth 51, panes all passed (cases H and I), publish 38.
 **Next: the launch, which is Parth's go-ahead.** Run the checklist below. Parth sets the 3 production
 secrets himself; he will enter the PIN and decide whether to reuse the preview's.
+Walk him through the secrets one dashboard screen at a time.
+
+**Still open (2026-10-11):**
+- **Unverified:**
+  - The "broken hash gives the attempt back" fix (`login.js`/`pin.js` `PinHashUnusable` branch)
+    was checked by reading only. No suite swaps in an unusable hash.
+  - `Founders.jsx`'s `ScrollTrigger.refresh()` is untested until `foundersReady` is true.
+- **Low priority, from the edge-case review:**
+  - Production `/_version.json` polling via `https://nirmalstudio.com` has only ever run on the preview.
+    Do one publish and undo on the live site right after launch.
+  - A 422 from GitHub branch protection is misread as a race (`isFastForwardRefusal`).
+  - A parallel burst past the limit keeps pushing `locked_until` out. This is within the accepted risk.
+- **Waiting on others:**
+  - B4 self-drawing plans: Tej's CAD or vector files (Parth is asking).
+  - Parth to set a reminder for about 12 December. The GitHub token expires on 19 December 2026.
+- **Unanswered:** whether to switch `origin` to SSH permanently (asked 2026-10-11, no reply yet).
 
 
 ### ▶ START HERE (updated 2026-09-24; step 7 gate since done, see above)
