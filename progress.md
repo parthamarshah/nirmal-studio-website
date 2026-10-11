@@ -18,14 +18,14 @@ UX and edge-case reviews applied):
 - **Motion:** the hero headline reveals sentence by sentence after the Loader; project captions lift 4px on hover; the nav
   gets a hover underline plus a "you are here" underline (`HomeNav` IntersectionObserver; `Studio.jsx`
   wraps both layouts in `data-nav-target` so the lazy Founders layout still registers); a 2px bronze
-  scroll-progress line (`ScrollProgress.jsx`, homepage only, off under reduced motion);
+  scroll-progress line was added, then removed on Parth's call (2026-10-11; a reviewer called it a blog idiom);
   Statement words darken as you scroll; Philosophy chips stagger in (no hover highlight: only 5 of 7
   match the copy, and the chips are deliberately not controls).
 - `Founders.jsx` now calls `ScrollTrigger.refresh()` once mounted (its lazy load changed the page
   height with no re-measure). It is untested in a browser until `foundersReady` is true.
-**Next:** Parth reviews the branch preview → merge to `main` → `npm run check:domains`. Then
-merge `main` into `admin-test` so the launch merge doesn't conflict. The admin step-7 review gate below is
-still pending.
+**Done:** merged to `main` and live (`check:domains` passed), and `main` merged into `admin-test`.
+**Parth's calls (2026-10-11):** body font stays the system sans (comparison seen); progress line removed.
+Admin step-7 status lives on `admin-test`'s progress.md.
 
 
 ### ▶ START HERE (updated 2026-09-22, step 6 done)
