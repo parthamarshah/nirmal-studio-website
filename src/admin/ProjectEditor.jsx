@@ -26,6 +26,7 @@ import Thumb from './ProjectThumb.jsx'
 // sits over the page and closes again — its own address, so Back closes it.
 
 const RichEditor = lazy(() => import('./RichEditor.jsx'))
+const ProjectPreview = lazy(() => import('./ProjectPreview.jsx'))
 // Set from the project list, never here (see useDraft's keepFromServer).
 const LIST_KEYS = ['order', 'hidden', 'deleted']
 
@@ -70,6 +71,7 @@ export default function ProjectEditor({ slug, route = [], onRoute, onBack, onSta
 
   const [uploads, setUploads] = useState([]) // { key, name, phase, preview?, error? }
   const [landedTick, setLandedTick] = useState(0)
+  const [previewing, setPreviewing] = useState(false)
   const mountedRef = useRef(true)
   // Whether an upload may be added right now: the same test as handing back landed ones.
   // Never during a conflict or an error — "use theirs" would throw it away unseen.
@@ -170,9 +172,12 @@ export default function ProjectEditor({ slug, route = [], onRoute, onBack, onSta
       <BackLink onBack={onBack} />
       <div className="admin-project-head">
         <h2 className="admin-project-title">{doc.name || 'Untitled project'}</h2>
+        <button type="button" className="admin-btn admin-btn--quiet admin-btn--small" onClick={() => setPreviewing(true)}>
+          Preview
+        </button>
         {!doc.hidden && (
           <a className="admin-link" href={projectPath(slug)} target="_blank" rel="noreferrer">
-            View on the site ↗
+            Live page ↗
           </a>
         )}
       </div>
@@ -216,6 +221,12 @@ export default function ProjectEditor({ slug, route = [], onRoute, onBack, onSta
           onClose={() => replaceRoute('images')}
           onGo={(id) => replaceRoute('images', id)}
         />
+      )}
+
+      {previewing && (
+        <Suspense fallback={<div className="admin-preview admin-preview--loading">Opening the preview…</div>}>
+          <ProjectPreview slug={slug} doc={doc} onClose={() => setPreviewing(false)} />
+        </Suspense>
       )}
 
       <DraftBottomNotices

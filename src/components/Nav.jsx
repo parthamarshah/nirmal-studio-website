@@ -153,6 +153,7 @@ export default function Nav({ scrolled = true, onNavigate, activeHref = null }) 
           aria-haspopup="dialog"
           aria-busy={talkLoading || undefined}
           onClick={openTalk}
+          data-tap="talk"
           onPointerEnter={() => loadTalk().catch(() => {})}
           onTouchStart={() => loadTalk().catch(() => {})}
           onFocus={() => loadTalk().catch(() => {})}

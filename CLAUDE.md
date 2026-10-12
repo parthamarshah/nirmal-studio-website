@@ -198,10 +198,20 @@ Tagline: "Designing Spaces. Crafting Experiences."
 - **Each homepage section is wrapped in `SectionBoundary`** (`App.jsx`) — a section that
   throws hides itself instead of blanking the page. Still guard `find()` results (the
   boundary is a backstop, not a license to skip guards).
-- **`src/lib/projectRules.js` is shared by the browser editor AND the backend**
-  (`functions/api/admin/_lib/documents.js` imports it), so it must stay plain JS with no
-  browser or Worker APIs, and a change to it is a backend change: on `main` it is live at once.
-  It must never be looser than `scripts/build-content.mjs`'s project checks.
+- **`src/lib/projectRules.js` and `src/lib/siteRules.js` are shared by the browser editors
+  AND the backend** (`documents.js` imports both; `functions/api/admin/projects.js` imports projectRules), so
+  they must stay plain JS with no browser or Worker APIs, and a change to them is a backend
+  change: on `main` it is live at once. They must never be looser than
+  `scripts/build-content.mjs`'s checks.
+- **Run the admin test scripts one at a time** (`npm run test:*`). Each swaps `.dev.vars`
+  for a throwaway copy; two at once — or a review agent running one beside yours — lost the
+  real local PIN hash on 2026-10-12. The scripts now refuse to start while another one (or
+  `wrangler pages dev`) is running. Tell review agents not to run them.
+- **Contact taps** (`functions/api/tap.js`, public, no session): `src/lib/tap.js` installs one
+  capture-phase click listener (main.jsx) that beacons WhatsApp / call / email / map / social
+  link taps and anything marked `data-tap="talk"`. Counts per day in `taps` (from migration
+  0001: day, action, count); `tap_limits` caps one visitor at 30/day by a salted, daily hash.
+  No cookies, no addresses stored.
 - **If backend-published commits land on `main`, `git pull` before starting code work**,
   and don't hand-edit `content/` while a backend draft may be open.
 - **In-page navigation goes through `scrollTo()`** (`src/lib/scroll.js`), never a

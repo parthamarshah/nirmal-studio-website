@@ -78,10 +78,10 @@ check('publishing it is refused with 422 + problems', r.status === 422 && r.data
 check('...and the branch did not move', (await head()) === startHead)
 
 const bad2 = structuredClone(published)
-bad2.sections.contact = !bad2.sections.contact
+bad2.talk.helper.what[0].label = 'Changed by a test'
 put = await call('draft', { method: 'PUT', body: { id: 'site', doc: bad2, ifUpdatedAt: token1 } })
 r = await call('publish', { method: 'POST', body: { drafts: [{ id: 'site', updatedAt: put.data.updatedAt }] } })
-check('changing a part no editor checks yet is refused', r.status === 422 && r.data?.problems?.some((p) => p.includes('sections')), JSON.stringify(r.data))
+check('changing a part no editor checks yet is refused', r.status === 422 && r.data?.problems?.some((p) => p.includes('talk')), JSON.stringify(r.data))
 token1 = put.data.updatedAt
 
 console.log('--- a valid publish ---')
@@ -364,12 +364,93 @@ console.log('--- images: upload, publish with a document, undo ---')
   r = await call('undo', { method: 'POST', body: { id: ov.data.latest.id } })
   const du = await gh(`/commits/${r.data?.commitSha}`)
   check('undo removes the duplicate and its images', r.status === 200 && du.files.every((f) => f.status === 'removed') && du.files.length === dc.files.length, du.files.map((f) => `${f.filename}:${f.status}`).join(','))
+
+  console.log('--- settings: socials, homepage images, sections ---')
+  const sg = await call('draft?id=site')
+  const sBase = sg.data?.published?.sha
+  const sPub = sg.data?.published?.doc
+  let sTok = null
+  let sFirst = true
+  const sPut = async (d) => {
+    const put3 = await call('draft', { method: 'PUT', body: { id: 'site', doc: d, ifUpdatedAt: sTok, ...(sFirst ? { baseSha: sBase } : {}) } })
+    sFirst = false
+    sTok = put3.data.updatedAt
+    return call('publish', { method: 'POST', body: { drafts: [{ id: 'site', updatedAt: sTok }] } })
+  }
+  const sRefused = async (label, mutate, needle) => {
+    const d = structuredClone(sPub)
+    mutate(d)
+    const sr = await sPut(d)
+    check(label, sr.status === 422 && sr.data?.problems?.some((p) => p.includes(needle)), JSON.stringify(sr.data))
+  }
+  await sRefused('a non-https social link is refused', (d) => (d.socials.instagram = { url: 'http://instagram.com/x', on: true }), 'https://')
+  await sRefused('a social switched on with no link is refused', (d) => (d.socials.facebook = { url: null, on: true }), 'no link')
+  await sRefused('a homepage image that isn’t in the project is refused', (d) => (d.homepage.hero = { project: 'terra-row-houses', image: 'nope' }), 'isn’t in')
+  await sRefused('a homepage project that doesn’t exist is refused', (d) => (d.homepage.focus = { project: 'no-such-project' }), 'doesn’t exist')
+  await sRefused('a missing section switch is refused', (d) => delete d.sections.process, 'Process')
+  await sRefused('changing the Talk with Us helper (no editor yet) is refused', (d) => (d.talk.helper.what[0].label = 'X'), '“talk”')
+  const sGood = structuredClone(sPub)
+  sGood.contact.replyTime = 'Usually replies within a few hours'
+  sGood.socials.instagram = { url: 'https://www.instagram.com/nirmalstudio', on: true }
+  sGood.sections.process = false
+  sGood.homepage.focus = { project: 'terra-row-houses', image: 'exterior-portrait' }
+  const sch = await (async () => {
+    await call('draft', { method: 'PUT', body: { id: 'site', doc: sGood, ifUpdatedAt: sTok } }).then((x) => (sTok = x.data.updatedAt))
+    return (await call('publish')).data?.pending?.[0]?.changes ?? []
+  })()
+  check('the confirmation lists settings changes field by field', ['reply time', 'Instagram link', 'homepage focus image', 'Process section'].every((f) => sch.some((c) => c.field === f)), JSON.stringify(sch))
+  fr = await call('publish', { method: 'POST', body: { drafts: [{ id: 'site', updatedAt: sTok }] } })
+  check('publishing the settings succeeds', fr.status === 200 && fr.data?.commitSha, JSON.stringify(fr.data))
+  ov = await call('publish')
+  r = await call('undo', { method: 'POST', body: { id: ov.data.latest.id } })
+  check('...and undoing them restores site.json', r.status === 200 && (await blobAt('content/site.json', r.data.commitSha)) === sBase, JSON.stringify(r.data))
 }
 
 console.log('--- status ---')
 const st = await call(`status?commit=${undoSha}`)
 check('status answers with a site and a live flag', st.status === 200 && typeof st.data?.live === 'boolean' && st.data?.site?.includes('admin-publish-test'), JSON.stringify(st.data))
 check('status rejects a non-sha', (await call('status?commit=main')).status === 400)
+
+console.log('--- settings and a project, published together ---')
+{
+  // The homepage focus image moves to a Terra image that the Terra draft in the SAME
+  // publish hides: each is fine alone, together they'd break the build.
+  const sg2 = await call('draft?id=site')
+  const tg = await call('draft?id=project:terra-row-houses')
+  const s2 = structuredClone(sg2.data.published.doc)
+  const t2 = structuredClone(tg.data.published.doc)
+  const pick = t2.pool.find((i) => i.id !== t2.cover.image && i.id !== t2.cover.phoneImage)
+  s2.homepage.focus = { project: 'terra-row-houses', image: pick.id }
+  pick.hidden = true
+  for (const x of t2.sections) x.images = x.images.filter((r) => r.image !== pick.id)
+  const ps = await call('draft', { method: 'PUT', body: { id: 'site', doc: s2, ifUpdatedAt: null, baseSha: sg2.data.published.sha } })
+  const pt = await call('draft', { method: 'PUT', body: { id: 'project:terra-row-houses', doc: t2, ifUpdatedAt: null, baseSha: tg.data.published.sha } })
+  const both = await call('publish', { method: 'POST', body: { drafts: [{ id: 'site', updatedAt: ps.data.updatedAt }, { id: 'project:terra-row-houses', updatedAt: pt.data.updatedAt }] } })
+  check('a homepage image hidden by a project draft in the same publish is refused', both.status === 422 && both.data?.problems?.some((p) => p.includes('hidden')), JSON.stringify(both.data))
+  await call('draft', { method: 'DELETE', body: { id: 'site', ifUpdatedAt: ps.data.updatedAt } })
+  await call('draft', { method: 'DELETE', body: { id: 'project:terra-row-houses', ifUpdatedAt: pt.data.updatedAt } })
+}
+
+console.log('--- contact tap counter ---')
+{
+  const TAP = BASE.replace(/\/admin$/, '') + '/tap'
+  const origin = new URL(BASE).origin
+  const tap = (body, headers = { Origin: origin }) => fetch(TAP, { method: 'POST', headers: { 'Content-Type': 'text/plain', ...headers }, body: JSON.stringify(body) })
+  // The count is written just after the reply (waitUntil), so give it a moment.
+  const week = async () => (await new Promise((r) => setTimeout(r, 300)), (await call('taps')).data?.weeks?.[0]?.counts ?? {})
+  const before = (await week()).call ?? 0
+  check('a tap is accepted', (await tap({ kind: 'call' })).status === 204)
+  check('...and counted this week', ((await week()).call ?? 0) === before + 1, JSON.stringify(await week()))
+  await tap({ kind: 'call' }, { Origin: 'https://evil.example' })
+  await tap({ kind: 'nonsense' })
+  check('taps from another site, or of unknown kinds, are not counted', ((await week()).call ?? 0) === before + 1 && !('nonsense' in (await week())))
+  // Counts carry over between runs on the same day; measure only what this run adds.
+  const emailBefore = (await week()).email ?? 0
+  for (let i = 0; i < 35; i++) await tap({ kind: 'email' })
+  const added = ((await week()).email ?? 0) - emailBefore
+  check('one visitor counts at most 30 a day', added > 0 && added <= 30, `added ${added}`)
+  check('the counts need a session', (await fetch(`${BASE}/taps`)).status === 401)
+}
 
 console.log(`\npassed: ${pass}   failed: ${failed}`)
 process.exit(failed ? 1 : 0)

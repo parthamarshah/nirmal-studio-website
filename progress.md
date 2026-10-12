@@ -5,7 +5,25 @@ live in `CLAUDE.md` — read that first if you're picking this up cold.
 
 ## Resume here
 
-### ▶ PHASE 3 STEP 4 (2026-10-12): project list, on `admin-test` (not on `main` yet)
+### ▶ PHASE 3 STEPS 5–6 (2026-10-12): settings, preview, contact taps — on `admin-test`
+- **Settings** (`SettingsEditor.jsx`, rules in `src/lib/siteRules.js`, shared with the publish
+  check): contact incl. studio hours + reply time; Instagram/Facebook/LinkedIn with switches;
+  **homepage images** (project + one of its images, or its cover, per spot; publish reads the
+  chosen projects — or their drafts in the same publish — so nothing hidden/missing gets
+  picked); Advanced: homepage sections on/off, with a confirm. The Talk with Us helper still
+  has no editor and must stay as published. PIN unchanged.
+- **Preview** (`ProjectPreview.jsx`, lazy): the site's own ProjectStory drawn from the draft,
+  images rotated/trimmed in canvas like the build (laptop layout only).
+- **Contact taps** (step 6): see CLAUDE.md. Weekly counts on top of the project list
+  (`TapsCard.jsx`, `GET /api/admin/taps`). Migration **0005** (`tap_limits`) applied
+  `--remote` to BOTH databases on 2026-10-12.
+- ⚠ **Local `.dev.vars` lost its real PIN hash on 2026-10-12** (two test scripts swapped it at
+  once). Local only — Cloudflare secrets untouched. Parth: `npm run admin:secrets` restores a
+  local PIN of your choosing. Until then local /admin uses the test PIN.
+- Tests: `test:publish` 113 (settings refusals + a publish/undo, a site + project published
+  together, the tap counter), `test:projects` (preview + settings).
+
+### PHASE 3 STEP 4 (2026-10-12): project list, on `admin-test`
 - `src/admin/ProjectList.jsx`, read from the new `GET /api/admin/projects` (every project file
   at head + its draft + a problem count), never the bundle. Reorder (↑↓, renumbers 1..n and
   writes only projects whose number changes), On site switch, Trash (with confirm) + Restore,

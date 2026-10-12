@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { STATUS_NAMES, SPOT_NAMES, blankProject, newSlug, spotsUsing } from '../lib/projectRules.js'
 import { api, ApiError } from './api.js'
 import { isParked } from './useDraft.js'
+import TapsCard from './TapsCard.jsx'
 
 // The project list: open, reorder, show/hide, new, duplicate, Trash.
 //
@@ -131,6 +132,7 @@ export default function ProjectList({ onOpen, onStateChange }) {
 
   return (
     <div className="admin-projects">
+      <TapsCard />
       <div className="admin-projects-bar">
         {creating === null ? (
           <button type="button" className="admin-btn" disabled={busy} onClick={() => setCreating('')}>

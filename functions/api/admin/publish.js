@@ -113,6 +113,22 @@ export async function onRequestPost(context) {
         index = { head, projectSlugs, oldSlugs }
         return index
       }
+      // Settings point at projects (homepage spots), so settings are checked against those
+      // projects as this commit would leave them: a project draft in the same publish, else
+      // the file at head. At most five reads.
+      let projects
+      const siteDoc = docs.find((d) => d.id === 'site')?.doc
+      if (siteDoc) {
+        projects = new Map()
+        const slugs = [...new Set(Object.values(siteDoc.homepage ?? {}).map((v) => v?.project).filter((x) => typeof x === 'string' && /^[a-z0-9-]{1,80}$/.test(x)))]
+        await Promise.all(
+          slugs.map(async (sl) => {
+            const inPublish = docs.find((d) => d.id === `project:${sl}`)?.doc
+            const doc = inPublish ?? safeParse((await gh.file(`content/projects/${sl}.json`, head))?.text)
+            if (doc) projects.set(sl, doc)
+          }),
+        )
+      }
       for (const d of docs) {
         const current = await gh.file(d.path, head)
         d.before = current?.sha ?? null
@@ -132,7 +148,7 @@ export async function onRequestPost(context) {
           continue
         }
         const extra = d.id.startsWith('project:') && !current ? await projectIndex() : {}
-        for (const p of validate(d.id, d.doc, published, { site, ...extra })) problems.push(`${label(d.id, d.doc)}: ${p}`)
+        for (const p of validate(d.id, d.doc, published, { site, projects, ...extra })) problems.push(`${label(d.id, d.doc)}: ${p}`)
         // Every image the document points at must be in the repo already, or uploaded for
         // THIS document and committed alongside it. Anything else would reach a build that
         // can't find the file — and a failed build freezes the live site until it's fixed.

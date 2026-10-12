@@ -2202,3 +2202,223 @@ button.admin-dropzone:hover,
   opacity: 0.4;
   cursor: default;
 }
+
+/* ---------------------------------------------------------------- settings (step 5) */
+
+.admin-settings {
+  display: grid;
+  gap: var(--space-sm);
+  max-width: 56rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.admin-card {
+  padding: 16px 18px;
+  border: 1px solid var(--admin-line);
+  border-radius: var(--admin-radius);
+  background: #fff;
+}
+
+.admin-card-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 12px;
+}
+
+.admin-card-title .admin-field-hint {
+  font-weight: 400;
+}
+
+.admin-card .admin-grid2 {
+  max-width: none;
+}
+
+.admin-spots {
+  display: grid;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.admin-spot {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+  padding-top: 12px;
+  border-top: 1px solid var(--admin-line);
+}
+
+.admin-spot-preview {
+  aspect-ratio: 4 / 3;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--color-beige);
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  color: var(--color-stone-dark);
+}
+
+.admin-spot-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.admin-spot-fields {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.admin-spot-fields select {
+  max-width: 24rem;
+  min-height: 40px;
+  padding: 8px 10px;
+  font: inherit;
+  background: #fff;
+  border: 1px solid var(--admin-line);
+  border-radius: var(--admin-radius);
+}
+
+.admin-pick--small {
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+  margin: 4px 0 0;
+  max-width: 40rem;
+}
+
+.admin-pick--small .admin-pick-none {
+  font-size: 12px;
+}
+
+.admin-advanced summary {
+  cursor: pointer;
+  margin: 0;
+}
+
+.admin-advanced[open] summary {
+  margin-bottom: 8px;
+}
+
+.admin-section-switches {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.admin-section-switches li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+}
+
+@container (max-width: 520px) {
+  .admin-spot {
+    grid-template-columns: 84px minmax(0, 1fr);
+  }
+}
+
+/* ---------------------------------------------------------------- project preview */
+
+.admin-preview {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--color-bg);
+}
+
+.admin-preview-bar {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 10px 20px;
+  background: var(--admin-ink);
+  color: var(--admin-rail-text);
+  font-size: 14px;
+}
+
+.admin-preview-page {
+  padding: var(--space-md) var(--space-sm) var(--space-lg);
+}
+
+.admin-preview-article {
+  max-width: 760px;
+  margin: 0 auto;
+  color: var(--color-text);
+}
+
+.admin-spot.is-off .admin-spot-preview {
+  opacity: 0.45;
+}
+
+/* The chosen thumbnail: a tick as well as the border. */
+.admin-pick button[aria-checked='true'] {
+  position: relative;
+}
+
+.admin-pick button[aria-checked='true']::after {
+  content: '✓';
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--color-bronze-dark);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* Images in the preview look like the site's but do nothing when tapped. */
+.admin-preview-article button {
+  pointer-events: none;
+}
+
+.admin-preview--loading {
+  display: grid;
+  place-items: center;
+  color: var(--color-stone-dark);
+}
+
+/* ---------------------------------------------------------------- contact taps (step 6) */
+
+.admin-taps {
+  margin: 0 0 var(--space-sm);
+  padding: 10px 14px;
+  border: 1px solid var(--admin-line);
+  border-radius: var(--admin-radius);
+  background: #fff;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.admin-taps--empty {
+  color: var(--color-stone-dark);
+}
+
+.admin-taps-last {
+  color: var(--color-stone-dark);
+  font-size: 12px;
+}
+
+@media (max-width: 767px) {
+  .admin-taps-last {
+    display: none;
+  }
+}

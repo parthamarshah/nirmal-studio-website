@@ -183,6 +183,7 @@ export default function Contact() {
           aria-haspopup="dialog"
           aria-busy={talkLoading || undefined}
           onClick={openTalk}
+          data-tap="talk"
           onPointerEnter={() => loadTalk().catch(() => {})}
           onTouchStart={() => loadTalk().catch(() => {})}
           onFocus={() => loadTalk().catch(() => {})}
@@ -197,6 +198,7 @@ export default function Contact() {
           aria-haspopup="dialog"
           aria-busy={talkLoading || undefined}
           onClick={openTalk}
+          data-tap="talk"
           onPointerEnter={() => loadTalk().catch(() => {})}
           onTouchStart={() => loadTalk().catch(() => {})}
           onFocus={() => loadTalk().catch(() => {})}

@@ -8,6 +8,13 @@ set -uo pipefail
 cd "$(dirname "$0")/.."
 TMP=$(mktemp -d); PROFILE="$TMP/chrome"
 cleanup() { [ -f .dev.vars.real ] && mv -f .dev.vars.real .dev.vars && echo "• restored .dev.vars"; pkill -f "wrangler pages dev" 2>/dev/null; pkill -f "$PROFILE" 2>/dev/null; rm -rf "$TMP"; }
+# Only one of these at a time: each swaps .dev.vars for a throwaway copy and puts the real
+# one back on exit. Two at once (or a run while `wrangler pages dev` uses the file) lost
+# the real local PIN hash on 2026-10-12. A leftover .dev.vars.real means one is running —
+# or crashed before restoring: then move it back to .dev.vars by hand.
+if [ -e .dev.vars.real ] || pgrep -f "wrangler pages dev" >/dev/null; then
+  echo "✗ Another admin test (or wrangler pages dev) is running, or .dev.vars.real was left behind. Not starting."; exit 1
+fi
 trap cleanup EXIT INT TERM
 cp .dev.vars .dev.vars.real
 node -e "

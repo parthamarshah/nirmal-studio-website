@@ -125,9 +125,8 @@ export async function overview(env, { withChanges = false, withUndoChanges = fal
 
 const ID_FOR_PATH = { 'content/site.json': 'site', 'content/founders.json': 'founders' }
 
-// Field-by-field, from what the publish wrote back to what was there before it. Only the
-// contact details and founder photos are listed field by field today (`listChanges`), same as the Publish
-// confirmation — other documents contribute nothing rather than something misleading.
+// Field-by-field, from what the publish wrote back to what was there before it — the same
+// lists as the Publish confirmation (`listChanges`: settings, founders, projects).
 async function changesUndoWouldMake(env, row) {
   if (!row.parent_sha || !env.GITHUB_TOKEN) return null
   let files

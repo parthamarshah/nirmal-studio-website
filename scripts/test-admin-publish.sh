@@ -22,6 +22,13 @@ cleanup() {
   pkill -f "wrangler pages dev" 2>/dev/null
   rm -rf "$TMP"
 }
+# Only one of these at a time: each swaps .dev.vars for a throwaway copy and puts the real
+# one back on exit. Two at once (or a run while `wrangler pages dev` uses the file) lost
+# the real local PIN hash on 2026-10-12. A leftover .dev.vars.real means one is running —
+# or crashed before restoring: then move it back to .dev.vars by hand.
+if [ -e .dev.vars.real ] || pgrep -f "wrangler pages dev" >/dev/null; then
+  echo "✗ Another admin test (or wrangler pages dev) is running, or .dev.vars.real was left behind. Not starting."; exit 1
+fi
 trap cleanup EXIT INT TERM
 
 [ -f .dev.vars ] || { echo "✗ No .dev.vars — run 'npm run admin:secrets' first."; exit 1; }
@@ -46,5 +53,7 @@ D1() { npx wrangler d1 execute nirmal-studio-admin --local --command "$1" -y >/d
 D1 "DELETE FROM login_attempts"
 D1 "DELETE FROM drafts"
 D1 "DELETE FROM publishes WHERE branch = '$BRANCH'"
+# The tap counter's per-visitor daily limit would otherwise carry over between runs.
+D1 "DELETE FROM tap_limits"
 
 BASE="http://127.0.0.1:$PORT/api/admin" PIN=$TEST_PIN BRANCH=$BRANCH node scripts/test-admin-publish.mjs

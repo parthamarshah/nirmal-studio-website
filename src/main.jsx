@@ -1,11 +1,14 @@
 import { StrictMode } from 'react'
 import { createRoot, hydrateRoot } from 'react-dom/client'
 import './index.css'
+import { installTapCounter } from './lib/tap.js'
 
 // Two kinds of page, each loaded as its own chunk so a project page never
 // downloads the homepage's animation libraries:
 //   /projects/<slug> → ProjectPage (pre-rendered at build, so hydrate it)
 //   everything else  → the homepage App (rendered in the browser)
+installTapCounter()
+
 const root = document.getElementById('root')
 const projectMatch = window.location.pathname.match(/^\/projects\/([a-z0-9-]+)\/?$/)
 

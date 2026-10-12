@@ -176,6 +176,14 @@ try {
   check('phone: nothing runs past the screen', (await ev("[...document.querySelectorAll('.admin-main *')].filter((e) => e.getBoundingClientRect().right > innerWidth + 1).length")) === 0)
   await cdp('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false })
 
+  // Preview: the site's own page, drawn from the draft
+  await click('Preview')
+  check('preview shows the project page from the draft', await waitFor("!!document.querySelector('.admin-preview .project-detail-name') && document.querySelector('.admin-preview').innerText.includes('Added sentence')", 20000), (await ev("document.querySelector('.admin-preview')?.innerText.slice(0, 300)")) || '')
+  check('...with its images made from the originals', await waitFor("(() => { const imgs = [...document.querySelectorAll('.admin-preview img')]; return imgs.length > 3 && imgs.every((i) => i.complete && i.naturalWidth > 0) })()", 30000), String(await ev("[...document.querySelectorAll('.admin-preview img')].map((i) => i.naturalWidth).join(',')")))
+  await shot('p-1440-preview', 1440, 1000)
+  await cdp('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 })
+  check('Esc closes the preview', await waitFor("!document.querySelector('.admin-preview') && document.getElementById('admin-root').inert === false"))
+
   // Publish confirmation lists the changes
   await sleep(1000)
   await ev("document.querySelector('.admin-publish').click()")
@@ -231,6 +239,35 @@ try {
   await shot('p-1000-list', 1000, 760)
   await shot('p-390-list', 390, 844)
   await cdp('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false })
+
+  // ---- Settings (step 5)
+  const site = () => ev("fetch('/api/admin/draft?id=site').then((r) => r.json())")
+  await ev("location.hash = '#/settings'")
+  check('settings shows contact, social, homepage and advanced', await waitFor("!!document.getElementById('f-replyTime') && document.body.innerText.includes('Social links') && document.body.innerText.includes('Homepage images') && !!document.querySelector('.admin-advanced')", 15000))
+  await ev("document.getElementById('f-replyTime').focus()"); await cdp('Input.insertText', { text: 'Usually replies within a few hours' })
+  await ev("document.querySelector('[aria-label=\"Instagram link\"]').focus()"); await cdp('Input.insertText', { text: 'http://instagram.com/nirmal' })
+  await sleep(400)
+  check('a non-https social link is flagged and switched on', (await text()).includes('Must be a full link starting https://') && (await ev("[...document.querySelectorAll('.admin-switch')].find((l) => l.textContent.includes('Instagram')).querySelector('input').checked")))
+  await ev("(() => { const el = document.querySelector('[aria-label=\"Instagram link\"]'); el.focus(); el.select() })()"); await cdp('Input.insertText', { text: 'https://www.instagram.com/nirmalstudio' })
+  // Hero → Terra Row Houses, its second image
+  await ev("(() => { const el = document.getElementById('spot-hero'); const set = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set; set.call(el, 'terra-row-houses'); el.dispatchEvent(new Event('change', { bubbles: true })) })()")
+  await sleep(300)
+  await ev("document.querySelector('[aria-label=\"Image for Hero — the first image on the homepage\"]').querySelectorAll('[role=radio]')[2].click()")
+  // Advanced: turning a section off asks first
+  await ev("document.querySelector('.admin-advanced').open = true")
+  await ev("[...document.querySelectorAll('.admin-section-switches .admin-switch')].find((l) => l.textContent.includes('Process')).querySelector('input').click()")
+  check('turning a section off asks first', (await text()).includes('Hide “Process” from the homepage?'))
+  await click('Hide it')
+  await sleep(1800)
+  const sd = await site()
+  check('settings draft has reply time, Instagram, hero and Process off', sd.doc?.contact?.replyTime === 'Usually replies within a few hours' && sd.doc.socials.instagram.on === true && sd.doc.socials.instagram.url === 'https://www.instagram.com/nirmalstudio' && sd.doc.homepage.hero.project === 'terra-row-houses' && !!sd.doc.homepage.hero.image && sd.doc.sections.process === false, JSON.stringify(sd.doc && { c: sd.doc.contact.replyTime, s: sd.doc.socials.instagram, h: sd.doc.homepage.hero, p: sd.doc.sections.process }))
+  await shot('p-1000-settings', 1000, 1400)
+  await shot('p-390-settings', 390, 844)
+  await cdp('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false })
+  await sleep(500)
+  await ev("document.querySelector('.admin-publish').click()")
+  check('the confirmation lists the settings changes', await waitFor("['reply time', 'instagram link', 'homepage hero', 'process section'].every((w) => document.querySelector('.admin-pubbar-changes')?.innerText.toLowerCase().includes(w))", 15000), ((await ev("document.querySelector('.admin-pubbar-changes')?.innerText")) || '').replace(/\n/g, ' | '))
+  await click('Cancel')
   check('no page errors', errors.length === 0, errors.join(' | ').slice(0, 600))
 } catch (e) { console.log('✗ crashed', e.message); fails++ }
 finally { ws.close(); chrome.kill() }
