@@ -1,5 +1,7 @@
 // What a draft id means on disk, how a document is written, and what may be published.
 
+import { EDITABLE_KEYS as PROJECT_EDITABLE, projectProblems, IMAGE_TYPE_NAMES, STATUS_NAMES, richTextWords } from '../../../../src/lib/projectRules.js'
+
 // The same ids draft.js accepts.
 export const DOC_ID = /^(site|founders|project:[a-z0-9][a-z0-9-]{0,79})$/
 
@@ -63,6 +65,11 @@ export function describeChange(id, doc, published) {
     if (who.length > 3) return `${name} — ${who.slice(0, 2).join(', ')} and ${who.length - 2} more changes`
     return who.length ? `${name} — ${who.join(', ')}` : name
   }
+  if (id.startsWith('project:') && published) {
+    const what = projectChanges(doc, published).map((c) => c.field)
+    if (what.length > 3) return `${name} — ${what.slice(0, 2).join(', ')} and ${what.length - 2} more changes`
+    return what.length ? `${name} — ${what.join(', ')}` : name
+  }
   if (id !== 'site' || !published) return name
   const keys = new Set([...Object.keys(doc.contact || {}), ...Object.keys(published.contact || {})])
   const changed = [...keys].filter((k) => !same(doc.contact?.[k], published.contact?.[k]))
@@ -76,6 +83,7 @@ export function describeChange(id, doc, published) {
 // enough to decide on — the values are.
 export function listChanges(id, doc, published) {
   if (id === 'founders' && doc) return founderChanges(doc, published)
+  if (id.startsWith('project:') && doc) return projectChanges(doc, published)
   if (id !== 'site' || !doc) return []
   const from = published?.contact || {}
   const to = doc.contact || {}
@@ -182,6 +190,78 @@ function founderChanges(doc, published) {
   return out
 }
 
+// Project, part by part. Images are named by caption (or their place in the list), never
+// by file name; text is summarised by word count — a section's text can be hundreds of
+// words and the confirmation is for deciding, not proofreading.
+const FACT_NAMES = { type: 'type', city: 'city', status: 'status', siteArea: 'site area', builtUpArea: 'built-up area' }
+function projectChanges(doc, published) {
+  if (!published) return [{ field: 'project', from: null, to: 'new' }]
+  const out = []
+  const push = (field, from, to) => out.push({ field, from: from ?? null, to: to ?? null })
+  if (!same(doc.name ?? null, published.name ?? null)) push('name', published.name, doc.name)
+  const fa = published.facts ?? {}
+  const fb = doc.facts ?? {}
+  for (const [k, n] of Object.entries(FACT_NAMES)) {
+    const show = (v) => (k === 'status' ? STATUS_NAMES[v] ?? null : v || null)
+    if (!same(fa[k] ?? null, fb[k] ?? null)) push(n, show(fa[k]), show(fb[k]))
+  }
+  if (!same(fa.custom ?? [], fb.custom ?? [])) {
+    const list = (c) => (Array.isArray(c) && c.length ? c.map((x) => `${x?.label}: ${x?.value}`).join('; ') : null)
+    push('extra facts', list(fa.custom), list(fb.custom))
+  }
+  const poolA = new Map((published.pool ?? []).map((i) => [i?.id, i]))
+  const poolB = new Map((doc.pool ?? []).map((i) => [i?.id, i]))
+  const imgName = (img, list) => (img?.caption?.trim() ? img.caption.trim().slice(0, 50) : `image ${[...list.keys()].indexOf(img?.id) + 1}`)
+  const added = [...poolB.values()].filter((i) => !poolA.has(i?.id)).length
+  const removed = [...poolA.values()].filter((i) => !poolB.has(i?.id)).length
+  if (added || removed) push('images', `${poolA.size}`, `${poolB.size} (${[added && `${added} added`, removed && `${removed} removed`].filter(Boolean).join(', ')})`)
+  for (const [id, b] of poolB) {
+    const a = poolA.get(id)
+    if (!a) continue
+    const n = imgName(b, poolB)
+    if (!same(a.hidden ?? false, b.hidden ?? false)) push(`${n}`, a.hidden ? 'hidden' : 'shown', b.hidden ? 'hidden' : 'shown')
+    if (!same(a.type, b.type)) push(`${n} type`, IMAGE_TYPE_NAMES[a.type] ?? a.type, IMAGE_TYPE_NAMES[b.type] ?? b.type)
+    if (!same(a.caption || null, b.caption || null)) push(`${n} caption`, a.caption || null, b.caption || null)
+    if (!same(a.rotation ?? 0, b.rotation ?? 0) || !same(a.crop ?? null, b.crop ?? null)) push(`${n}`, 'as it was', 'rotated or trimmed')
+    if (!same(a.showTag ?? false, b.showTag ?? false)) push(`${n} type label`, a.showTag ? 'shown' : 'off', b.showTag ? 'shown' : 'off')
+  }
+  const ca = published.cover ?? {}
+  const cb = doc.cover ?? {}
+  if (!same(ca.image ?? null, cb.image ?? null)) push('cover', ca.image ? imgName(poolA.get(ca.image), poolA) : 'none', cb.image ? imgName(poolB.get(cb.image), poolB) : 'none')
+  else if (!same(ca.crop ?? null, cb.crop ?? null)) push('cover', 'framing as it was', 'new framing')
+  if (!same(ca.phoneImage ?? null, cb.phoneImage ?? null) || !same(ca.phoneCrop ?? null, cb.phoneCrop ?? null)) push('phone cover', ca.phoneImage || ca.phoneCrop ? 'its own framing' : 'same as desktop', cb.phoneImage || cb.phoneCrop ? 'its own framing' : 'same as desktop')
+  const secA = new Map((published.sections ?? []).map((x) => [x?.id, x]))
+  const secB = new Map((doc.sections ?? []).map((x) => [x?.id, x]))
+  const sname = (x) => `section “${x?.heading || 'untitled'}”`
+  for (const [id, b] of secB) {
+    const a = secA.get(id)
+    if (!a) {
+      push(sname(b), 'not there', 'added')
+      continue
+    }
+    if (!same(a.heading ?? null, b.heading ?? null)) push(`${sname(a)} heading`, a.heading, b.heading)
+    if (!same(a.body ?? null, b.body ?? null)) push(`${sname(b)} text`, `${richTextWords(a.body)} words`, `${richTextWords(b.body)} words`)
+    if (!same(a.images ?? [], b.images ?? [])) push(`${sname(b)} images`, `${(a.images ?? []).length}`, `${(b.images ?? []).length}`)
+  }
+  for (const [id, a] of secA) if (!secB.has(id)) push(sname(a), 'there', 'removed')
+  const orderA = [...secA.keys()].filter((k) => secB.has(k))
+  const orderB = [...secB.keys()].filter((k) => secA.has(k))
+  if (!same(orderA, orderB)) push('section order', 'as it was', 'changed')
+  return out
+}
+
+function validateProject(id, doc, published, ctx) {
+  if (!published) return ['There is no published version of this project to compare with, so it can’t be checked yet.']
+  const problems = []
+  if (!isObj(doc)) return ['The project is broken.']
+  if (doc.slug !== id.slice('project:'.length)) problems.push('The project’s link name was changed, and nothing here can check that yet.')
+  for (const k of new Set([...Object.keys(doc), ...Object.keys(published)])) {
+    if (!PROJECT_EDITABLE.has(k) && !same(doc[k], published[k])) problems.push(`“${k}” was changed, and nothing here can check that part yet.`)
+  }
+  for (const p of projectProblems(doc, { homepage: ctx?.site?.homepage })) problems.push(p.text)
+  return problems
+}
+
 const PHOTO_FILTERS = ['original', 'warm', 'bw']
 const PHOTO_KEYS = new Set(['file', 'crop', 'zoom', 'filter'])
 const num01 = (v) => typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 1
@@ -275,12 +355,13 @@ function validateFounders(doc, published) {
   return problems
 }
 
-export function validate(id, doc, published) {
+// `ctx.site`: content/site.json as this publish would leave it (the draft being published
+// with it, else the file at the head being committed onto) — a project's images are
+// pointed at from the homepage, and only together can that be checked.
+export function validate(id, doc, published, ctx = {}) {
   if (id === 'founders') return validateFounders(doc, published)
-  if (id !== 'site') {
-    // No editor writes these yet, so nothing has checked a draft of them either.
-    return [`${label(id, doc)} can’t be published from here yet — its editor hasn’t been built.`]
-  }
+  if (id.startsWith('project:')) return validateProject(id, doc, published, ctx)
+  if (id !== 'site') return [`${label(id, doc)} can’t be published from here yet — its editor hasn’t been built.`]
   const problems = []
   const c = doc.contact
   if (!isObj(c)) return ['The contact details are missing.']

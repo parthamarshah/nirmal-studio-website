@@ -5,7 +5,32 @@ live in `CLAUDE.md` — read that first if you're picking this up cold.
 
 ## Resume here
 
-### ▶ PHASE 3 STEP 2 (2026-10-12): founders editor, on `admin-test` (not on `main` yet)
+### ▶ PHASE 3 STEP 3 (2026-10-12): project editor, on `admin-test` (not on `main` yet)
+- Steps 1–2 (images, founders editor + its relayout) are **live on main** since 2026-10-12
+  (`b6732ae`, then `9d8ac8d`). Parth asked to finish steps 3–6 and review them together before
+  they go to main.
+- **Editor** (`src/admin/ProjectEditor.jsx`), opened from the project list:
+  `#/projects/<slug>/<details|cover|images|story>/<imageId>`. Details (name — the slug/link
+  never changes here — type/city with suggestions from other projects, status, areas, up to 8
+  extra facts); Cover (pick an image, 16:9 framing; optional own phone image/framing at 4:5);
+  Images (multi-upload by button or drop, two at a time; "Add drawings" keeps 4000px/q95; grid
+  with Cover/Hidden/Not used tags); **ImagePanel.jsx** — the slide-over Parth chose (portalled,
+  page behind made `inert`, closes by `location.replace`, never `history.back()`): rotate, trim
+  (none/3:2/16:9/4:5/1:1 via the same framer), type, type label, caption, show on site, use as
+  cover, add to a section, remove (blocked when the homepage uses it). Story: sections with
+  heading, **Tiptap 3.31.3** text (`RichEditor.jsx`, lazy chunk, admin only — Body / Heading /
+  Subheading / Pull quote, bold, italic, lists, safe links), images per section with frame
+  shape and order, add/delete/reorder sections.
+- **Rules** live in `src/lib/projectRules.js`, imported by the editor AND by
+  `functions/api/admin/_lib/documents.js` (one copy, plain JS). Same as build-content.mjs's
+  project loop plus limits of its own, and the homepage cross-check: publish reads
+  `content/site.json` at head (or the site draft in the same publish) so removing/hiding an
+  image the homepage uses, or a hero/share project losing its cover, is refused.
+- Slug, old links, order, hidden and deleted must stay as published (step 4's job).
+- Tests: `npm run test:projects` (new, 30 browser checks), `test:publish` now 84 (project
+  refusals + a real publish with a new image + undo).
+
+### PHASE 3 STEP 2 (2026-10-12): founders editor — live on main
 - **Editor** (`src/admin/FoundersEditor.jsx`): one tab per person + Introductions, selected tab in
   the URL (`#/founders/<id>`). Photo: upload (JPEG/PNG/WebP/HEIC) → fixed **4:5 framer**
   (`PhotoFramer.jsx` + `framing.js`: drag, arrow keys, zoom slider 1–4; stores the build's own

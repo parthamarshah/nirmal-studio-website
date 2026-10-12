@@ -7,7 +7,8 @@
 // (Pull quote), bulletList, orderedList, listItem, hardBreak, text with bold /
 // italic / link marks.
 
-const SAFE_LINK = /^(https?:\/\/|mailto:|tel:|\/)/i
+// `/path` is a link on this site; `//host` would be another site, so it isn't allowed.
+const SAFE_LINK = /^(https?:\/\/|mailto:|tel:|\/(?!\/))/i
 
 function renderText(node, key) {
   let out = node.text ?? ''

@@ -198,6 +198,10 @@ Tagline: "Designing Spaces. Crafting Experiences."
 - **Each homepage section is wrapped in `SectionBoundary`** (`App.jsx`) — a section that
   throws hides itself instead of blanking the page. Still guard `find()` results (the
   boundary is a backstop, not a license to skip guards).
+- **`src/lib/projectRules.js` is shared by the browser editor AND the backend**
+  (`functions/api/admin/_lib/documents.js` imports it), so it must stay plain JS with no
+  browser or Worker APIs, and a change to it is a backend change: on `main` it is live at once.
+  It must never be looser than `scripts/build-content.mjs`'s project checks.
 - **If backend-published commits land on `main`, `git pull` before starting code work**,
   and don't hand-edit `content/` while a backend draft may be open.
 - **In-page navigation goes through `scrollTo()`** (`src/lib/scroll.js`), never a

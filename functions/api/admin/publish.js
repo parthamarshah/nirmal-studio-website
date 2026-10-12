@@ -92,6 +92,13 @@ export async function onRequestPost(context) {
         if (!dirs.has(dir)) dirs.set(dir, await gh.listDir(dir, head))
         return dirs.get(dir).has(path.slice(dir.length + 1))
       }
+      // A project's images are used by the homepage (site.json), so a project is checked
+      // against site.json as this commit would leave it.
+      let site = docs.find((d) => d.id === 'site')?.doc ?? null
+      if (!site && docs.some((d) => d.id.startsWith('project:'))) {
+        const f = await gh.file('content/site.json', head)
+        site = f ? safeParse(f.text) : null
+      }
       for (const d of docs) {
         const current = await gh.file(d.path, head)
         d.before = current?.sha ?? null
@@ -110,7 +117,7 @@ export async function onRequestPost(context) {
           stale.push(label(d.id, d.doc))
           continue
         }
-        for (const p of validate(d.id, d.doc, published)) problems.push(`${label(d.id, d.doc)}: ${p}`)
+        for (const p of validate(d.id, d.doc, published, { site })) problems.push(`${label(d.id, d.doc)}: ${p}`)
         // Every image the document points at must be in the repo already, or uploaded for
         // THIS document and committed alongside it. Anything else would reach a build that
         // can't find the file — and a failed build freezes the live site until it's fixed.

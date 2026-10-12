@@ -267,6 +267,61 @@ console.log('--- images: upload, publish with a document, undo ---')
   const uc = await gh(`/commits/${r.data?.commitSha}`)
   check('undo removes the image and restores founders.json', uc.files.length === 2 && uc.files.some((f) => f.filename === u.path && f.status === 'removed'), uc.files.map((f) => `${f.filename}:${f.status}`).join(','))
   check('founders.json is back to its original bytes', (await blobAt('content/founders.json', r.data.commitSha)) === fBase)
+
+  console.log('--- projects: refusals, publish with a new image, undo ---')
+  const PID = 'project:citadel-tower'
+  const PPATH = 'content/projects/citadel-tower.json'
+  const pg = await call(`draft?id=${PID}`)
+  const pBase = pg.data?.published?.sha
+  const pPub = pg.data?.published?.doc
+  check('a project draft starts from the file on GitHub', !!pPub?.pool?.length && pg.data?.exists === false, JSON.stringify(pg.data).slice(0, 200))
+  const pres = await up({ docId: PID, data: b64, width: 40, height: 50, hint: 'Test Shot' })
+  const pu = await pres.json()
+  check('upload lands in the project’s own folder', pres.status === 200 && /^content\/media\/projects\/citadel-tower\/test-shot-[0-9a-f]{10}\.jpg$/.test(pu.path), JSON.stringify(pu))
+  let pTok = null
+  let first = true
+  const pRefused = async (label, mutate, needle) => {
+    const d = structuredClone(pPub)
+    mutate(d)
+    const put2 = await call('draft', { method: 'PUT', body: { id: PID, doc: d, ifUpdatedAt: pTok, ...(first ? { baseSha: pBase } : {}) } })
+    first = false
+    pTok = put2.data.updatedAt
+    const pr = await call('publish', { method: 'POST', body: { drafts: [{ id: PID, updatedAt: pTok }] } })
+    check(label, pr.status === 422 && pr.data?.problems?.some((p) => p.includes(needle)), JSON.stringify(pr.data))
+  }
+  const share = pPub.pool.find((i) => i.id === 'exterior-landscape') ? 'exterior-landscape' : null
+  await pRefused('an empty project name is refused', (d) => (d.name = ' '), 'needs a name')
+  await pRefused('a changed link name (slug) is refused', (d) => (d.slug = 'citadel-two'), 'link name')
+  await pRefused('hiding the project from here is refused (that is the project list’s job)', (d) => (d.hidden = !d.hidden), '“hidden”')
+  await pRefused('a section using an image that is not in the project is refused', (d) => d.sections[0].images.push({ image: 'nope', shape: 'original' }), 'isn’t in this project')
+  await pRefused('an unsafe link in a section’s text is refused', (d) => (d.sections[0].body = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'x', marks: [{ type: 'link', attrs: { href: 'javascript:alert(1)' } }] }] }] }), 'must start with')
+  await pRefused('text the site can’t render (an image node) is refused', (d) => (d.sections[0].body = { type: 'doc', content: [{ type: 'image', attrs: { src: 'x' } }] }), 'can’t show')
+  await pRefused('a hidden cover is refused', (d) => (d.pool.find((i) => i.id === d.cover.image).hidden = true), 'hidden')
+  await pRefused('an unknown image type is refused', (d) => (d.pool[0].type = 'sketch'), 'what kind of image')
+  if (share) await pRefused('removing the image the homepage link preview uses is refused', (d) => { d.pool = d.pool.filter((i) => i.id !== share); for (const x of d.sections) x.images = x.images.filter((r) => r.image !== share); if (d.cover.image === share) Object.assign(d.cover, { image: d.pool[0].id, crop: null }); if (d.cover.phoneImage === share) Object.assign(d.cover, { phoneImage: null, phoneCrop: null }) }, 'link preview')
+  else check('(skipped) homepage share image not in this project', true)
+
+  const pGood = structuredClone(pPub)
+  pGood.pool.push({ id: 'test-shot', file: pu.file, type: 'photograph', caption: 'A test photo', rotation: 90, crop: { x: 0, y: 0.1, w: 1, h: 0.8 }, hidden: false, showTag: true })
+  pGood.sections[0].images.push({ image: 'test-shot', shape: '3:2' })
+  pGood.sections[0].body = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Bold ', marks: [{ type: 'bold' }] }, { type: 'text', text: 'and a link', marks: [{ type: 'link', attrs: { href: 'https://example.com', target: '_blank', rel: 'noopener noreferrer nofollow', class: null } }] }] }, { type: 'heading', attrs: { level: 4 }, content: [{ type: 'text', text: 'Sub' }] }] }
+  pGood.facts.custom = [{ label: 'Client', value: 'Private' }]
+  fp = await call('draft', { method: 'PUT', body: { id: PID, doc: pGood, ifUpdatedAt: pTok } })
+  ov = await call('publish')
+  const pch = ov.data?.pending?.[0]?.changes ?? []
+  check('the confirmation lists the project changes', pch.some((c) => c.field === 'images' && /1 added/.test(c.to)) && pch.some((c) => c.field === 'extra facts') && pch.some((c) => /text$/.test(c.field)), JSON.stringify(pch))
+  const beforeP = await head()
+  fr = await call('publish', { method: 'POST', body: { drafts: [{ id: PID, updatedAt: fp.data.updatedAt }] } })
+  check('publishing the project succeeds', fr.status === 200 && fr.data?.commitSha, JSON.stringify(fr.data))
+  const pc = await gh(`/commits/${fr.data?.commitSha}`)
+  const pnames = pc.files.map((f) => f.filename).sort()
+  check('one commit: the project file and its new image, nothing else', pnames.length === 2 && pnames.includes(PPATH) && pnames.includes(pu.path), pnames.join(','))
+  check('...on top of the previous head', pc.parents[0]?.sha === beforeP)
+  check('the project file is exactly the draft', (await blobAt(PPATH, fr.data.commitSha)) === gitSha(JSON.stringify(pGood, null, 2) + '\n'))
+  ov = await call('publish')
+  r = await call('undo', { method: 'POST', body: { id: ov.data.latest.id } })
+  check('undoing the project publish succeeds', r.status === 200 && r.data?.commitSha, JSON.stringify(r.data))
+  check('the project file is back to its original bytes', (await blobAt(PPATH, r.data.commitSha)) === pBase)
 }
 
 console.log('--- status ---')

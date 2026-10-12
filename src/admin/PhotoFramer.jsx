@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { base, fit, fromCrop, toCrop } from './framing.js'
 
-// A fixed 4:5 frame over a photo: drag to move it, slide (or +/−) to zoom. What it stores
+// A fixed-shape frame (4:5 unless `aspect` says otherwise) over a photo: drag to move it, slide (or +/−) to zoom. What it stores
 // is the build's own crop format — {x, y, w, h} as fractions of the image — so the site
 // shows exactly this framing (scripts/build-content.mjs crops before resizing).
 //
@@ -20,7 +20,7 @@ const FILTER_CSS = { original: 'none', warm: 'sepia(0.3) saturate(1.12) brightne
 // section shows it on a laptop (about 350px wide, on a 2–3x screen).
 const SOFT_BELOW = 700
 
-export default function PhotoFramer({ src, crop, filter = 'original', disabled, onChange, label }) {
+export default function PhotoFramer({ src, crop, filter = 'original', disabled, onChange, label, aspect = 4 / 5, softBelow = SOFT_BELOW }) {
   const frameRef = useRef(null)
   // The image's own pixel size, tagged with the src it was measured from: a new photo
   // counts as not loaded until its own load event. (Not reset in an effect — a cached image
@@ -47,8 +47,8 @@ export default function PhotoFramer({ src, crop, filter = 'original', disabled, 
   useEffect(() => {
     if (!dims || drag.current) return
     // cropKey stands in for crop, whose object is new on every render.
-    setView(fromCrop(cropRef.current, dims.W, dims.H))
-  }, [dims, cropKey])
+    setView(fromCrop(cropRef.current, dims.W, dims.H, aspect))
+  }, [dims, cropKey, aspect])
 
   useEffect(() => {
     const el = frameRef.current
@@ -59,10 +59,10 @@ export default function PhotoFramer({ src, crop, filter = 'original', disabled, 
     return () => ro.disconnect()
   }, [])
 
-  const commit = (v) => onChange?.({ crop: toCrop(v, dims.W, dims.H), zoom: Math.round(v.z * 100) / 100 })
+  const commit = (v) => onChange?.({ crop: toCrop(v, dims.W, dims.H, aspect), zoom: Math.round(v.z * 100) / 100 })
 
   const ready = dims && view && frameW
-  const b = dims ? base(dims.W, dims.H) : null
+  const b = dims ? base(dims.W, dims.H, aspect) : null
   const cw = ready ? b.cw / view.z : 0
   const s = ready ? frameW / cw : 1 // screen px per image px
 
@@ -74,7 +74,7 @@ export default function PhotoFramer({ src, crop, filter = 'original', disabled, 
   const onPointerMove = (e) => {
     const d = drag.current
     if (!d || d.id !== e.pointerId) return
-    setView(fit({ z: d.view.z, cx: d.view.cx - (e.clientX - d.x) / s, cy: d.view.cy - (e.clientY - d.y) / s }, dims.W, dims.H))
+    setView(fit({ z: d.view.z, cx: d.view.cx - (e.clientX - d.x) / s, cy: d.view.cy - (e.clientY - d.y) / s }, dims.W, dims.H, aspect))
   }
   const endDrag = (e) => {
     const d = drag.current
@@ -84,7 +84,7 @@ export default function PhotoFramer({ src, crop, filter = 'original', disabled, 
   }
 
   const zoomTo = (z) => {
-    const v = fit({ ...view, z }, dims.W, dims.H)
+    const v = fit({ ...view, z }, dims.W, dims.H, aspect)
     setView(v)
     commit(v)
   }
@@ -95,7 +95,7 @@ export default function PhotoFramer({ src, crop, filter = 'original', disabled, 
     const moves = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }
     if (moves[e.key]) {
       e.preventDefault()
-      const v = fit({ ...view, cx: view.cx + moves[e.key][0], cy: view.cy + moves[e.key][1] }, dims.W, dims.H)
+      const v = fit({ ...view, cx: view.cx + moves[e.key][0], cy: view.cy + moves[e.key][1] }, dims.W, dims.H, aspect)
       setView(v)
       commit(v)
     } else if (e.key === '+' || e.key === '=' || e.key === '-') {
@@ -120,6 +120,7 @@ export default function PhotoFramer({ src, crop, filter = 'original', disabled, 
       <div
         ref={frameRef}
         className={`admin-framer-frame${disabled ? ' is-disabled' : ''}`}
+        style={{ aspectRatio: aspect }}
         role="group"
         aria-label={`${label}. Drag, or use the arrow keys, to move the framing; plus and minus to zoom.`}
         tabIndex={disabled || !ready ? -1 : 0}
@@ -152,7 +153,7 @@ export default function PhotoFramer({ src, crop, filter = 'original', disabled, 
           onChange={(e) => zoomTo(Number(e.target.value))}
         />
       </label>
-      {usedPx != null && usedPx < SOFT_BELOW && (
+      {usedPx != null && usedPx < softBelow && (
         <p className="admin-field-hint admin-framer-soft">
           This framing uses only {usedPx}px of the photo’s width, so it may look soft on large screens. Zoom out, or use a
           bigger photo.

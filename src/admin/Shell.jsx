@@ -3,6 +3,7 @@ import { logout, ApiError } from './api.js'
 import { people, projectsIncludingHidden, STATUS_LABELS } from '../lib/content.js'
 import SettingsEditor from './SettingsEditor.jsx'
 import FoundersEditor from './FoundersEditor.jsx'
+import ProjectEditor from './ProjectEditor.jsx'
 import ChangePin from './ChangePin.jsx'
 import { usePublish } from './usePublish.js'
 import { discardLeftUnsaved, hasLeftUnsaved, isSaveInFlight, useDraftActivity } from './useDraft.js'
@@ -11,11 +12,8 @@ import { discardLeftUnsaved, hasLeftUnsaved, isSaveInFlight, useDraftActivity } 
 // (A right-hand inspector column was dropped on 2026-10-12: on a 1000px laptop window it
 // squeezed the editors until their fields were cut off. Status lives in each editor.)
 //
-// What it shows right now is the PUBLISHED content, read-only, through the same adapter
-// the site uses. That is deliberate: a shell full of placeholder rows tells you nothing
-// about whether the layout works at the real density (9 projects, 4 founders, the actual
-// name lengths). Step 5 swaps the source from published content to the D1 draft; the
-// layout being judged now is the layout that survives.
+// Each pane is an editor on a D1 draft (useDraft); the project list itself still reads the
+// published bundle, until the project-list step gives it its own source.
 const SECTIONS = [
   { id: 'projects', label: 'Projects' },
   { id: 'founders', label: 'Founders' },
@@ -29,28 +27,30 @@ const dash = '—'
 // The label is the one on the rail button and the heading, so the notice names something
 // the person can actually see and click.
 const DRAFT_PANES = { site: { section: 'settings', label: 'Settings' }, founders: { section: 'founders', label: 'Founders' } }
+const projectName = (slug) => projectsIncludingHidden.find((p) => p.slug === slug)?.name ?? slug
 // A parked edit whose pane isn't listed above would otherwise hold Publish back with
 // nothing on screen to explain it. Project and founder drafts land in their own panes, so
 // the fallback sends people to the right one rather than to a button that does nothing.
-const paneFor = (id) => ({
-  id,
-  ...(DRAFT_PANES[id] ?? {
-    section: id.startsWith('project:') ? 'projects' : id.startsWith('founder') ? 'founders' : 'settings',
-    label: 'an editor',
-  }),
-})
+const paneFor = (id) => {
+  if (DRAFT_PANES[id]) return { id, ...DRAFT_PANES[id] }
+  if (id.startsWith('project:')) {
+    const slug = id.slice('project:'.length)
+    return { id, section: 'projects', sub: slug, label: projectName(slug) }
+  }
+  return { id, section: id.startsWith('founder') ? 'founders' : 'settings', label: 'an editor' }
+}
 
-// One line, in one place. Projects is still read-only; Founders and Settings have a real
-// draft behind them.
-function stateLine(section, draft, holdingPublish) {
+// One line, in one place. Every editor (a project, Founders, Settings) has a real draft
+// behind it; the project list itself has none.
+function stateLine(section, sub, draft, holdingPublish) {
   // Whatever else is true, the reason Publish is greyed out comes first: the button's
   // explanation lives in this line and nowhere else (never a tooltip). It names every
   // parked pane, including the one you are looking at — being on that pane is not an
   // explanation by itself, and a flush with nowhere to report counts too.
   if (holdingPublish) return holdingPublish
-  if (section === 'projects') return 'Read-only for now. Editing arrives with the project editor.'
+  if (section === 'projects' && !sub) return 'Choose a project to edit'
   if (!draft) return 'Loading…'
-  if (draft.uploading) return 'Uploading a photo…'
+  if (draft.uploading) return section === 'projects' ? 'Uploading images…' : 'Uploading a photo…'
   switch (draft.state) {
     case 'loading':
       return 'Loading…'
@@ -78,18 +78,32 @@ function stateLine(section, draft, holdingPublish) {
 // back out of — and three of the incidents in CLAUDE.md are back-button bugs that came
 // from grafting history onto components that already had their own state.
 //
-// `#/<section>/<sub>`: the sub-part is what is selected inside a pane (a founder's tab),
-// so Back steps between those too.
+// `#/<section>/<sub>/<rest…>`: the sub-part is what is selected inside a pane (a founder's
+// tab, a project), and `rest` is deeper still (a project's tab, then an image), so Back
+// steps between all of those too.
+// A hand-typed or truncated address (`#/projects/%`) must not throw: /admin has no error
+// boundary, so a URIError here would blank the whole tool.
+const safeDecode = (x) => {
+  try {
+    return decodeURIComponent(x)
+  } catch {
+    return x
+  }
+}
 const routeFromHash = () => {
-  const [id, sub = null] = (window.location.hash || '').replace(/^#\/?/, '').split('/')
-  return SECTIONS.some((s) => s.id === id) ? { section: id, sub } : { section: 'projects', sub: null }
+  const [id, sub = null, ...rest] = (window.location.hash || '').replace(/^#\/?/, '').split('/').map(safeDecode)
+  return SECTIONS.some((s) => s.id === id) ? { section: id, sub: sub || null, rest } : { section: 'projects', sub: null, rest: [] }
 }
 
 export default function Shell({ session, onSignedOut }) {
   const [route, setRoute] = useState(routeFromHash)
-  const { section, sub } = route
+  const { section, sub, rest } = route
   const sectionRef = useRef(section)
   sectionRef.current = section
+  // Which editor owns the draft state on screen: one per section, except Projects, where
+  // each project is its own document and its own editor.
+  const ownerOf = (r) => (r.section === 'projects' ? `projects/${r.sub ?? ''}` : r.section)
+  const ownerRef = useRef(ownerOf(route))
   const [signingOut, setSigningOut] = useState(false)
   // Which parked edit the "Discard it" confirmation is for, if any.
   const [discarding, setDiscarding] = useState(null)
@@ -110,15 +124,17 @@ export default function Shell({ session, onSignedOut }) {
     // top bar on "Loading…" and Publish ungated.
     const onHashChange = () => {
       const next = routeFromHash()
-      if (next.section !== sectionRef.current) setDraft(null)
+      if (ownerOf(next) !== ownerRef.current) setDraft(null)
+      ownerRef.current = ownerOf(next)
       setRoute(next)
     }
     window.addEventListener('hashchange', onHashChange)
     return () => window.removeEventListener('hashchange', onHashChange)
   }, [])
 
-  const go = useCallback((id, part) => {
-    window.location.hash = `#/${id}${part ? `/${part}` : ''}`
+  const go = useCallback((id, ...parts) => {
+    const path = parts.filter(Boolean).map((p) => encodeURIComponent(p)).join('/')
+    window.location.hash = `#/${id}${path ? `/${path}` : ''}`
   }, [])
   const selectFounder = useCallback((id) => go('founders', id), [go])
 
@@ -258,7 +274,7 @@ export default function Shell({ session, onSignedOut }) {
               lands. It also carries the explanation for the disabled Publish button,
               which used to exist only in a `title` tooltip: invisible on touch,
               invisible to a keyboard, and usually suppressed on a disabled element. */}
-          <p className="admin-state">{stateLine(section, draft, holdingPublish)}</p>
+          <p className="admin-state">{stateLine(section, sub, draft, holdingPublish)}</p>
           {/* Disabled while there is nothing to publish, while a save is in flight (it
               would publish the version before the last keystrokes), or while a field is
               invalid. The line to the left always says which — never a tooltip. */}
@@ -279,14 +295,14 @@ export default function Shell({ session, onSignedOut }) {
           <div className="admin-pubbar admin-pubbar--unsaved" role="alert" key={pane.id}>
             <p>
               Your unsaved change to <strong>{pane.label}</strong> didn’t finish saving.{' '}
-              {pane.section === section
+              {pane.section === section && (!pane.sub || pane.sub === sub)
                 ? 'Nothing is lost — it’s still held in this tab, and it comes back when this pane reloads.'
                 : `Nothing is lost — it’s still held in this tab. Open ${pane.label} to save it.`}{' '}
               Publishing is paused until then.
             </p>
             <div className="admin-pubbar-actions">
-              {pane.section !== section && (
-                <button type="button" className="admin-btn" onClick={() => go(pane.section)}>
+              {!(pane.section === section && (!pane.sub || pane.sub === sub)) && (
+                <button type="button" className="admin-btn" onClick={() => go(pane.section, pane.sub)}>
                   Open {pane.label}
                 </button>
               )}
@@ -331,7 +347,21 @@ export default function Shell({ session, onSignedOut }) {
 
         <div className="admin-panes">
           <main className="admin-main">
-            {section === 'projects' && <Projects />}
+            {section === 'projects' &&
+              (sub ? (
+                <ProjectEditor
+                  key={`${sub}:${editorKey}`}
+                  slug={sub}
+                  route={rest}
+                  onRoute={(...parts) => go('projects', sub, ...parts)}
+                  onBack={() => go('projects')}
+                  onStateChange={onDraftState}
+                  locked={locked}
+                  live={live}
+                />
+              ) : (
+                <ProjectList onOpen={(slug) => go('projects', slug)} />
+              ))}
             {section === 'founders' && (
               <FoundersEditor
                 key={editorKey}
@@ -358,13 +388,13 @@ export default function Shell({ session, onSignedOut }) {
   )
 }
 
-function Projects() {
+function ProjectList({ onOpen }) {
   return (
     <>
       <ul className="admin-list">
         {projectsIncludingHidden.map((p) => (
           <li key={p.slug}>
-            <div className="admin-row">
+            <button type="button" className="admin-row admin-row--link" onClick={() => onOpen(p.slug)}>
               <strong>{p.name}</strong>
               <span className="admin-row-meta">
                 {[p.facts.type, p.facts.city].filter(Boolean).join(' · ') || dash}
@@ -376,13 +406,11 @@ function Projects() {
               <span className="admin-tag">
                 {p.hidden ? 'Hidden' : STATUS_LABELS[p.facts.status] || 'Status not set'}
               </span>
-            </div>
+            </button>
           </li>
         ))}
       </ul>
-      <p className="admin-note">
-        Reordering, hiding, duplicating and the project editor itself come next.
-      </p>
+      <p className="admin-hint admin-list-foot">Reordering, hiding, duplicating and adding projects come next.</p>
     </>
   )
 }
@@ -468,8 +496,8 @@ function PublishBar({ pub, pending, live, editorBusy }) {
           </p>
           {changes.length > 0 && (
             <ul className="admin-pubbar-changes">
-              {changes.map((c) => (
-                <li key={c.field}>
+              {changes.map((c, i) => (
+                <li key={`${i}-${c.field}`}>
                   <strong>{cap(c.field)}:</strong> {shown(c.from)} → {shown(c.to)}
                 </li>
               ))}
@@ -501,8 +529,8 @@ function PublishBar({ pub, pending, live, editorBusy }) {
           )}
           {pub.confirmReady && overview?.undoChanges?.length > 0 && (
             <ul className="admin-pubbar-changes">
-              {overview.undoChanges.map((c) => (
-                <li key={c.field}>
+              {overview.undoChanges.map((c, i) => (
+                <li key={`${i}-${c.field}`}>
                   <strong>{cap(c.field)}:</strong> {shown(c.from)} → {shown(c.to)}
                 </li>
               ))}

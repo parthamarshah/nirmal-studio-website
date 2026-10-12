@@ -22,9 +22,13 @@
     "test:publish": "bash scripts/test-admin-publish.sh",
     "test:panes": "bash scripts/test-admin-panes.sh",
     "admin:migrate:remote": "bash scripts/migrate-remote.sh",
-    "test:founders": "bash scripts/test-admin-founders.sh"
+    "test:founders": "bash scripts/test-admin-founders.sh",
+    "test:projects": "bash scripts/test-admin-projects.sh"
   },
   "dependencies": {
+    "@tiptap/pm": "3.31.3",
+    "@tiptap/react": "3.31.3",
+    "@tiptap/starter-kit": "3.31.3",
     "embla-carousel-react": "^8.6.0",
     "framer-motion": "^12.42.2",
     "gsap": "^3.15.0",
