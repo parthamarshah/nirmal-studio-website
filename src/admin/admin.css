@@ -6,10 +6,7 @@
 @import '../styles/tokens.css';
 
 :root {
-  --admin-rail: 248px;
-  /* Not a fixed 320: on a 1280px MacBook Air that leaves the main pane 712px, and the
-     inspector fills up in Phase 3 (framing, type, caption, word counts, usage). */
-  --admin-inspector: minmax(300px, 380px);
+  --admin-rail: 208px;
   --admin-ink: #16150f;
   --admin-rail-text: #e9e5da;
   --admin-rail-muted: #9c968a;
@@ -203,20 +200,17 @@ button {
 .admin-panes {
   /* Always last, and always the part that stretches, however many strips precede it. */
   flex: 1;
-  display: grid;
-  grid-template-columns: 1fr var(--admin-inspector);
+  display: block;
   min-height: 0;
 }
 
+/* A size container, so editors lay themselves out by the width they actually get (the
+   window minus the rail), not by the window. */
 .admin-main {
   padding: var(--space-md);
   min-width: 0;
-}
-
-.admin-inspector {
-  border-left: 1px solid var(--admin-line);
-  padding: var(--space-md) var(--space-sm);
-  background: #fff;
+  max-width: 76rem;
+  container-type: inline-size;
 }
 
 .admin-eyebrow {
@@ -568,8 +562,7 @@ button {
 
 /* ---------------------------------------------------------------- phone */
 
-/* Below 768px the rail becomes a top strip with horizontal nav, and the inspector
-   drops under the main pane instead of beside it. Every property that changes here
+/* Below 768px the rail becomes a top strip with horizontal nav. Every property that changes here
    is declared in this stylesheet at both sizes and never set inline — an inline
    style would beat this media query regardless of specificity. */
 @media (max-width: 767px) {
@@ -621,7 +614,6 @@ button {
   .admin-nav-count {
     display: none;
   }
-
 
   /* `display: contents` lets the foot's two children become flex items of the rail
      itself, so Sign out can sit on the first row while the sentence takes its own.
@@ -680,17 +672,7 @@ button {
     scroll-padding-top: 120px;
   }
 
-  .admin-panes {
-    grid-template-columns: 1fr;
-  }
-
   .admin-main {
-    padding: var(--space-sm);
-  }
-
-  .admin-inspector {
-    border-left: 0;
-    border-top: 1px solid var(--admin-line);
     padding: var(--space-sm);
   }
 
@@ -816,65 +798,11 @@ fieldset.admin-fields {
 
 /* ---------------------------------------------------------------- founders editor */
 
-/* One tab per person plus Introductions. On a phone the strip scrolls sideways rather
-   than wrapping into a block of buttons above the form. */
-.admin-tabs {
-  display: flex;
-  gap: 4px;
-  margin-bottom: var(--space-md);
-  border-bottom: 1px solid var(--admin-line);
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.admin-tabs button {
-  flex: none;
-  padding: 10px 14px;
-  border: 0;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
-  background: none;
-  font: inherit;
-  color: var(--color-stone-dark);
-  white-space: nowrap;
-}
-
-.admin-tabs button[aria-selected='true'] {
-  color: var(--admin-ink);
-  font-weight: 600;
-  border-bottom-color: var(--color-bronze-dark);
-}
-
-.admin-tab-flag {
-  display: inline-grid;
-  place-items: center;
-  width: 17px;
-  height: 17px;
-  margin-left: 6px;
-  border-radius: 50%;
-  background: #a4341f;
-  color: #fff;
-  font-size: 11px;
-  font-weight: 700;
-}
-
 .admin-founder {
   border: 0;
   margin: 0;
   padding: 0;
   min-width: 0;
-}
-
-/* Photo beside the fields on a laptop; stacked, photo first, on a phone. */
-.admin-person {
-  display: grid;
-  grid-template-columns: minmax(200px, 260px) minmax(0, 34rem);
-  gap: var(--space-md);
-  align-items: start;
-}
-
-.admin-person .admin-fields {
-  max-width: none;
 }
 
 .admin-framer-frame {
@@ -934,21 +862,6 @@ fieldset.admin-fields {
   accent-color: var(--color-bronze-dark);
 }
 
-.admin-framer-empty {
-  display: grid;
-  place-content: center;
-  gap: 6px;
-  aspect-ratio: 4 / 5;
-  border: 1px dashed var(--color-stone);
-  border-radius: var(--admin-radius);
-  text-align: center;
-  color: var(--color-stone-dark);
-}
-
-.admin-framer-empty p {
-  margin: 0;
-}
-
 .admin-chips {
   display: flex;
   gap: 6px;
@@ -972,13 +885,6 @@ fieldset.admin-fields {
   font-weight: 600;
 }
 
-.admin-photo-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 14px;
-}
-
 .admin-field-label {
   display: block;
   margin-bottom: 5px;
@@ -996,27 +902,6 @@ fieldset.admin-fields {
 
 .admin-field-hint--warn {
   color: #7a4a20;
-}
-
-.admin-contacts {
-  margin: 0;
-  padding: 0;
-  border: 0;
-  display: grid;
-  gap: 10px;
-}
-
-.admin-contacts legend {
-  padding: 0;
-  margin-bottom: 8px;
-  font-weight: 600;
-}
-
-.admin-contact {
-  display: grid;
-  grid-template-columns: 9.5rem minmax(0, 1fr);
-  align-items: center;
-  gap: 4px 12px;
 }
 
 .admin-contact .admin-field-error {
@@ -1052,88 +937,271 @@ fieldset.admin-fields {
   accent-color: var(--color-bronze-dark);
 }
 
-.admin-readiness .admin-row {
-  grid-template-columns: 1fr auto;
-}
-
-.admin-inspector .admin-readiness + .admin-hint {
-  margin-top: var(--space-sm);
-}
-
-@media (max-width: 767px) {
-  .admin-person {
-    grid-template-columns: 1fr;
-  }
-
-  .admin-person-photo {
-    max-width: 280px;
-  }
-
-  .admin-contact {
-    grid-template-columns: 1fr;
-  }
-
-  .admin-contact .admin-field-error {
-    grid-column: 1;
-  }
-}
-
-.admin-person-name {
-  font-size: 22px;
-  padding-bottom: 4px;
-}
-
 .admin-framer-how {
   margin-top: 8px;
 }
 
-.admin-framer-empty .admin-framer-pending {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  opacity: 0.55;
-  border-radius: var(--admin-radius);
-}
-
-.admin-framer-empty:has(.admin-framer-pending) {
-  display: block;
-  border-style: solid;
-}
-
-button.admin-row {
-  width: 100%;
-  border: 0;
-  background: none;
-  font: inherit;
-  color: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-button.admin-row:hover,
-button.admin-row[aria-current='true'] {
-  background: var(--admin-surface);
-}
-
-.admin-inspector .admin-hint + .admin-readiness {
-  margin-top: var(--space-xs);
-}
-
 @media (max-width: 767px) {
-  /* Wrapped, not a sideways strip: a hidden scroll left Hardik and Introductions (and any
-     problem flag on them) off the edge of a phone with no sign they existed. */
-  .admin-tabs {
-    flex-wrap: wrap;
-    overflow: visible;
-  }
-
   .admin-chips button {
     min-height: 44px;
   }
 }
 
-.admin-note--tight {
-  margin-top: 0;
-  padding: 10px 14px;
+
+/* ---------------------------------------------------------------- founders layout (2026-10-12)
+   Rebuilt after review on a ~1000px laptop window, where the old three-column layout cut
+   fields off. Everything here is sized by .admin-main's own width (container queries). */
+
+.admin-founders-status {
+  margin: 0 0 var(--space-sm);
+  color: var(--color-stone-dark);
+}
+
+.admin-founders-status.is-warn {
+  color: #6f4630;
+}
+
+.admin-founders-status strong {
+  color: var(--admin-ink);
+}
+
+/* Each tab carries that person's status, so nothing else on the page has to. Wrapped,
+   never a hidden sideways scroll (that hid Hardik and Introductions on a phone). */
+.admin-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: var(--space-md);
+  border-bottom: 1px solid var(--admin-line);
+}
+
+.admin-tabs button {
+  display: grid;
+  align-content: start;
+  gap: 1px;
+  padding: 8px 12px 10px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  background: none;
+  text-align: left;
+  color: var(--color-stone-dark);
+}
+
+.admin-tabs button:hover {
+  color: var(--admin-ink);
+}
+
+.admin-tabs button[aria-selected='true'] {
+  color: var(--admin-ink);
+  border-bottom-color: var(--color-bronze-dark);
+}
+
+.admin-tab-name {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.admin-tab-status {
+  font-size: 12px;
+  white-space: nowrap;
+  color: var(--color-stone-dark);
+}
+
+.admin-tab-status::before {
+  content: '';
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 6px;
+  border-radius: 50%;
+  vertical-align: 1px;
+  background: var(--color-stone);
+}
+
+.admin-tab-status.is-ok::before {
+  background: #4f7a4a;
+}
+
+.admin-tab-status.is-todo::before {
+  background: var(--color-bronze);
+}
+
+.admin-tab-status.is-bad {
+  color: #8c2c1a;
+}
+
+.admin-tab-status.is-bad::before {
+  background: #a4341f;
+}
+
+/* Photo on the left, pinned while the form scrolls; the form takes everything else. */
+.admin-person {
+  display: grid;
+  grid-template-columns: 15rem minmax(0, 1fr);
+  gap: var(--space-md);
+  align-items: start;
+}
+
+.admin-person-photo {
+  position: sticky;
+  top: var(--space-sm);
+}
+
+.admin-person-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-sm) var(--space-sm);
+  align-content: start;
+}
+
+.admin-field--wide {
+  grid-column: 1 / -1;
+}
+
+.admin-label-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+  margin-bottom: 5px;
+}
+
+.admin-label-row label {
+  margin: 0;
+}
+
+.admin-label-row .admin-field-hint,
+.admin-label-row .admin-field-error {
+  margin: 0;
+}
+
+.admin-fields--wide {
+  max-width: 48rem;
+}
+
+/* Empty photo: the whole frame is the button, and a drop target. */
+.admin-dropzone {
+  position: relative;
+  display: grid;
+  place-content: center;
+  gap: 6px;
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  padding: var(--space-sm);
+  border: 1.5px dashed var(--color-stone);
+  border-radius: var(--admin-radius);
+  background: #fff;
+  color: var(--color-stone-dark);
+  text-align: center;
+  overflow: hidden;
+}
+
+button.admin-dropzone:hover,
+.admin-dropzone.is-over {
+  border-color: var(--color-bronze-dark);
+  background: var(--color-beige);
+}
+
+.admin-dropzone-label {
+  font-weight: 600;
+  color: var(--color-bronze-darker);
+}
+
+.admin-dropzone-hint {
   font-size: 13px;
+}
+
+.admin-dropzone.is-busy {
+  border-style: solid;
+}
+
+.admin-dropzone.is-busy .admin-dropzone-label {
+  position: relative;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.9);
+}
+
+.admin-framer-pending {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.55;
+}
+
+.admin-photo-actions {
+  display: flex;
+  gap: var(--space-sm);
+  margin-top: 10px;
+}
+
+.admin-photo-restore {
+  margin-top: 10px;
+}
+
+/* One line per link: tick, name, address. */
+.admin-contacts {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.admin-contacts legend {
+  padding: 0;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.admin-contacts legend .admin-field-hint {
+  font-weight: 400;
+}
+
+.admin-contact {
+  display: grid;
+  grid-template-columns: 8rem minmax(0, 1fr);
+  align-items: center;
+  gap: 4px 12px;
+}
+
+.admin-contact .admin-field-error,
+.admin-contact .admin-field-hint {
+  grid-column: 2;
+  margin: 0;
+}
+
+.admin-contact.is-off .admin-switch span {
+  color: var(--color-stone-dark);
+}
+
+/* Not enough room beside the photo: stack, photo first and smaller. */
+@container (max-width: 620px) {
+  .admin-person {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .admin-person-photo {
+    position: static;
+    max-width: 12rem;
+  }
+}
+
+@container (max-width: 440px) {
+  .admin-person-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .admin-contact {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .admin-contact .admin-field-error,
+  .admin-contact .admin-field-hint {
+    grid-column: 1;
+  }
 }

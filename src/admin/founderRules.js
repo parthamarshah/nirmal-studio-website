@@ -29,7 +29,7 @@ const isHttps = (v) => {
 
 export function contactProblem(key, c) {
   if (!c?.on) return null
-  if (!isStr(c.value)) return 'Switched on but empty — add it, or switch it off.'
+  if (!isStr(c.value)) return 'Ticked but empty — add it, or untick it.'
   if ((key === 'linkedin' || key === 'instagram') && !isHttps(c.value)) return 'Use the full link, starting https://'
   if (key === 'whatsapp' && !/^\d{8,15}$/.test(c.value)) return 'Digits only, 8–15 of them, including the country code (e.g. 919106998434).'
   if (key === 'email' && !/^[^\s@?&]+@[^\s@?&]+\.[^\s@?&]+$/.test(c.value)) return 'That doesn’t look like an email address.'

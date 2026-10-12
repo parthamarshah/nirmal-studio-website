@@ -31,9 +31,9 @@ const publishedDoc = JSON.parse(
 const TEXT_FIELDS = [
   // FOLD members are never Nirmal Studio co-founders (CLAUDE.md), so the example must not
   // suggest it on their tabs.
-  { key: 'role', label: 'Role', hint: (p) => (p.id === FOUNDER_ID ? 'e.g. Founder, Nirmal Studio' : 'e.g. Architect, FOLD') },
-  { key: 'basedIn', label: 'Based in', hint: 'Shown as “Based in …”' },
-  { key: 'previously', label: 'Previously', hint: 'Shown as “Previously at …”' },
+  { key: 'role', label: 'Role', placeholder: (p) => (p.id === FOUNDER_ID ? 'e.g. Founder, Nirmal Studio' : 'e.g. Architect, FOLD') },
+  { key: 'basedIn', label: 'Based in', placeholder: () => 'e.g. Ahmedabad' },
+  { key: 'previously', label: 'Previously at', placeholder: () => 'e.g. R+R Architects, Ahmedabad', wide: true },
 ]
 
 const FILTERS = [
@@ -58,18 +58,41 @@ function problemText(list) {
   return `${parts.join('; ')} ${total === 1 ? 'needs' : 'need'} fixing before this can be published. Your changes are still saved.`
 }
 
-// Until all four are complete the site shows the OLDER layout (Studio.jsx LegacyStudio),
-// which reads these fields differently — so say what a publish will actually change.
-// From this page's build, so it can lag a publish by a minute or two.
-function OlderLayoutNote({ intro }) {
-  if (foundersReady) return null
-  return (
-    <p className="admin-note admin-note--tight">
-      {intro
-        ? 'The site still shows the older Tej + FOLD section, which doesn’t use these introductions. They appear once all four people have a photo and a bio.'
-        : 'The site still shows the older Tej + FOLD section until all four have a photo and a bio. It shows the role and based-in line, Tej’s bio, and “Worked at …” for the other three. Photos, the other bios and contact links appear with the new section.'}
-    </p>
-  )
+// What a person still needs before the new founders section can go live — shown on their tab.
+function statusOf(p) {
+  if (personProblems(p).length) return { level: 'bad', text: 'Needs fixing' }
+  const missing = [!p.photo && 'photo', !p.bio?.trim() && 'bio'].filter(Boolean)
+  return missing.length ? { level: 'todo', text: `Needs ${missing.join(' + ')}` } : { level: 'ok', text: 'Ready' }
+}
+
+// One line instead of a panel: what is live, and how far the draft is from switching the
+// site to the new section (same test as src/lib/content.js foundersReady). "Live" comes
+// from this page's build, so it can lag a publish by a minute or two.
+function Readiness({ list }) {
+  const ready = list.filter((p) => statusOf(p).level === 'ok').length
+  const all = list.length > 0 && ready === list.length
+  let text
+  if (foundersReady && all) text = <>Live: the new founders section.</>
+  else if (foundersReady)
+    text = (
+      <>
+        <strong>
+          {ready} of {list.length} ready.
+        </strong>{' '}
+        Publishing this switches the site back to the older Tej + FOLD section — every person needs a photo and a bio.
+      </>
+    )
+  else if (all) text = <><strong>All {list.length} ready</strong> — publishing switches the site to the new founders section.</>
+  else
+    text = (
+      <>
+        <strong>
+          {ready} of {list.length} ready.
+        </strong>{' '}
+        The site keeps the older Tej + FOLD section until all {list.length} have a photo and a bio.
+      </>
+    )
+  return <p className={`admin-founders-status${foundersReady && !all ? ' is-warn' : ''}`}>{text}</p>
 }
 
 const mediaPath = (file) => `content/media/founders/${file}`
@@ -138,20 +161,9 @@ export default function FoundersEditor({ onStateChange, locked = false, live = f
 
   const problemCount = doc ? list.reduce((n, p) => n + personProblems(p).length, 0) : null
   const uploading = Object.values(uploads).some((u) => u.phase)
-  // Strings, not arrays: an array is new on every render, and the effect below would then
-  // report on every render — and the Shell re-rendering this editor would loop.
-  const readinessKey = list.map((p) => `${p.id}:${p.photo ? 1 : 0}:${p.bio?.trim() ? 1 : 0}:${personProblems(p).length ? 1 : 0}`).join('|')
-  const namesKey = list.map((p) => p.name).join('|')
   useEffect(() => {
-    const names = namesKey.split('|')
-    const readiness = readinessKey
-      ? readinessKey.split('|').map((r, i) => {
-          const [id, photo, bio, bad] = r.split(':')
-          return { id, name: names[i], photo: photo === '1', bio: bio === '1', problems: bad === '1' }
-        })
-      : null
-    onStateChange?.({ state, hasDraft, problems: problemCount, uploading, readiness })
-  }, [onStateChange, state, hasDraft, problemCount, uploading, readinessKey, namesKey])
+    onStateChange?.({ state, hasDraft, problems: problemCount, uploading })
+  }, [onStateChange, state, hasDraft, problemCount, uploading])
 
   if (state === 'loading' || !doc) return <DraftLoading draft={draft} id="founders" isParked={isParked} />
 
@@ -207,21 +219,15 @@ export default function FoundersEditor({ onStateChange, locked = false, live = f
     <>
       <DraftTopNotices draft={draft} noun="the founders" scope="Either choice applies to all four people and both introductions." />
 
+      <Readiness list={list} />
       <div className="admin-tabs" role="tablist" aria-label="Founders">
         {tabs.map((t) => {
           const p = list.find((x) => x.id === t.id)
-          const bad = p ? personProblems(p).length > 0 : false
+          const st = p ? statusOf(p) : null
           return (
-            <button
-              key={t.id}
-              type="button"
-              role="tab"
-              aria-selected={t.id === current}
-              className={bad ? 'has-problem' : undefined}
-              onClick={() => onSelect(t.id)}
-            >
-              {t.label}
-              {bad && <span className="admin-tab-flag" aria-label=" — needs fixing">!</span>}
+            <button key={t.id} type="button" role="tab" aria-selected={t.id === current} onClick={() => onSelect(t.id)}>
+              <span className="admin-tab-name">{t.label}</span>
+              {st && <span className={`admin-tab-status is-${st.level}`}>{st.text}</span>}
             </button>
           )
         })}
@@ -248,8 +254,10 @@ export default function FoundersEditor({ onStateChange, locked = false, live = f
             locked={locked}
           />
         ) : (
-          <div className="admin-fields">
-            <OlderLayoutNote intro />
+          <div className="admin-fields admin-fields--wide">
+            {!foundersReady && (
+              <p className="admin-field-hint">These show with the new founders section, not the older one live now.</p>
+            )}
             {INTROS.map((f) => {
               const value = doc.intro?.[f.key] ?? ''
               const n = countWords(value)
@@ -299,13 +307,45 @@ export default function FoundersEditor({ onStateChange, locked = false, live = f
 
 function PersonForm({ person, upload, removedPhoto, onPick, onRemovePhoto, onRestorePhoto, onChange, locked }) {
   const fileRef = useRef(null)
+  const [dragOver, setDragOver] = useState(false)
   const bio = bioState(person)
   const photo = person.photo
   const busy = !!upload.phase
+  const choose = () => fileRef.current?.click()
+  // Only the empty frame takes a dropped file. Over an existing photo a drop would replace
+  // it with no warning and no way back, so it is refused there (Replace is one click).
+  // preventDefault always: otherwise the browser opens the dropped file in place of /admin.
+  const accepts = (e) => !photo && !locked && !busy && e.dataTransfer?.types?.includes('Files')
+  const drop = {
+    onDragOver: (e) => {
+      e.preventDefault()
+      e.dataTransfer.dropEffect = accepts(e) ? 'copy' : 'none'
+      setDragOver(accepts(e))
+    },
+    onDragLeave: (e) => {
+      if (!e.currentTarget.contains(e.relatedTarget)) setDragOver(false)
+    },
+    onDrop: (e) => {
+      e.preventDefault()
+      setDragOver(false)
+      if (accepts(e)) onPick(e.dataTransfer.files?.[0])
+    },
+  }
 
   return (
     <div className="admin-person">
-      <section className="admin-person-photo" aria-label="Photo">
+      <section className="admin-person-photo" aria-label={`${person.name}’s photo`} {...drop}>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif"
+          hidden
+          onChange={(e) => {
+            onPick(e.target.files?.[0])
+            // Picking the same file again after an error must still fire.
+            e.target.value = ''
+          }}
+        />
         {photo ? (
           <>
             <PhotoFramer
@@ -329,42 +369,35 @@ function PersonForm({ person, upload, removedPhoto, onPick, onRemovePhoto, onRes
                 </button>
               ))}
             </div>
-            <p className="admin-field-hint">The filter here is a close preview; the site’s version is made when you publish.</p>
-          </>
-        ) : (
-          <div className="admin-framer-empty">
-            {/* The prepared image is already in memory: show it while it uploads. */}
-            {upload.preview ? <img src={upload.preview} alt="" className="admin-framer-pending" /> : <p>No photo yet.</p>}
-            {removedPhoto && (
-              <button type="button" className="admin-link" onClick={onRestorePhoto}>
-                Put the photo back
+            <div className="admin-photo-actions">
+              <button type="button" className="admin-link" disabled={busy} onClick={choose}>
+                {upload.phase === 'preparing' ? 'Preparing…' : upload.phase === 'uploading' ? 'Uploading…' : 'Replace'}
               </button>
-            )}
+              {!busy && (
+                <button type="button" className="admin-link" onClick={onRemovePhoto}>
+                  Remove
+                </button>
+              )}
+            </div>
+          </>
+        ) : upload.preview ? (
+          // The prepared image is already in memory: show it while it uploads.
+          <div className="admin-dropzone is-busy">
+            <img src={upload.preview} alt="" className="admin-framer-pending" />
+            <span className="admin-dropzone-label">Uploading…</span>
           </div>
-        )}
-
-        <div className="admin-photo-actions">
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif"
-            hidden
-            onChange={(e) => {
-              onPick(e.target.files?.[0])
-              // Picking the same file again after an error must still fire.
-              e.target.value = ''
-            }}
-          />
-          <button type="button" className="admin-btn" disabled={busy} onClick={() => fileRef.current?.click()}>
-            {upload.phase === 'preparing' ? 'Preparing…' : upload.phase === 'uploading' ? 'Uploading…' : photo ? 'Replace photo' : 'Add a photo'}
+        ) : (
+          <button type="button" className={`admin-dropzone${dragOver ? ' is-over' : ''}`} disabled={busy} onClick={choose}>
+            <span className="admin-dropzone-label">{busy ? 'Preparing…' : 'Add a photo'}</span>
+            {!busy && <span className="admin-dropzone-hint">Click, or drop one here. Any phone photo works.</span>}
           </button>
-          {photo && !busy && (
-            <button type="button" className="admin-btn admin-btn--quiet" onClick={onRemovePhoto}>
-              Remove photo
-            </button>
-          )}
-        </div>
-        {busy && <p className="admin-field-hint">Uploading… you can keep editing meanwhile.</p>}
+        )}
+        {!photo && removedPhoto && !busy && (
+          <button type="button" className="admin-link admin-photo-restore" onClick={onRestorePhoto}>
+            Put the removed photo back
+          </button>
+        )}
+        {busy && <p className="admin-field-hint">You can keep editing while it uploads.</p>}
         {upload.note && <p className="admin-field-hint">{upload.note}</p>}
         {upload.error && (
           <p className="admin-field-error" role="alert">
@@ -373,47 +406,48 @@ function PersonForm({ person, upload, removedPhoto, onPick, onRemovePhoto, onRes
         )}
       </section>
 
-      <div className="admin-fields">
-        <h2 className="admin-person-name">{person.name}</h2>
-        <OlderLayoutNote />
-
+      <div className="admin-person-fields">
         {TEXT_FIELDS.map((f) => (
-          <div className="admin-field" key={f.key}>
+          <div className={`admin-field${f.wide ? ' admin-field--wide' : ''}`} key={f.key}>
             <label htmlFor={`p-${f.key}`}>{f.label}</label>
             <input
               id={`p-${f.key}`}
               type="text"
               value={person[f.key] ?? ''}
+              placeholder={f.placeholder(person)}
               onChange={(e) => onChange((p) => ({ ...p, [f.key]: textValue(e.target.value) }))}
             />
-            <p className="admin-field-hint">{typeof f.hint === 'function' ? f.hint(person) : f.hint}</p>
           </div>
         ))}
 
-        <div className="admin-field">
-          <label htmlFor="p-bio">Bio</label>
+        <div className="admin-field admin-field--wide">
+          <div className="admin-label-row">
+            <label htmlFor="p-bio">Bio</label>
+            <span id="p-bio-count" className={bio.level === 'error' ? 'admin-field-error' : `admin-field-hint${bio.level === 'warn' ? ' admin-field-hint--warn' : ''}`}>
+              {bio.text}
+            </span>
+          </div>
           <textarea
             id="p-bio"
-            rows={11}
+            rows={10}
             value={person.bio ?? ''}
             aria-invalid={bio.level === 'error' ? 'true' : undefined}
             aria-describedby="p-bio-count"
             onChange={(e) => onChange((p) => ({ ...p, bio: textValue(e.target.value) }))}
           />
-          <p id="p-bio-count" className={bio.level === 'error' ? 'admin-field-error' : `admin-field-hint${bio.level === 'warn' ? ' admin-field-hint--warn' : ''}`}>
-            {bio.text}
-          </p>
         </div>
 
-        <fieldset className="admin-contacts">
-          <legend>Contact links on the card</legend>
+        <fieldset className="admin-contacts admin-field--wide">
+          <legend>
+            Contact links <span className="admin-field-hint">— only ticked ones show on the card</span>
+          </legend>
           {CONTACTS.map((c) => {
             const value = person.contacts?.[c.key] ?? { value: null, on: false }
             const err = contactProblem(c.key, value)
             const setContact = (next) =>
               onChange((p) => ({ ...p, contacts: { ...p.contacts, [c.key]: { ...(p.contacts?.[c.key] ?? { value: null, on: false }), ...next } } }))
             return (
-              <div className="admin-contact" key={c.key}>
+              <div className={`admin-contact${value.on ? '' : ' is-off'}`} key={c.key}>
                 <label className="admin-switch">
                   <input type="checkbox" checked={!!value.on} onChange={(e) => setContact({ on: e.target.checked })} />
                   <span>{c.label}</span>
@@ -438,12 +472,11 @@ function PersonForm({ person, upload, removedPhoto, onPick, onRemovePhoto, onRes
                 {err ? (
                   <p className="admin-field-error">{err}</p>
                 ) : !value.on && value.value ? (
-                  <p className="admin-field-hint">Off — not shown on the site.</p>
+                  <p className="admin-field-hint">Not ticked — hidden on the site.</p>
                 ) : null}
               </div>
             )
           })}
-          <p className="admin-field-hint">Only switched-on links show on the site.</p>
         </fieldset>
       </div>
     </div>

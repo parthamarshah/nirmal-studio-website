@@ -27,6 +27,7 @@ const ev = async (expr) => { const r = await cdp('Runtime.evaluate', { expressio
 const waitFor = async (expr, ms = 8000) => { const t = Date.now(); while (Date.now() - t < ms) { if (await ev(expr)) return true; await sleep(100) } return false }
 const text = () => ev('document.body.innerText')
 const click = (label) => ev(`(() => { const b = [...document.querySelectorAll('button')].find((b) => b.textContent.trim().replace(/[0-9]+$/, '') === ${JSON.stringify(label)}); if (!b) throw new Error('no button ' + ${JSON.stringify(label)}); b.click(); return true })()`)
+const tab = (name) => ev(`(() => { const t = [...document.querySelectorAll('[role=tab]')].find((t) => t.querySelector('.admin-tab-name')?.textContent === ${JSON.stringify(name)}); if (!t) throw new Error('no tab ' + ${JSON.stringify(name)}); t.click(); return true })()`)
 const SP = process.env.FIXTURES // test images and screenshots (made by the .sh)
 const draft = async () => (await ev("fetch('/api/admin/draft?id=founders').then((r) => r.json())"))
 const shot = async (name, w, h) => {
@@ -51,8 +52,14 @@ try {
   await ev("location.hash = '#/founders'; location.reload()"); await sleep(2000)
   check('tabs render, Tej first and selected', await waitFor("document.querySelector('[role=tab][aria-selected=true]')?.textContent.startsWith('Tej Shah')"), (await text()).slice(0, 400))
   check('existing bio is in the box with a count', await waitFor("document.getElementById('p-bio')?.value.length > 50") && (await text()).includes('words'))
-  check('inspector says the section is off', (await text()).includes('older Tej + FOLD section'))
+  check('status line says the section is off', (await text()).includes('older Tej + FOLD section'))
+  check('Tej’s tab says he needs a photo', await ev("document.querySelector('[role=tab][aria-selected=true] .admin-tab-status')?.textContent === 'Needs photo'"))
   await shot('f-1440-empty', 1440, 1000)
+  await shot('f-1000-empty', 1000, 760)
+  // A ~1000px laptop window (the review that prompted the 2026-10-12 relayout): nothing in
+  // the form may run past the pane's right edge, and every tab is on screen.
+  const clipped = "(() => { const m = document.querySelector('.admin-main').getBoundingClientRect(); return [...document.querySelectorAll('.admin-main input, .admin-main textarea, [role=tab]')].filter((e) => e.type !== 'file' && e.getBoundingClientRect().right > m.right + 1).length })()"
+  check('1000px: no field or tab runs past the pane', (await ev(clipped)) === 0, String(await ev(clipped)))
 
   // Upload a JPEG for Tej
   await setFile(SP + '/portrait.jpg')
@@ -82,7 +89,7 @@ try {
   await shot('f-1440-photo', 1440, 1000)
 
   // Bhumika: HEIC upload, long bio, bad contact
-  await click('Bhumika Tak')
+  await tab('Bhumika Tak')
   check('tab switch updates the URL', await waitFor("location.hash === '#/founders/bhumika-tak'"))
   await setFile(SP + '/portrait.heic')
   check('HEIC converts and uploads', await waitFor("document.querySelector('.admin-framer-frame img')?.naturalWidth > 0", 30000), (await text()).slice(0, 800))
@@ -90,15 +97,14 @@ try {
   await cdp('Input.insertText', { text: Array.from({ length: 85 }, (_, i) => 'word' + i).join(' ') })
   await sleep(300)
   check('over-limit bio shows an error', (await text()).includes('5 over the 80-word limit'))
-  check('the tab is flagged', await ev("!!document.querySelector('[role=tab][aria-selected=true] .admin-tab-flag')"))
+  check('the tab is flagged', await ev("document.querySelector('[role=tab][aria-selected=true] .admin-tab-status')?.textContent === 'Needs fixing'"))
   await ev("[...document.querySelectorAll('.admin-switch')].find((l) => l.textContent.includes('LinkedIn')).querySelector('input').click()")
   await sleep(1500)
-  check('switched-on empty contact shows an error', (await text()).includes('Switched on but empty'))
+  check('switched-on empty contact shows an error', (await text()).includes('Ticked but empty'))
   check('Publish is disabled with problems', await ev("document.querySelector('.admin-publish').disabled"))
   check('problem note names who and what', (await text()).includes('Bhumika Tak’s bio and LinkedIn need fixing'), (await text()).slice(0, 1500))
-  check('FOLD role hint does not suggest Nirmal Studio founder', (await text()).includes('e.g. Architect, FOLD') && !(await text()).includes('e.g. Founder, Nirmal Studio'))
-  check('inspector tags Bhumika as needing fixing', await ev("[...document.querySelectorAll('.admin-readiness li')].find((l) => l.textContent.includes('Bhumika'))?.textContent.includes('Needs fixing')"))
-  check('older-layout note shown', (await text()).includes('still shows the older Tej + FOLD section'))
+  check('FOLD role example does not suggest Nirmal Studio founder', (await ev("document.getElementById('p-role').placeholder")) === 'e.g. Architect, FOLD')
+  check('status line still says the older section is live', (await text()).includes('older Tej + FOLD section'))
   await shot('f-1440-problems', 1440, 1100)
   await shot('f-390-problems', 390, 844)
   check('phone: all five tabs visible without scrolling', await ev("[...document.querySelectorAll('[role=tab]')].every((t) => { const r = t.getBoundingClientRect(); return r.right <= innerWidth && r.left >= 0 })"))
@@ -109,9 +115,9 @@ try {
   await ev("[...document.querySelectorAll('.admin-switch')].find((l) => l.textContent.includes('LinkedIn')).querySelector('input').click()")
   await sleep(1800)
   check('Publish enabled again', !(await ev("document.querySelector('.admin-publish').disabled")), await ev("document.querySelector('.admin-state').textContent"))
-  check('inspector: Bhumika ready', await ev("[...document.querySelectorAll('.admin-readiness li')].find((l) => l.textContent.includes('Bhumika'))?.textContent.includes('Ready')"))
+  check('Bhumika’s tab: Ready', await ev("document.querySelector('[role=tab][aria-selected=true] .admin-tab-status')?.textContent === 'Ready'"))
   // Rachit: start a slow upload, leave the pane, come back — the photo must be there
-  await click('Rachit Sinvhal')
+  await tab('Rachit Sinvhal')
   await cdp('Network.enable')
   await cdp('Network.emulateNetworkConditions', { offline: false, latency: 200, downloadThroughput: 1e6, uploadThroughput: 15000 })
   await setFile(SP + '/portrait.jpg')
@@ -123,7 +129,7 @@ try {
   await sleep(6000)
   await click('Founders')
   await sleep(1500)
-  await click('Rachit Sinvhal')
+  await tab('Rachit Sinvhal')
   check('photo uploaded while away is added on return', await waitFor("document.body.innerText.includes('finished uploading while you were away') && document.querySelector('.admin-framer-frame img')?.naturalWidth > 0", 10000), (await text()).slice(0, 800))
   await sleep(1500)
   check('...and saved to the draft', !!(await draft()).doc.people.find((p) => p.id === 'rachit-sinvhal').photo?.file)
@@ -131,7 +137,22 @@ try {
   await cdp('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false })
   await ev("location.reload()"); await sleep(2500)
   check('after reload, the open tab (Rachit) is restored from the URL with his photo', await waitFor("document.querySelector('[role=tab][aria-selected=true]')?.textContent.startsWith('Rachit') && document.querySelector('.admin-framer-frame img')?.naturalWidth > 0", 10000))
-  await click('Introductions')
+  // Drag and drop: a file dropped on Hardik's empty frame uploads; a second one dropped on
+  // the photo he now has is refused (it would replace it with no way back).
+  await tab('Hardik Maheshwari')
+  const dropJpeg = (sel, colour) => ev(`(async () => {
+    const c = Object.assign(document.createElement('canvas'), { width: 1000, height: 1250 }); const g = c.getContext('2d'); g.fillStyle = '${colour}'; g.fillRect(0, 0, 1000, 1250)
+    const blob = await new Promise((r) => c.toBlob(r, 'image/jpeg', 0.9)); const dt = new DataTransfer(); dt.items.add(new File([blob], 'drop.jpg', { type: 'image/jpeg' }))
+    const el = document.querySelector('${sel}'); el.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: dt }))
+    const ev = new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt }); el.dispatchEvent(ev); return ev.defaultPrevented })()`)
+  check('drop on the empty frame is taken (default prevented)', await dropJpeg('.admin-dropzone', '#336699'))
+  check('dropped photo uploads into the framer', await waitFor("document.querySelector('.admin-framer-frame img')?.naturalWidth > 0", 20000))
+  await sleep(1500)
+  const hardikFile = (await draft()).doc.people.find((p) => p.id === 'hardik-maheshwari').photo?.file
+  check('drop on an existing photo still prevents the browser opening the file', await dropJpeg('.admin-framer-frame', '#993333'))
+  await sleep(2500)
+  check('...but does not replace the photo', (await draft()).doc.people.find((p) => p.id === 'hardik-maheshwari').photo?.file === hardikFile && !(await text()).includes('Uploading…'))
+  await tab('Introductions')
   check('intro tab shows the fallback as placeholder', await waitFor("document.getElementById('intro-fold')?.placeholder.startsWith('An informal network')"))
   // Publish confirmation lists the changes
   await click('Publish')

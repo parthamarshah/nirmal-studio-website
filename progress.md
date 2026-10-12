@@ -15,9 +15,12 @@ live in `CLAUDE.md` — read that first if you're picking this up cold.
   Publish but still saves as a draft). Contact switches with the build's rules; typing into an
   empty switched-off box switches it on. Intros with a soft 60-word warning (no build limit) and
   "Start from that wording" (fallback text moved to `src/lib/foundersIntro.js`).
-- The inspector shows which layout is live now and who still needs a photo/bio; a note explains
-  that the OLDER layout (live until all four are complete) uses only role, based in, Tej's bio
-  and "Worked at …". The Publish confirmation lists every field and says when a publish flips
+- **Relaid out 2026-10-12 after Parth's review on a ~1000px laptop window** ("waste of space"):
+  the right-hand inspector column is gone app-wide (it squeezed the form until fields and tabs
+  were cut off). Each tab shows that person's status (Ready / Needs photo + bio / Needs fixing),
+  one line above the tabs says what's live and how many are ready (and warns if a publish would
+  switch the site back to the older layout). Photo is a click-or-drop frame in a sticky left
+  column, fields two-up, contacts one row each; container queries stack it when narrow. The Publish confirmation lists every field and says when a publish flips
   the site between the two founders layouts.
 - **Uploads outlive the editor:** leaving the pane (or a Discard reload) mid-upload parks the
   result and adds it on return; Publish and Discard are held while one is in flight;

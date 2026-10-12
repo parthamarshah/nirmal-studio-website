@@ -139,7 +139,7 @@ export default function PhotoFramer({ src, crop, filter = 'original', disabled, 
         />
         {!ready && <p className="admin-framer-msg">{failed ? 'Couldn’t load this photo — reload the page, or choose Replace photo.' : 'Loading photo…'}</p>}
       </div>
-      <p className="admin-field-hint admin-framer-how">Drag the photo to choose the framing.</p>
+      <p className="admin-field-hint admin-framer-how">Drag to reframe.</p>
       <label className="admin-framer-zoom">
         <span>Zoom</span>
         <input

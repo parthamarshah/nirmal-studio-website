@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { logout, ApiError } from './api.js'
-import { people, foundersReady, projectsIncludingHidden, STATUS_LABELS } from '../lib/content.js'
+import { people, projectsIncludingHidden, STATUS_LABELS } from '../lib/content.js'
 import SettingsEditor from './SettingsEditor.jsx'
 import FoundersEditor from './FoundersEditor.jsx'
 import ChangePin from './ChangePin.jsx'
 import { usePublish } from './usePublish.js'
 import { discardLeftUnsaved, hasLeftUnsaved, isSaveInFlight, useDraftActivity } from './useDraft.js'
 
-// The desktop-first shell: left rail, top bar with state and Publish, main pane, right
-// inspector. Phase 3 builds the real editors into these panes.
+// The desktop-first shell: left rail, top bar with state and Publish, and one main pane.
+// (A right-hand inspector column was dropped on 2026-10-12: on a 1000px laptop window it
+// squeezed the editors until their fields were cut off. Status lives in each editor.)
 //
 // What it shows right now is the PUBLISHED content, read-only, through the same adapter
 // the site uses. That is deliberate: a shell full of placeholder rows tells you nothing
@@ -351,17 +352,6 @@ export default function Shell({ session, onSignedOut }) {
             )}
           </main>
 
-          <aside className="admin-inspector" aria-label="Inspector">
-            <p className="admin-eyebrow">{section === 'founders' ? 'Founders section' : 'Inspector'}</p>
-            {section === 'founders' ? (
-              <FoundersReadiness readiness={draft?.readiness} onSelect={selectFounder} current={sub} />
-            ) : (
-              <p className="admin-hint">
-                Nothing to show yet. Once the project editor is built, selecting a project or an
-                image will show its settings here — framing, type, caption, and where an image is used.
-              </p>
-            )}
-          </aside>
         </div>
       </div>
     </div>
@@ -392,41 +382,6 @@ function Projects() {
       </ul>
       <p className="admin-note">
         Reordering, hiding, duplicating and the project editor itself come next.
-      </p>
-    </>
-  )
-}
-
-// Whether the new founders section will show, from the draft being edited — what a
-// publish would put on the site. Same test as src/lib/content.js foundersReady. What is
-// live now comes from this page's own build, which can be a publish behind for a minute.
-function FoundersReadiness({ readiness, onSelect, current }) {
-  if (!readiness) return <p className="admin-hint">Loading…</p>
-  const ready = readiness.length > 0 && readiness.every((p) => p.photo && p.bio && !p.problems)
-  return (
-    <>
-      <p className="admin-hint">
-        Live now: {foundersReady ? 'the new section with all four people.' : 'the older Tej + FOLD section.'}
-      </p>
-      <ul className="admin-list admin-readiness">
-        {readiness.map((p) => {
-          const missing = [!p.photo && 'photo', !p.bio && 'bio'].filter(Boolean)
-          return (
-            <li key={p.id}>
-              <button type="button" className="admin-row" aria-current={p.id === current ? 'true' : undefined} onClick={() => onSelect(p.id)}>
-                <strong>{p.name}</strong>
-                <span className="admin-tag">{p.problems ? 'Needs fixing' : missing.length ? `Needs ${missing.join(' + ')}` : 'Ready'}</span>
-              </button>
-            </li>
-          )
-        })}
-      </ul>
-      <p className="admin-hint">
-        {ready
-          ? foundersReady
-            ? 'All four have a photo and a bio.'
-            : 'All four have a photo and a bio, so publishing this switches the site to the new founders section.'
-          : 'The new founders section shows only once all four have a photo and a bio. Until then the site keeps the older Tej + FOLD section — never placeholder people.'}
       </p>
     </>
   )
