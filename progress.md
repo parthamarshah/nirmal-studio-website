@@ -5,6 +5,33 @@ live in `CLAUDE.md` — read that first if you're picking this up cold.
 
 ## Resume here
 
+### ▶▶ STATE AT END OF 2026-10-12 SESSION — read this first
+- **`main` (live, nirmalstudio.com) = `9d8ac8d`**: Phase 2 + Phase 3 steps 1–2 (image uploads,
+  founders editor and its relayout). **`admin-test` (preview) = `c0a8b77`**: steps 3–6 on top
+  (project editor, project list, settings + preview, contact taps). Working tree clean.
+- **Waiting on Parth:** one combined review of steps 3–6 on
+  `admin-test.nirmal-studio.pages.dev/admin/` (old preview PIN), then his explicit
+  "ship it" → fast-forward `main` to `admin-test` (no new migrations needed: 0005 is already
+  on both remote DBs) → confirm `_version.json`, `npm run check:domains`.
+- **Still to measure:** server CPU of a real ~1–4MB phone-photo upload on Cloudflare (free
+  plan ~10ms, unenforced locally). Do it during his review: tail the preview deployment with
+  `npx wrangler pages deployment tail <deployment URL> --project-name nirmal-studio --format json`
+  piped through a JSON reader (pretty-printed multi-line objects; read `cpuTime`).
+- **Parth to do:** `npm run admin:secrets` to restore a local PIN (lost when two test scripts
+  collided; local only).
+- **Not built (candidates for next):** assigning the 11 unsorted AI images to Shimla/Nishee
+  (needs a cross-folder media move + `unsorted.json` editing; then remove `legacyConceptArt`);
+  changing a project's slug after a rename (previousSlugs + file/media move); an editor for the
+  Talk with Us helper. Older open questions: CLAUDE.md dashboard-steps wording, switching
+  `origin` to SSH, Google Business Profile, the AI-crawler block, deleting the old Cloudflare
+  project, a reminder ~12 Dec (GitHub token expires 19 Dec 2026). Tej's current bio was drafted
+  by Claude early on and should be replaced by Tej/Parth. Orphan upload rows/blobs are never
+  cleaned up (harmless).
+- **Process notes:** run admin test scripts one at a time (they now refuse otherwise); tell
+  review agents not to run them. `admin-publish-test` throwaway branch is deleted — push it
+  from `admin-test` (force is fine, it's throwaway) before `test:publish`/`test:founders`/
+  `test:projects`.
+
 ### ▶ PHASE 3 STEPS 5–6 (2026-10-12): settings, preview, contact taps — on `admin-test`
 - **Settings** (`SettingsEditor.jsx`, rules in `src/lib/siteRules.js`, shared with the publish
   check): contact incl. studio hours + reply time; Instagram/Facebook/LinkedIn with switches;
