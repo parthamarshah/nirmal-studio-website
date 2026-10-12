@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { logout, ApiError } from './api.js'
-import { people, projectsIncludingHidden, STATUS_LABELS } from '../lib/content.js'
+import { people, projectsIncludingHidden } from '../lib/content.js'
 import SettingsEditor from './SettingsEditor.jsx'
 import FoundersEditor from './FoundersEditor.jsx'
 import ProjectEditor from './ProjectEditor.jsx'
+import ProjectList from './ProjectList.jsx'
 import ChangePin from './ChangePin.jsx'
 import { usePublish } from './usePublish.js'
 import { discardLeftUnsaved, hasLeftUnsaved, isSaveInFlight, useDraftActivity } from './useDraft.js'
@@ -12,15 +13,14 @@ import { discardLeftUnsaved, hasLeftUnsaved, isSaveInFlight, useDraftActivity } 
 // (A right-hand inspector column was dropped on 2026-10-12: on a 1000px laptop window it
 // squeezed the editors until their fields were cut off. Status lives in each editor.)
 //
-// Each pane is an editor on a D1 draft (useDraft); the project list itself still reads the
-// published bundle, until the project-list step gives it its own source.
+// Each pane is an editor on a D1 draft (useDraft). The project list (ProjectList.jsx) has
+// no draft of its own: its changes are edits to project drafts.
 const SECTIONS = [
   { id: 'projects', label: 'Projects' },
   { id: 'founders', label: 'Founders' },
   { id: 'settings', label: 'Settings' },
 ]
 
-const dash = '—'
 
 // Which pane edits a draft, and what to call it, for the "you left an unsaved change"
 // notice. Project and founder drafts join when their editors exist.
@@ -48,7 +48,7 @@ function stateLine(section, sub, draft, holdingPublish) {
   // parked pane, including the one you are looking at — being on that pane is not an
   // explanation by itself, and a flush with nowhere to report counts too.
   if (holdingPublish) return holdingPublish
-  if (section === 'projects' && !sub) return 'Choose a project to edit'
+  if (section === 'projects' && !sub) return draft?.state === 'saving' ? 'Saving…' : 'Choose a project to edit'
   if (!draft) return 'Loading…'
   if (draft.uploading) return section === 'projects' ? 'Uploading images…' : 'Uploading a photo…'
   switch (draft.state) {
@@ -360,7 +360,7 @@ export default function Shell({ session, onSignedOut }) {
                   live={live}
                 />
               ) : (
-                <ProjectList onOpen={(slug) => go('projects', slug)} />
+                <ProjectList onOpen={(slug) => go('projects', slug)} onStateChange={onDraftState} />
               ))}
             {section === 'founders' && (
               <FoundersEditor
@@ -385,33 +385,6 @@ export default function Shell({ session, onSignedOut }) {
         </div>
       </div>
     </div>
-  )
-}
-
-function ProjectList({ onOpen }) {
-  return (
-    <>
-      <ul className="admin-list">
-        {projectsIncludingHidden.map((p) => (
-          <li key={p.slug}>
-            <button type="button" className="admin-row admin-row--link" onClick={() => onOpen(p.slug)}>
-              <strong>{p.name}</strong>
-              <span className="admin-row-meta">
-                {[p.facts.type, p.facts.city].filter(Boolean).join(' · ') || dash}
-                {' · '}
-                {p.sections.length} section{p.sections.length === 1 ? '' : 's'}
-                {' · '}
-                {p.pool.length} image{p.pool.length === 1 ? '' : 's'}
-              </span>
-              <span className="admin-tag">
-                {p.hidden ? 'Hidden' : STATUS_LABELS[p.facts.status] || 'Status not set'}
-              </span>
-            </button>
-          </li>
-        ))}
-      </ul>
-      <p className="admin-hint admin-list-foot">Reordering, hiding, duplicating and adding projects come next.</p>
-    </>
   )
 }
 

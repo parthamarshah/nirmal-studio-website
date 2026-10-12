@@ -158,7 +158,13 @@ export async function onRequestGet(context) {
   const setup = publishSetup(context.env)
   if (setup instanceof Response) return bad('That image isn’t available to preview.', 404)
   try {
-    const res = await setup.gh.raw(path, await setup.gh.head(setup.branch))
+    let res = await setup.gh.raw(path, await setup.gh.head(setup.branch))
+    if (!res) {
+      // Not at that path yet: an image copied to a duplicated project lives only as the
+      // blob its upload record points at until the copy is published.
+      const up = await context.env.DB.prepare('SELECT blob_sha FROM uploads WHERE path = ?').bind(path).first()
+      if (up?.blob_sha && /^[0-9a-f]{40}$/.test(up.blob_sha)) res = await setup.gh.rawBlob(up.blob_sha)
+    }
     if (!res) return bad('That image isn’t available to preview.', 404)
     return new Response(res.body, { headers })
   } catch (err) {

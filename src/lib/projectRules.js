@@ -20,9 +20,10 @@ export const SAFE_LINK = /^(https?:\/\/|mailto:|tel:|\/(?!\/))/i
 
 export const LIMITS = { name: 80, heading: 80, caption: 200, factLabel: 40, factValue: 120, customFacts: 8, sections: 20, sectionImages: 24, pool: 120 }
 
-// The parts step 3's editor changes. Everything else (slug, old links, order, hidden,
-// deleted) belongs to the project list and must stay exactly as published.
-export const EDITABLE_KEYS = new Set(['name', 'facts', 'cover', 'sections', 'pool'])
+// What the editor and the project list may change. The slug and old links never change
+// from here (a renamed project keeps its link), so they must stay exactly as published.
+export const EDITABLE_KEYS = new Set(['name', 'facts', 'cover', 'sections', 'pool', 'order', 'hidden', 'deleted'])
+export const PROJECT_KEYS = new Set(['slug', 'previousSlugs', ...EDITABLE_KEYS])
 const FACT_KEYS = new Set(['type', 'city', 'status', 'siteArea', 'builtUpArea', 'custom'])
 const IMAGE_KEYS = new Set(['id', 'file', 'type', 'caption', 'rotation', 'crop', 'hidden', 'showTag'])
 const COVER_KEYS = new Set(['image', 'crop', 'phoneImage', 'phoneCrop'])
@@ -103,6 +104,11 @@ export function projectProblems(doc, { homepage } = {}) {
   const add = (where, text) => out.push({ where, text })
   if (!isObj(doc)) return [{ where: 'project', text: 'The project is broken.' }]
 
+  if (!isStr(doc.slug) || !ID_RE.test(doc.slug)) add('project', 'The project’s link name is invalid.')
+  if (typeof doc.order !== 'number' || !Number.isFinite(doc.order)) add('project', 'The project’s place in the list is broken.')
+  if (typeof doc.hidden !== 'boolean') add('project', '“Show on site” is broken.')
+  if (doc.deleted !== undefined && typeof doc.deleted !== 'boolean') add('project', '“In Trash” is broken.')
+  if (!Array.isArray(doc.previousSlugs)) add('project', 'The old links list is broken.')
   if (!isStr(doc.name)) add('name', 'The project needs a name.')
   else if (doc.name.length > LIMITS.name) add('name', `Keep the name to ${LIMITS.name} characters.`)
 
@@ -191,15 +197,50 @@ export function projectProblems(doc, { homepage } = {}) {
     })
   }
 
+  // A project on the site needs a picture for its card: a cover, or a drawing in a section
+  // (src/lib/content.js cardImage). Without either the card would be an empty box.
+  if (doc.hidden === false && doc.deleted !== true && !cv?.image) {
+    const drawing = (doc.sections ?? []).some((s) => (s?.images ?? []).some((r) => pool.get(r?.image)?.type === 'drawing' && !pool.get(r.image).hidden))
+    if (!drawing) add('cover', 'A project shown on the site needs a cover image (or a drawing in one of its sections) for its card.')
+  }
+
   // The homepage points at this project (content/site.json). The build fails if those
   // pointers break, which would freeze the live site — so they are checked here too.
-  for (const { spot, image } of spotsUsing(doc.slug, homepage)) {
+  const spots = spotsUsing(doc.slug, homepage)
+  if (spots.length && doc.deleted === true) add('project', `This project is ${spots.map((x) => SPOT_NAMES[x.spot]).join(' and ')} — change that in Settings before moving it to Trash.`)
+  else if (spots.length && doc.hidden === true) add('project', `This project is ${spots.map((x) => SPOT_NAMES[x.spot]).join(' and ')} — change that in Settings before hiding it.`)
+  for (const { spot, image } of spots) {
     const id = image ?? (COVER_SPOTS.has(spot) ? cv?.image : null)
     if (image != null && !pool.has(image)) add(`image:${image}`, `${SPOT_NAMES[spot]} uses an image that was removed from this project — put it back, or change the homepage in Settings first.`)
     else if (id && pool.get(id)?.hidden) add(`image:${id}`, `${SPOT_NAMES[spot]} uses this image, so it can’t be hidden.`)
     else if (COVER_SPOTS.has(spot) && !id) add('cover', `This project is ${SPOT_NAMES[spot]}, so it needs a cover image.`)
   }
   return out
+}
+
+// A link name (slug) for a new project from its name, unique among `taken` — every
+// project file's slug, Trash included, and every old link (a slug stays reserved).
+export function newSlug(name, taken) {
+  // A name with no Latin letters or digits (e.g. written in Gujarati) would otherwise
+  // become "image"; "project" at least reads right.
+  const latin = String(name || '').toLowerCase().replace(/[^a-z0-9]+/g, '')
+  return newImageId(latin ? name : 'project', taken)
+}
+
+// A brand-new project, hidden until it's ready.
+export function blankProject(slug, name, order) {
+  return {
+    slug,
+    previousSlugs: [],
+    order,
+    hidden: true,
+    deleted: false,
+    name,
+    facts: { type: null, city: null, status: null, siteArea: null, builtUpArea: null, custom: [] },
+    cover: { image: null, crop: null, phoneImage: null, phoneCrop: null },
+    sections: [{ id: 'concept', heading: 'Concept', body: null, images: [] }],
+    pool: [],
+  }
 }
 
 // A fresh pool id from a file or caption hint, unique within `taken`.

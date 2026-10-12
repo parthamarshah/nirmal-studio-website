@@ -5,7 +5,23 @@ live in `CLAUDE.md` — read that first if you're picking this up cold.
 
 ## Resume here
 
-### ▶ PHASE 3 STEP 3 (2026-10-12): project editor, on `admin-test` (not on `main` yet)
+### ▶ PHASE 3 STEP 4 (2026-10-12): project list, on `admin-test` (not on `main` yet)
+- `src/admin/ProjectList.jsx`, read from the new `GET /api/admin/projects` (every project file
+  at head + its draft + a problem count), never the bundle. Reorder (↑↓, renumbers 1..n and
+  writes only projects whose number changes), On site switch, Trash (with confirm) + Restore,
+  New project (hidden, link name from the name, unique against every file incl. Trash and old
+  links), Duplicate (`POST /api/admin/projects` registers the source's image blobs as uploads
+  of the copy — no bytes move; `upload.js` GET previews them from the blob by sha). Every list
+  action is a project DRAFT, so it waits for Publish and is listed in its confirmation.
+- Rules added (projectRules.js): a shown project needs a cover or a drawing (its card); a
+  homepage project can't be hidden or trashed. New projects are validated against every
+  existing slug/old link (publish.js `projectIndex`, read once per publish).
+- GitHub request budget (free plan ≈50 per call): publish only lists an image folder for
+  images new to a document; the project index is kept across retries.
+- Tests: `test:projects` now also covers the list; `test:publish` 98 (new project and
+  duplicate published and undone).
+
+### PHASE 3 STEP 3 (2026-10-12): project editor, on `admin-test` (not on `main` yet)
 - Steps 1–2 (images, founders editor + its relayout) are **live on main** since 2026-10-12
   (`b6732ae`, then `9d8ac8d`). Parth asked to finish steps 3–6 and review them together before
   they go to main.
@@ -26,7 +42,7 @@ live in `CLAUDE.md` — read that first if you're picking this up cold.
   project loop plus limits of its own, and the homepage cross-check: publish reads
   `content/site.json` at head (or the site draft in the same publish) so removing/hiding an
   image the homepage uses, or a hero/share project losing its cover, is refused.
-- Slug, old links, order, hidden and deleted must stay as published (step 4's job).
+- The editor never changes slug or old links (a renamed project keeps its link).
 - Tests: `npm run test:projects` (new, 30 browser checks), `test:publish` now 84 (project
   refusals + a real publish with a new image + undo).
 

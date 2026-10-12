@@ -1,6 +1,6 @@
 // What a draft id means on disk, how a document is written, and what may be published.
 
-import { EDITABLE_KEYS as PROJECT_EDITABLE, projectProblems, IMAGE_TYPE_NAMES, STATUS_NAMES, richTextWords } from '../../../../src/lib/projectRules.js'
+import { EDITABLE_KEYS as PROJECT_EDITABLE, PROJECT_KEYS, ID_RE as SLUG_RE, projectProblems, IMAGE_TYPE_NAMES, STATUS_NAMES, richTextWords } from '../../../../src/lib/projectRules.js'
 
 // The same ids draft.js accepts.
 export const DOC_ID = /^(site|founders|project:[a-z0-9][a-z0-9-]{0,79})$/
@@ -65,6 +65,7 @@ export function describeChange(id, doc, published) {
     if (who.length > 3) return `${name} — ${who.slice(0, 2).join(', ')} and ${who.length - 2} more changes`
     return who.length ? `${name} — ${who.join(', ')}` : name
   }
+  if (id.startsWith('project:') && !published) return `${name} — new project`
   if (id.startsWith('project:') && published) {
     const what = projectChanges(doc, published).map((c) => c.field)
     if (what.length > 3) return `${name} — ${what.slice(0, 2).join(', ')} and ${what.length - 2} more changes`
@@ -195,9 +196,12 @@ function founderChanges(doc, published) {
 // words and the confirmation is for deciding, not proofreading.
 const FACT_NAMES = { type: 'type', city: 'city', status: 'status', siteArea: 'site area', builtUpArea: 'built-up area' }
 function projectChanges(doc, published) {
-  if (!published) return [{ field: 'project', from: null, to: 'new' }]
+  if (!published) return [{ field: 'new project', from: null, to: `${doc?.name ?? doc?.slug}${doc?.hidden ? ' (hidden)' : ''}` }]
   const out = []
   const push = (field, from, to) => out.push({ field, from: from ?? null, to: to ?? null })
+  if (!same(published.deleted ?? false, doc.deleted ?? false)) push('in Trash', published.deleted ? 'yes' : 'no', doc.deleted ? 'yes' : 'no')
+  if (!same(published.hidden, doc.hidden)) push('shown on the site', published.hidden ? 'no' : 'yes', doc.hidden ? 'no' : 'yes')
+  if (!same(published.order, doc.order)) push('place in the list', `${published.order}`, `${doc.order}`)
   if (!same(doc.name ?? null, published.name ?? null)) push('name', published.name, doc.name)
   const fa = published.facts ?? {}
   const fb = doc.facts ?? {}
@@ -251,12 +255,23 @@ function projectChanges(doc, published) {
 }
 
 function validateProject(id, doc, published, ctx) {
-  if (!published) return ['There is no published version of this project to compare with, so it can’t be checked yet.']
   const problems = []
   if (!isObj(doc)) return ['The project is broken.']
-  if (doc.slug !== id.slice('project:'.length)) problems.push('The project’s link name was changed, and nothing here can check that yet.')
-  for (const k of new Set([...Object.keys(doc), ...Object.keys(published)])) {
-    if (!PROJECT_EDITABLE.has(k) && !same(doc[k], published[k])) problems.push(`“${k}” was changed, and nothing here can check that part yet.`)
+  const slug = id.slice('project:'.length)
+  if (doc.slug !== slug) problems.push('The project’s link name was changed, and nothing here can check that yet.')
+  if (!published) {
+    // A new project. Its link name must be free: not another project's (Trash included),
+    // and not anyone's old link — the build refuses either, and freezes the site.
+    if (!SLUG_RE.test(slug)) problems.push('The project’s link name is invalid.')
+    if (!ctx?.projectSlugs) problems.push('The list of existing projects couldn’t be read, so this new project can’t be checked. Try again.')
+    else if (ctx.projectSlugs.has(slug)) problems.push(`The link name “${slug}” is already used by another project.`)
+    if (ctx?.oldSlugs?.has(slug)) problems.push(`The link name “${slug}” is an old link of another project.`)
+    if (!Array.isArray(doc.previousSlugs) || doc.previousSlugs.length) problems.push('A new project can’t have old links.')
+    if (Object.keys(doc).some((k) => !PROJECT_KEYS.has(k))) problems.push('The project has a part this editor doesn’t know.')
+  } else {
+    for (const k of new Set([...Object.keys(doc), ...Object.keys(published)])) {
+      if (!PROJECT_EDITABLE.has(k) && !same(doc[k], published[k])) problems.push(`“${k}” was changed, and nothing here can check that part yet.`)
+    }
   }
   for (const p of projectProblems(doc, { homepage: ctx?.site?.homepage })) problems.push(p.text)
   return problems

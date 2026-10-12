@@ -26,6 +26,8 @@ import Thumb from './ProjectThumb.jsx'
 // sits over the page and closes again — its own address, so Back closes it.
 
 const RichEditor = lazy(() => import('./RichEditor.jsx'))
+// Set from the project list, never here (see useDraft's keepFromServer).
+const LIST_KEYS = ['order', 'hidden', 'deleted']
 
 const TABS = [
   { id: 'details', label: 'Details' },
@@ -61,7 +63,7 @@ export default function ProjectEditor({ slug, route = [], onRoute, onBack, onSta
   const docId = `project:${slug}`
   // No bundled fallback: the editor always starts from the file on GitHub (useDraft reads
   // it), since the bundle drops hidden images and build-only fields.
-  const draft = useDraft(docId, null)
+  const draft = useDraft(docId, null, { keepFromServer: LIST_KEYS })
   const { doc, state, hasDraft, update } = draft
   const tab = TABS.some((t) => t.id === route[0]) ? route[0] : 'details'
   const openImage = tab === 'images' ? route[1] ?? null : null

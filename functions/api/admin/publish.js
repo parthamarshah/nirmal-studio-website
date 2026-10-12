@@ -77,6 +77,10 @@ export async function onRequestPost(context) {
     }
   }
 
+  // For a NEW project: every existing project's link name and old links, which its own
+  // link name must not repeat. Read only when a new project is being published, and kept
+  // across retries of the same head — the free plan allows ~50 GitHub requests per call.
+  let index = null
   let media = []
   let result
   try {
@@ -99,6 +103,16 @@ export async function onRequestPost(context) {
         const f = await gh.file('content/site.json', head)
         site = f ? safeParse(f.text) : null
       }
+      const projectIndex = async () => {
+        if (index && index.head === head) return index
+        const files = await gh.listDir('content/projects', head)
+        const projectSlugs = new Set([...files.keys()].filter((f) => f.endsWith('.json')).map((f) => f.slice(0, -5)))
+        const oldSlugs = new Set()
+        const all = await Promise.all([...projectSlugs].map((sl) => gh.file(`content/projects/${sl}.json`, head)))
+        for (const f of all) for (const o of safeParse(f?.text)?.previousSlugs ?? []) oldSlugs.add(o)
+        index = { head, projectSlugs, oldSlugs }
+        return index
+      }
       for (const d of docs) {
         const current = await gh.file(d.path, head)
         d.before = current?.sha ?? null
@@ -117,12 +131,16 @@ export async function onRequestPost(context) {
           stale.push(label(d.id, d.doc))
           continue
         }
-        for (const p of validate(d.id, d.doc, published, { site })) problems.push(`${label(d.id, d.doc)}: ${p}`)
+        const extra = d.id.startsWith('project:') && !current ? await projectIndex() : {}
+        for (const p of validate(d.id, d.doc, published, { site, ...extra })) problems.push(`${label(d.id, d.doc)}: ${p}`)
         // Every image the document points at must be in the repo already, or uploaded for
         // THIS document and committed alongside it. Anything else would reach a build that
         // can't find the file — and a failed build freezes the live site until it's fixed.
+        // A file the published version already uses is in the repo (that version built), so
+        // only images new to this document cost a folder listing.
+        const already = new Set(referencedMedia(d.id, published))
         for (const path of referencedMedia(d.id, d.doc)) {
-          if (await inRepo(path)) continue
+          if (already.has(path) || (await inRepo(path))) continue
           const up = staged.get(path)
           const name = path.slice(path.lastIndexOf('/') + 1)
           if (!up || up.doc_id !== d.id || !isMediaPath(path)) problems.push(`${label(d.id, d.doc)}: the image “${name}” isn’t uploaded any more. Remove it and add it again.`)

@@ -87,7 +87,11 @@ if (typeof window !== 'undefined') {
   })
 }
 
-export function useDraft(id, published) {
+// `keepFromServer`: parts of the document this editor never changes but something else
+// does (a project's order / hidden / Trash, set from the project list). "Keep mine" in a
+// conflict keeps the editor's version of everything EXCEPT these, which come from the
+// stored version — otherwise keeping your text would silently undo the list change.
+export function useDraft(id, published, { keepFromServer } = {}) {
   const [doc, setDoc] = useState(null)
   const [state, setState] = useState('loading')
   const [message, setMessage] = useState(null)
@@ -361,9 +365,16 @@ export function useDraft(id, published) {
     tokenRef.current = conflict.exists ? conflict.updatedAt : null
     // The draft is gone (published or discarded elsewhere): re-base on what is live now.
     if (!conflict.exists) baseRef.current = conflict.published?.sha ?? baseRef.current
+    const server = conflict.exists ? conflict.doc : conflict.published?.doc
+    if (keepFromServer?.length && server && docRef.current) {
+      const merged = { ...docRef.current }
+      for (const k of keepFromServer) if (k in server) merged[k] = server[k]
+      docRef.current = merged
+      setDoc(merged)
+    }
     setConflict(null)
     await save()
-  }, [conflict, save])
+  }, [conflict, save, keepFromServer])
 
   // Cmd/Ctrl+S saves now rather than waiting out the debounce.
   useEffect(() => {

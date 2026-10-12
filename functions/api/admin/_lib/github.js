@@ -119,6 +119,17 @@ export function github(env) {
       return res
     },
 
+    // A git blob's raw bytes by sha, streamed — an image recorded for a duplicated project
+    // before it is published (it exists only as a blob, at no path yet).
+    async rawBlob(sha) {
+      const res = await fetch(`${API}/repos/${REPO}/git/blobs/${sha}`, {
+        headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github.raw', 'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'nirmal-studio-admin' },
+      })
+      if (res.status === 404) return null
+      if (!res.ok) throw new GitHubError(`GitHub answered ${res.status}`, res.status, null)
+      return res
+    },
+
     // Stores bytes (already base64, as the browser sent them — re-encoding here would cost
     // CPU the free plan doesn't have) as a git blob. Not yet in any commit; the returned
     // sha is placed into a tree at publish time.

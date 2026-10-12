@@ -2006,3 +2006,199 @@ button.admin-dropzone:hover,
     font-size: 16px;
   }
 }
+
+/* ---------------------------------------------------------------- project list (step 4) */
+
+.admin-projects-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: var(--space-sm);
+}
+
+.admin-new-project {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--admin-line);
+  border-radius: var(--admin-radius);
+  background: #fff;
+}
+
+.admin-new-project label {
+  font-weight: 600;
+}
+
+.admin-new-project input {
+  flex: 1 1 16rem;
+  min-height: 40px;
+  padding: 8px 10px;
+  font: inherit;
+  border: 1px solid var(--admin-line);
+  border-radius: var(--admin-radius);
+}
+
+.admin-new-project .admin-field-hint {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+.admin-plist li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+  align-items: center;
+  gap: 8px 14px;
+  padding: 8px 14px 8px 8px;
+}
+
+.admin-plist li.is-hidden .admin-plist-open strong {
+  color: var(--color-stone-dark);
+}
+
+.admin-plist-move {
+  display: flex;
+  gap: 4px;
+}
+
+.admin-plist-open {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 6px 4px;
+  border: 0;
+  background: none;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+
+.admin-plist-open:hover strong {
+  text-decoration: underline;
+}
+
+.admin-plist-open strong {
+  overflow-wrap: anywhere;
+}
+
+.admin-plist-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: flex-end;
+}
+
+.admin-plist-note {
+  grid-column: 2 / -1;
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-stone-dark);
+}
+
+.admin-tag--draft {
+  background: #fdf0d8;
+  color: #6f4630;
+}
+
+.admin-plist-show {
+  min-height: 34px;
+  white-space: nowrap;
+  font-size: 14px;
+}
+
+.admin-plist-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.admin-confirm--inline {
+  margin: 0;
+  padding: 4px 8px;
+  font-size: 14px;
+}
+
+.admin-trash {
+  margin-top: var(--space-md);
+}
+
+.admin-trash summary {
+  cursor: pointer;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.admin-trash-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+}
+
+.admin-trash-row .admin-link {
+  margin-left: auto;
+}
+
+/* Narrower: two lines per project — name and tags, then its switches and actions. */
+@container (max-width: 860px) {
+  .admin-plist li {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    row-gap: 2px;
+  }
+
+  .admin-plist-move {
+    grid-row: span 2;
+  }
+
+  .admin-plist-show {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  .admin-plist-actions {
+    grid-column: 3;
+    justify-self: end;
+  }
+}
+
+@container (max-width: 480px) {
+  .admin-plist li {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .admin-plist-tags,
+  .admin-plist-show,
+  .admin-plist-actions {
+    grid-column: 2;
+    justify-content: flex-start;
+    justify-self: start;
+  }
+}
+
+@media (max-width: 767px) {
+  .admin-plist-actions {
+    gap: 20px;
+  }
+
+  .admin-plist-move .admin-icon-btn {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .admin-plist-actions .admin-link,
+  .admin-trash-row .admin-link {
+    min-height: 44px;
+  }
+
+  .admin-plist-show {
+    min-height: 44px;
+  }
+}
+
+.admin-link:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
