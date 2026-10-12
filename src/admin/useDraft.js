@@ -250,7 +250,7 @@ export function useDraft(id, published) {
           baseRef.current = parked.base
           setConflict(res)
           setState('conflict')
-          setMessage('Your change here didn’t finish saving when you left this pane — it is in the fields below, nothing is lost. Someone also saved these settings since.')
+          setMessage('Your change here didn’t finish saving when you left this pane — it is in the fields below, nothing is lost. Someone else also saved here since.')
         }
         return
       }

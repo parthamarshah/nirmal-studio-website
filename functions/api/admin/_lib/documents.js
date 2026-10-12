@@ -59,6 +59,8 @@ export function describeChange(id, doc, published) {
   const name = label(id, doc)
   if (id === 'founders' && published) {
     const who = founderChanges(doc, published).map((c) => c.field)
+    // It is a commit message and a history line: past a few, a count reads better.
+    if (who.length > 3) return `${name} — ${who.slice(0, 2).join(', ')} and ${who.length - 2} more changes`
     return who.length ? `${name} — ${who.join(', ')}` : name
   }
   if (id !== 'site' || !published) return name
@@ -112,11 +114,12 @@ export function same(a, b) {
 // the draft kept, instead of as a failed build nobody is watching.
 //
 // It deliberately covers only what an editor can produce today: the contact block, and
-// each founder's photo. The contact rules therefore live in THREE places, which is the
+// the founders' editable fields (intros, role, based in, previously, bio, photo,
+// contacts). The settings contact rules therefore live in THREE places, which is the
 // cost of the build running in Node and this running in a Worker: build-content.mjs (the
 // `if (site)` block), src/admin/SettingsEditor.jsx (FIELDS), and here. Change one, change
-// all three. The photo rules (file name, crop, zoom, filter) are copied from
-// build-content.mjs's FILE_RE, validateCrop and founders photo block — same rule.
+// all three. The founders rules are copied from build-content.mjs's founders block
+// (and mirrored in src/admin/founderRules.js) — same rule.
 //
 // Everything else in site.json references other documents (homepage spots → a project's
 // images), which only the build can see. No editor changes those parts yet, so rather
@@ -127,20 +130,54 @@ const isStr = (v) => typeof v === 'string' && v.trim().length > 0
 const isNullableStr = (v) => v === null || v === undefined || typeof v === 'string'
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
 
-// Per person, what the editor can change today: the photo. Described in words, not file
-// names — "new photo", "photo framing", "photo removed".
+// Per person, field by field, old → new. Text is shown as text (long bios shortened);
+// photos are described in words, not file names; contacts as their value or "off".
+const FIELD_LABELS = { role: 'role', basedIn: 'based in', previously: 'previously', bio: 'bio' }
+const CONTACT_NAMES = { whatsapp: 'WhatsApp', email: 'email', linkedin: 'LinkedIn', instagram: 'Instagram' }
+const INTRO_NAMES = { nirmal: 'Nirmal Studio introduction', fold: 'FOLD introduction' }
+const excerpt = (v) => {
+  if (v == null || v === '') return null
+  const t = String(v).trim().replace(/\s+/g, ' ')
+  return t.length > 90 ? `${t.slice(0, 88)}… (${countWords(t)} words)` : t
+}
+const contactShown = (c) => (c?.on && c.value ? c.value : 'off')
+
 function founderChanges(doc, published) {
   const list = (d) => (Array.isArray(d?.people) ? d.people : [])
   const before = new Map(list(published).map((p) => [p?.id, p]))
   const out = []
+  for (const k of Object.keys(INTRO_NAMES)) {
+    const was = published?.intro?.[k] ?? null
+    const now = doc?.intro?.[k] ?? null
+    if (!same(was || null, now || null)) out.push({ field: `the ${INTRO_NAMES[k]}`, from: excerpt(was), to: excerpt(now) })
+  }
   for (const p of list(doc)) {
-    const was = before.get(p?.id)?.photo ?? null
+    const prev = before.get(p?.id) ?? {}
+    const name = p?.name || p?.id
+    for (const [k, l] of Object.entries(FIELD_LABELS)) {
+      if (!same(prev[k] || null, p?.[k] || null)) out.push({ field: `${name}’s ${l}`, from: excerpt(prev[k]), to: excerpt(p?.[k]) })
+    }
+    const was = prev.photo ?? null
     const now = p?.photo ?? null
-    if (same(was, now)) continue
-    // Read as "<from> → <to>" in the confirmations, and the Undo confirmation calls this
-    // the other way round — so both sides describe a state, not an action.
-    const to = !now ? 'no photo' : !was ? 'a photo' : was.file !== now.file ? 'a different photo' : 'same photo, new framing or filter'
-    out.push({ field: `${p?.name || p?.id}’s photo`, from: was ? 'current photo' : 'no photo', to })
+    if (!same(was, now)) {
+      // Read as "<from> → <to>" in the confirmations, and the Undo confirmation calls this
+      // the other way round — so both sides describe a state, not an action.
+      const to = !now ? 'no photo' : !was ? 'a photo' : was.file !== now.file ? 'a different photo' : 'same photo, new framing or filter'
+      out.push({ field: `${name}’s photo`, from: was ? 'current photo' : 'no photo', to })
+    }
+    for (const [k, l] of Object.entries(CONTACT_NAMES)) {
+      const a = contactShown(prev.contacts?.[k])
+      const b = contactShown(p?.contacts?.[k])
+      if (a !== b) out.push({ field: `${name}’s ${l}`, from: a, to: b })
+    }
+  }
+  // The site switches between two whole layouts on this (src/lib/content.js
+  // foundersReady), so the publish that completes — or breaks — the set should say so.
+  const ready = (d) => list(d).length > 0 && list(d).every((p) => p?.photo && isStr(p?.bio))
+  if (published && ready(published) !== ready(doc)) {
+    const nu = 'the new section with all four people'
+    const old = 'the older Tej + FOLD section'
+    out.unshift({ field: 'founders on the site', from: ready(published) ? nu : old, to: ready(doc) ? nu : old })
   }
   return out
 }
@@ -157,14 +194,46 @@ function cropProblem(crop) {
   return null
 }
 
-// Founders: only each person's photo may change from here so far (the rest of the editor
-// is Phase 3 step 2). Everything else must be IDENTICAL to what is published, the same
-// way `site` locks the parts its editor doesn't cover.
+// Copied from build-content.mjs (FOUNDER_ID, BIO_WORDS, countWords) and the founders
+// block's contact rules, and mirrored for typing-time feedback in
+// src/admin/founderRules.js — change one, change all three.
+const FOUNDER_ID = 'tej-shah'
+const BIO_WORDS = { founder: [70, 100], others: [50, 80] }
+const countWords = (s) => String(s).trim().split(/\s+/).filter(Boolean).length
+const isHttps = (v) => {
+  try {
+    return new URL(v).protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+// What the editor may change per person. Names, ids, `background` and `expertise` stay
+// exactly as published (names are locked by decision; the other two have no editor).
+const EDITABLE = new Set(['role', 'basedIn', 'previously', 'bio', 'photo', 'contacts'])
+const CONTACT_KEYS = ['whatsapp', 'email', 'linkedin', 'instagram']
+
+function contactProblem(k, c) {
+  if (!isObj(c) || typeof c.on !== 'boolean') return `${CONTACT_NAMES[k]} needs an on/off switch.`
+  if ([...Object.keys(c)].some((x) => x !== 'on' && x !== 'value')) return `${CONTACT_NAMES[k]} has settings this editor doesn’t know.`
+  if (!isNullableStr(c.value)) return `${CONTACT_NAMES[k]} must be text.`
+  if (!c.on) return null
+  if (!isStr(c.value)) return `${CONTACT_NAMES[k]} is switched on but empty.`
+  if ((k === 'linkedin' || k === 'instagram') && !isHttps(c.value)) return `${CONTACT_NAMES[k]} must be a full https:// link.`
+  if (k === 'whatsapp' && !/^\d{8,15}$/.test(c.value)) return 'WhatsApp must be digits only, with the country code (e.g. 919106998434).'
+  if (k === 'email' && !/^[^\s@?&]+@[^\s@?&]+\.[^\s@?&]+$/.test(c.value)) return 'that email doesn’t look like an email address.'
+  return null
+}
+
 function validateFounders(doc, published) {
   if (!published) return ['There is no published founders file to compare with, so this can’t be checked.']
   const problems = []
   for (const k of new Set([...Object.keys(doc), ...Object.keys(published)])) {
-    if (k !== 'people' && !same(doc[k], published[k])) problems.push(`“${k}” was changed, and nothing here can check that part yet.`)
+    if (k !== 'people' && k !== 'intro' && !same(doc[k], published[k])) problems.push(`“${k}” was changed, and nothing here can check that part yet.`)
+  }
+  if (!isObj(doc.intro)) problems.push('The introductions are missing.')
+  else {
+    if (Object.keys(doc.intro).some((k) => !(k in INTRO_NAMES))) problems.push('The introductions have a part this editor doesn’t know.')
+    for (const k of Object.keys(INTRO_NAMES)) if (!isNullableStr(doc.intro[k])) problems.push(`The ${INTRO_NAMES[k]} must be text.`)
   }
   const was = published.people || []
   const now = Array.isArray(doc.people) ? doc.people : null
@@ -172,9 +241,24 @@ function validateFounders(doc, published) {
     return [...problems, 'The list of people was changed, and nothing here can check that yet.']
   }
   now.forEach((p, i) => {
+    if (!isObj(p)) return problems.push(`Person ${i + 1} is broken.`)
     const name = p.name || p.id
     for (const k of new Set([...Object.keys(p), ...Object.keys(was[i])])) {
-      if (k !== 'photo' && !same(p[k], was[i][k])) problems.push(`${name}: “${k}” was changed, and nothing here can check that part yet.`)
+      if (!EDITABLE.has(k) && !same(p[k], was[i][k])) problems.push(`${name}: “${k}” was changed, and nothing here can check that part yet.`)
+    }
+    for (const k of ['role', 'basedIn', 'previously', 'bio']) if (!isNullableStr(p[k])) problems.push(`${name}: ${FIELD_LABELS[k]} must be text.`)
+    if (isStr(p.bio)) {
+      const max = (p.id === FOUNDER_ID ? BIO_WORDS.founder : BIO_WORDS.others)[1]
+      const n = countWords(p.bio)
+      if (n > max) problems.push(`${name}: the bio is ${n} words — keep it to ${max} or fewer.`)
+    }
+    if (!isObj(p.contacts)) problems.push(`${name}: the contact switches are missing.`)
+    else {
+      if (Object.keys(p.contacts).some((k) => !CONTACT_KEYS.includes(k))) problems.push(`${name}: a contact this editor doesn’t know was added.`)
+      for (const k of CONTACT_KEYS) {
+        const c = contactProblem(k, p.contacts[k])
+        if (c) problems.push(`${name}: ${c}`)
+      }
     }
     const ph = p.photo
     // Only a photo that changed is checked here; an unchanged one is what is already

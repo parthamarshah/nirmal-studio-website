@@ -3,6 +3,8 @@ import useEmblaCarousel from 'embla-carousel-react'
 import { gsap, prefersReducedMotion, ScrollTrigger } from '../lib/scroll'
 import { people, foundersIntro, personContacts } from '../lib/content'
 import Img from './Img'
+// Used only while the backend's intro fields are still empty.
+import { FALLBACK_INTRO } from '../lib/foundersIntro'
 
 // The v1 founders section. Only rendered once every person has a real photo and
 // bio (`foundersReady`, see Studio.jsx) — never with placeholders.
@@ -17,12 +19,6 @@ import Img from './Img'
 //   carousel — phone: Embla swipe row of four equal cards, next card peeking
 //   snap     — phone + reduced motion: the same row as a plain native scroll-snap strip
 // Studio.jsx is homepage-only (never pre-rendered), so reading matchMedia here is safe.
-
-// Used only while the backend's intro fields are still empty.
-const FALLBACK_INTRO = {
-  nirmal: 'The architecture, interior and landscape design practice of Tej Shah, based in Ahmedabad.',
-  fold: 'An informal network of four independent architects, Tej among them, who collaborate project by project for added scale, expertise and geography. The other three run their own practices and work with Nirmal Studio through FOLD.',
-}
 
 const DESKTOP = '(min-width: 768px)'
 const GUTTER = 24 // px — the phone carousel's first card lines up with the section text

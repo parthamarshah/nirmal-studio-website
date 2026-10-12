@@ -813,3 +813,327 @@ fieldset.admin-fields {
   opacity: 0.6;
   cursor: progress;
 }
+
+/* ---------------------------------------------------------------- founders editor */
+
+/* One tab per person plus Introductions. On a phone the strip scrolls sideways rather
+   than wrapping into a block of buttons above the form. */
+.admin-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: var(--space-md);
+  border-bottom: 1px solid var(--admin-line);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.admin-tabs button {
+  flex: none;
+  padding: 10px 14px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  background: none;
+  font: inherit;
+  color: var(--color-stone-dark);
+  white-space: nowrap;
+}
+
+.admin-tabs button[aria-selected='true'] {
+  color: var(--admin-ink);
+  font-weight: 600;
+  border-bottom-color: var(--color-bronze-dark);
+}
+
+.admin-tab-flag {
+  display: inline-grid;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  margin-left: 6px;
+  border-radius: 50%;
+  background: #a4341f;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.admin-founder {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+/* Photo beside the fields on a laptop; stacked, photo first, on a phone. */
+.admin-person {
+  display: grid;
+  grid-template-columns: minmax(200px, 260px) minmax(0, 34rem);
+  gap: var(--space-md);
+  align-items: start;
+}
+
+.admin-person .admin-fields {
+  max-width: none;
+}
+
+.admin-framer-frame {
+  position: relative;
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+  border-radius: var(--admin-radius);
+  background: var(--color-beige);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.admin-framer-frame:active {
+  cursor: grabbing;
+}
+
+.admin-framer-frame.is-disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.admin-framer-frame:focus-visible {
+  outline: 2px solid var(--color-bronze-dark);
+  outline-offset: 2px;
+}
+
+.admin-framer-frame img {
+  position: absolute;
+  max-width: none;
+  pointer-events: none;
+}
+
+.admin-framer-msg {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  padding: var(--space-sm);
+  text-align: center;
+  color: var(--color-stone-dark);
+  font-size: 13px;
+}
+
+.admin-framer-zoom {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--color-stone-dark);
+}
+
+.admin-framer-zoom input {
+  flex: 1;
+  accent-color: var(--color-bronze-dark);
+}
+
+.admin-framer-empty {
+  display: grid;
+  place-content: center;
+  gap: 6px;
+  aspect-ratio: 4 / 5;
+  border: 1px dashed var(--color-stone);
+  border-radius: var(--admin-radius);
+  text-align: center;
+  color: var(--color-stone-dark);
+}
+
+.admin-framer-empty p {
+  margin: 0;
+}
+
+.admin-chips {
+  display: flex;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.admin-chips button {
+  flex: 1;
+  min-height: 36px;
+  border: 1px solid var(--admin-line);
+  border-radius: 999px;
+  background: #fff;
+  font: inherit;
+  font-size: 13px;
+  color: var(--admin-ink);
+}
+
+.admin-chips button[aria-checked='true'] {
+  border-color: var(--color-bronze-dark);
+  background: var(--color-beige);
+  font-weight: 600;
+}
+
+.admin-photo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.admin-field-label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: 600;
+}
+
+.admin-locked {
+  margin: 0;
+  padding: 9px 0;
+}
+
+.admin-locked .admin-field-hint {
+  margin-left: 8px;
+}
+
+.admin-field-hint--warn {
+  color: #7a4a20;
+}
+
+.admin-contacts {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.admin-contacts legend {
+  padding: 0;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.admin-contact {
+  display: grid;
+  grid-template-columns: 9.5rem minmax(0, 1fr);
+  align-items: center;
+  gap: 4px 12px;
+}
+
+.admin-contact .admin-field-error {
+  grid-column: 2;
+  margin: 0;
+}
+
+.admin-contact input[type='text'] {
+  width: 100%;
+  padding: 8px 10px;
+  font: inherit;
+  color: inherit;
+  background: #fff;
+  border: 1px solid var(--admin-line);
+  border-radius: var(--admin-radius);
+}
+
+.admin-contact input[type='text'][aria-invalid='true'] {
+  border-color: #a4341f;
+}
+
+.admin-switch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  cursor: pointer;
+}
+
+.admin-switch input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--color-bronze-dark);
+}
+
+.admin-readiness .admin-row {
+  grid-template-columns: 1fr auto;
+}
+
+.admin-inspector .admin-readiness + .admin-hint {
+  margin-top: var(--space-sm);
+}
+
+@media (max-width: 767px) {
+  .admin-person {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-person-photo {
+    max-width: 280px;
+  }
+
+  .admin-contact {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-contact .admin-field-error {
+    grid-column: 1;
+  }
+}
+
+.admin-person-name {
+  font-size: 22px;
+  padding-bottom: 4px;
+}
+
+.admin-framer-how {
+  margin-top: 8px;
+}
+
+.admin-framer-empty .admin-framer-pending {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.55;
+  border-radius: var(--admin-radius);
+}
+
+.admin-framer-empty:has(.admin-framer-pending) {
+  display: block;
+  border-style: solid;
+}
+
+button.admin-row {
+  width: 100%;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+button.admin-row:hover,
+button.admin-row[aria-current='true'] {
+  background: var(--admin-surface);
+}
+
+.admin-inspector .admin-hint + .admin-readiness {
+  margin-top: var(--space-xs);
+}
+
+@media (max-width: 767px) {
+  /* Wrapped, not a sideways strip: a hidden scroll left Hardik and Introductions (and any
+     problem flag on them) off the edge of a phone with no sign they existed. */
+  .admin-tabs {
+    flex-wrap: wrap;
+    overflow: visible;
+  }
+
+  .admin-chips button {
+    min-height: 44px;
+  }
+}
+
+.admin-note--tight {
+  margin-top: 0;
+  padding: 10px 14px;
+  font-size: 13px;
+}

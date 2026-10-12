@@ -130,7 +130,8 @@ function LegacyStudio() {
               marginBottom: 'var(--space-lg)',
             }}
           >
-            {tejShah.title} — {tejShah.basedIn}
+            {/* Either can be emptied from /admin; never print a dangling dash. */}
+            {[tejShah.title, tejShah.basedIn].filter((v) => v?.trim()).join(' — ')}
           </p>
           <p
             style={{

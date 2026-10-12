@@ -5,6 +5,37 @@ live in `CLAUDE.md` — read that first if you're picking this up cold.
 
 ## Resume here
 
+### ▶ PHASE 3 STEP 2 (2026-10-12): founders editor, on `admin-test` (not on `main` yet)
+- **Editor** (`src/admin/FoundersEditor.jsx`): one tab per person + Introductions, selected tab in
+  the URL (`#/founders/<id>`). Photo: upload (JPEG/PNG/WebP/HEIC) → fixed **4:5 framer**
+  (`PhotoFramer.jsx` + `framing.js`: drag, arrow keys, zoom slider 1–4; stores the build's own
+  `{x,y,w,h}` crop + `zoom`), Original/Warm/B&W (CSS preview; the real one is made at build),
+  Remove/Put back, low-resolution warning under 700px. Name locked (heading). Role / Based in /
+  Previously / Bio (word counter: Tej 70–100, others 50–80; under = warning, over = blocks
+  Publish but still saves as a draft). Contact switches with the build's rules; typing into an
+  empty switched-off box switches it on. Intros with a soft 60-word warning (no build limit) and
+  "Start from that wording" (fallback text moved to `src/lib/foundersIntro.js`).
+- The inspector shows which layout is live now and who still needs a photo/bio; a note explains
+  that the OLDER layout (live until all four are complete) uses only role, based in, Tej's bio
+  and "Worked at …". The Publish confirmation lists every field and says when a publish flips
+  the site between the two founders layouts.
+- **Uploads outlive the editor:** leaving the pane (or a Discard reload) mid-upload parks the
+  result and adds it on return; Publish and Discard are held while one is in flight;
+  beforeunload asks.
+- **Server** (`documents.js`): founders may change intro, role, basedIn, previously, bio,
+  photo, contacts; ids, names, `background`, `expertise` and the people list stay locked. Rules
+  live in three places (build-content.mjs, documents.js, `src/admin/founderRules.js`).
+  `GET upload?path=` falls back to streaming the published original from GitHub, so a published
+  photo can be re-framed.
+- Shared `DraftNotices.jsx` (Settings uses it too). Legacy Studio no longer prints a dangling
+  "—" when role or based in is emptied.
+- Reviews: ux, impact, edge-case — all must-fix findings applied. Tests: `test:publish` 66/66,
+  `test:auth` 51/51, `test:panes` passed, new **`npm run test:founders`** (32 browser checks
+  incl. HEIC, drag, leaving mid-upload; needs the `admin-publish-test` branch to exist).
+- **Not yet:** thumbnail in the Publish confirmation; Tej's current bio was drafted by Claude
+  early on "pending Tej's sign-off" (see the Studio entry far below) — Parth/Tej should replace it.
+**Open, before steps 1–2 go to `main`:** CPU measurement below; Parth tries it on the preview.
+
 ### ▶ PHASE 3 STEP 1 (2026-10-11): image foundation, on `admin-test` (not on `main` yet)
 Order agreed with Parth: 1 images → 2 founders editor → 3 project editor → 4 project list →
 5 settings additions + draft preview → 6 tap counter. Each step lands on the preview first.
@@ -19,8 +50,7 @@ Order agreed with Parth: 1 images → 2 founders editor → 3 project editor →
 - **Publish** adds every referenced image that isn't in the repo yet, by blob sha, in the same
   commit; a reference that is neither in the repo nor uploaded for THAT document is refused
   before any commit (a failed build would freeze the live site). **Undo** removes them again.
-- **Founders** drafts are publishable, but only `people[].photo` may differ (rules copied from
-  build-content.mjs; a 29-case differential test agreed). Confirmations say "Tej Shah’s photo:
+- **Founders** drafts were publishable for `people[].photo` only (widened in step 2, above). Confirmations say "Tej Shah’s photo:
   no photo → a photo".
 - Reviews: data-integrity GO, production-safety GO w/ precautions, impact + edge-case findings
   all applied. `test:publish` 59/59 (17 new image checks), `test:auth` 51/51.

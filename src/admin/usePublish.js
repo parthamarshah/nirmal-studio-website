@@ -92,7 +92,7 @@ export function usePublish({ onContentChanged, isEditorBusy }) {
       if (busyRef.current || !overview) return
       if (isEditorBusy?.()) {
         setPhase('error')
-        setMessage('Your latest edit is still saving. Wait for “Saved”, then try again.')
+        setMessage('Your latest edit — or a photo — is still saving. Wait for “Saved”, then try again.')
         setProblems(null)
         return
       }

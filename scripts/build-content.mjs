@@ -44,6 +44,8 @@ const HOMEPAGE_SPOTS = ['hero', 'focus', 'philosophy', 'timeline', 'shareImage']
 const SOCIALS = ['facebook', 'instagram', 'whatsapp', 'linkedin']
 const CONTACTS = ['whatsapp', 'email', 'linkedin', 'instagram']
 const FOUNDER_ID = 'tej-shah' // Nirmal Studio's founder — always shown first, never inferred from order
+// The founders rules (these limits, and the founders block below) are mirrored in
+// functions/api/admin/_lib/documents.js and src/admin/founderRules.js — change all three.
 const BIO_WORDS = { founder: [70, 100], others: [50, 80] }
 const PHOTO_FILTERS = ['original', 'warm', 'bw']
 const ID_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/

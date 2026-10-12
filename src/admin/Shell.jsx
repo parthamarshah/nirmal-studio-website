@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { logout, ApiError } from './api.js'
 import { people, foundersReady, projectsIncludingHidden, STATUS_LABELS } from '../lib/content.js'
 import SettingsEditor from './SettingsEditor.jsx'
+import FoundersEditor from './FoundersEditor.jsx'
 import ChangePin from './ChangePin.jsx'
 import { usePublish } from './usePublish.js'
 import { discardLeftUnsaved, hasLeftUnsaved, isSaveInFlight, useDraftActivity } from './useDraft.js'
@@ -26,7 +27,7 @@ const dash = '—'
 // notice. Project and founder drafts join when their editors exist.
 // The label is the one on the rail button and the heading, so the notice names something
 // the person can actually see and click.
-const DRAFT_PANES = { site: { section: 'settings', label: 'Settings' } }
+const DRAFT_PANES = { site: { section: 'settings', label: 'Settings' }, founders: { section: 'founders', label: 'Founders' } }
 // A parked edit whose pane isn't listed above would otherwise hold Publish back with
 // nothing on screen to explain it. Project and founder drafts land in their own panes, so
 // the fallback sends people to the right one rather than to a button that does nothing.
@@ -38,16 +39,17 @@ const paneFor = (id) => ({
   }),
 })
 
-// One line, in one place. Projects and Founders are still read-only; Settings is the
-// first pane with a real draft behind it.
+// One line, in one place. Projects is still read-only; Founders and Settings have a real
+// draft behind them.
 function stateLine(section, draft, holdingPublish) {
   // Whatever else is true, the reason Publish is greyed out comes first: the button's
   // explanation lives in this line and nowhere else (never a tooltip). It names every
   // parked pane, including the one you are looking at — being on that pane is not an
   // explanation by itself, and a flush with nowhere to report counts too.
   if (holdingPublish) return holdingPublish
-  if (section !== 'settings') return 'Read-only for now. Editing arrives with the project and founder editors.'
+  if (section === 'projects') return 'Read-only for now. Editing arrives with the project editor.'
   if (!draft) return 'Loading…'
+  if (draft.uploading) return 'Uploading a photo…'
   switch (draft.state) {
     case 'loading':
       return 'Loading…'
@@ -74,13 +76,19 @@ function stateLine(section, draft, holdingPublish) {
 // selected project and a selected image each become a state someone will instinctively
 // back out of — and three of the incidents in CLAUDE.md are back-button bugs that came
 // from grafting history onto components that already had their own state.
-const sectionFromHash = () => {
-  const id = (window.location.hash || '').replace(/^#\/?/, '')
-  return SECTIONS.some((s) => s.id === id) ? id : 'projects'
+//
+// `#/<section>/<sub>`: the sub-part is what is selected inside a pane (a founder's tab),
+// so Back steps between those too.
+const routeFromHash = () => {
+  const [id, sub = null] = (window.location.hash || '').replace(/^#\/?/, '').split('/')
+  return SECTIONS.some((s) => s.id === id) ? { section: id, sub } : { section: 'projects', sub: null }
 }
 
 export default function Shell({ session, onSignedOut }) {
-  const [section, setSection] = useState(sectionFromHash)
+  const [route, setRoute] = useState(routeFromHash)
+  const { section, sub } = route
+  const sectionRef = useRef(section)
+  sectionRef.current = section
   const [signingOut, setSigningOut] = useState(false)
   // Which parked edit the "Discard it" confirmation is for, if any.
   const [discarding, setDiscarding] = useState(null)
@@ -96,17 +104,22 @@ export default function Shell({ session, onSignedOut }) {
   useEffect(() => {
     // The editor that reported `draft` unmounts on a pane change; its last report would
     // otherwise keep holding Publish back (or letting it through) from a pane that is gone.
+    // Only on a real pane change: moving between founders keeps the same editor mounted,
+    // and it reports again only when its state changes — clearing it here would leave the
+    // top bar on "Loading…" and Publish ungated.
     const onHashChange = () => {
-      setSection(sectionFromHash())
-      setDraft(null)
+      const next = routeFromHash()
+      if (next.section !== sectionRef.current) setDraft(null)
+      setRoute(next)
     }
     window.addEventListener('hashchange', onHashChange)
     return () => window.removeEventListener('hashchange', onHashChange)
   }, [])
 
-  const go = useCallback((id) => {
-    window.location.hash = `#/${id}`
+  const go = useCallback((id, part) => {
+    window.location.hash = `#/${id}${part ? `/${part}` : ''}`
   }, [])
+  const selectFounder = useCallback((id) => go('founders', id), [go])
 
   // Stable identity: SettingsEditor reports through an effect that depends on this.
   const onDraftState = useCallback((s) => setDraft(s), [])
@@ -132,7 +145,9 @@ export default function Shell({ session, onSignedOut }) {
     // version from before the last keystrokes.
     if (hasLeftUnsaved() || isSaveInFlight()) return true
     const d = draftRef.current
-    return !!d && ['loading', 'dirty', 'saving', 'conflict', 'error'].includes(d.state)
+    // An upload in progress becomes a draft change when it lands; publishing before that
+    // would publish without it, and the editor reloads after a publish and drops it.
+    return !!d && (!!d.uploading || ['loading', 'dirty', 'saving', 'conflict', 'error'].includes(d.state))
   }, [])
   const pub = usePublish({ onContentChanged, isEditorBusy })
   const { refresh } = pub
@@ -316,7 +331,16 @@ export default function Shell({ session, onSignedOut }) {
         <div className="admin-panes">
           <main className="admin-main">
             {section === 'projects' && <Projects />}
-            {section === 'founders' && <Founders />}
+            {section === 'founders' && (
+              <FoundersEditor
+                key={editorKey}
+                onStateChange={onDraftState}
+                locked={locked}
+                live={live}
+                selected={sub}
+                onSelect={selectFounder}
+              />
+            )}
             {section === 'settings' && (
               <>
                 <SettingsEditor key={editorKey} onStateChange={onDraftState} locked={locked} live={live} />
@@ -328,12 +352,15 @@ export default function Shell({ session, onSignedOut }) {
           </main>
 
           <aside className="admin-inspector" aria-label="Inspector">
-            <p className="admin-eyebrow">Inspector</p>
-            <p className="admin-hint">
-              Nothing to show yet. Once the editors are built, selecting a project, an image or a
-              founder will show its settings here — framing, type, caption, word counts, and where
-              an image is used.
-            </p>
+            <p className="admin-eyebrow">{section === 'founders' ? 'Founders section' : 'Inspector'}</p>
+            {section === 'founders' ? (
+              <FoundersReadiness readiness={draft?.readiness} onSelect={selectFounder} current={sub} />
+            ) : (
+              <p className="admin-hint">
+                Nothing to show yet. Once the project editor is built, selecting a project or an
+                image will show its settings here — framing, type, caption, and where an image is used.
+              </p>
+            )}
           </aside>
         </div>
       </div>
@@ -370,32 +397,40 @@ function Projects() {
   )
 }
 
-function Founders() {
+// Whether the new founders section will show, from the draft being edited — what a
+// publish would put on the site. Same test as src/lib/content.js foundersReady. What is
+// live now comes from this page's own build, which can be a publish behind for a minute.
+function FoundersReadiness({ readiness, onSelect, current }) {
+  if (!readiness) return <p className="admin-hint">Loading…</p>
+  const ready = readiness.length > 0 && readiness.every((p) => p.photo && p.bio && !p.problems)
   return (
     <>
-      <ul className="admin-list">
-        {people.map((p) => {
-          const missing = [!p.photo?.media && 'photo', !p.bio?.trim() && 'bio'].filter(Boolean)
+      <p className="admin-hint">
+        Live now: {foundersReady ? 'the new section with all four people.' : 'the older Tej + FOLD section.'}
+      </p>
+      <ul className="admin-list admin-readiness">
+        {readiness.map((p) => {
+          const missing = [!p.photo && 'photo', !p.bio && 'bio'].filter(Boolean)
           return (
             <li key={p.id}>
-              <div className="admin-row">
+              <button type="button" className="admin-row" aria-current={p.id === current ? 'true' : undefined} onClick={() => onSelect(p.id)}>
                 <strong>{p.name}</strong>
-                <span className="admin-row-meta">{p.role || dash}</span>
-                <span className="admin-tag">{missing.length ? `Needs ${missing.join(' + ')}` : 'Ready'}</span>
-              </div>
+                <span className="admin-tag">{p.problems ? 'Needs fixing' : missing.length ? `Needs ${missing.join(' + ')}` : 'Ready'}</span>
+              </button>
             </li>
           )
         })}
       </ul>
-      <p className="admin-note">
-        {foundersReady
-          ? 'All four are complete, so the founders section is live on the site.'
-          : 'The founders section stays off the site until every person has both a photo and a bio. That is deliberate — the site never shows placeholder people.'}
+      <p className="admin-hint">
+        {ready
+          ? foundersReady
+            ? 'All four have a photo and a bio.'
+            : 'All four have a photo and a bio, so publishing this switches the site to the new founders section.'
+          : 'The new founders section shows only once all four have a photo and a bio. Until then the site keeps the older Tej + FOLD section — never placeholder people.'}
       </p>
     </>
   )
 }
-
 
 const ago = (t) => {
   const m = Math.round((Date.now() - t) / 60_000)

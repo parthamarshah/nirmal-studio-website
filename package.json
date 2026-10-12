@@ -21,7 +21,8 @@
     "admin:migrate": "npx wrangler d1 execute nirmal-studio-admin --local --file=migrations/0001_initial.sql && npx wrangler d1 execute nirmal-studio-admin --local --file=migrations/0002_publish_kind.sql && npx wrangler d1 execute nirmal-studio-admin --local --file=migrations/0003_admin_settings.sql && npx wrangler d1 execute nirmal-studio-admin --local --file=migrations/0004_uploads.sql",
     "test:publish": "bash scripts/test-admin-publish.sh",
     "test:panes": "bash scripts/test-admin-panes.sh",
-    "admin:migrate:remote": "bash scripts/migrate-remote.sh"
+    "admin:migrate:remote": "bash scripts/migrate-remote.sh",
+    "test:founders": "bash scripts/test-admin-founders.sh"
   },
   "dependencies": {
     "embla-carousel-react": "^8.6.0",

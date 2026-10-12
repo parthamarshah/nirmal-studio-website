@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { site } from '../lib/content.js'
 import { isParked, useDraft } from './useDraft.js'
+import { DraftBottomNotices, DraftLoading, DraftTopNotices } from './DraftNotices.jsx'
 
 // The first real editor, and deliberately the smallest one: the studio's contact
 // details. It exists to exercise the draft machinery end to end — type, autosave,
@@ -34,11 +35,8 @@ const problem = (f, value) => {
 // after, so anything typed in that window would be lost. `live` picks the wording for
 // where published changes go.
 export default function SettingsEditor({ onStateChange, locked = false, live = false }) {
-  // Discarding deletes the saved draft for good, so it asks first — same as the
-  // parked-edit "Discard it" in Shell.jsx.
-  const [confirmingDiscard, setConfirmingDiscard] = useState(false)
   const draft = useDraft('site', site)
-  const { doc, state, message, conflict, hasDraft, restored, update, discard, keepTheirs, keepMine, reload } = draft
+  const { doc, state, hasDraft, update } = draft
 
   // Reported through an effect, never during render: calling a parent's setState while
   // this component renders is the "cannot update a component while rendering a
@@ -52,23 +50,7 @@ export default function SettingsEditor({ onStateChange, locked = false, live = f
     onStateChange?.({ state, hasDraft, problems: problemCount })
   }, [onStateChange, state, hasDraft, problemCount])
 
-  // Only claim something is still held when something actually is.
-  const restoredWaiting = isParked('site')
-
-  if (state === 'loading') return <p className="admin-hint">Loading your draft…</p>
-  if (!doc) {
-    return (
-      <>
-        <p className="admin-error" role="alert">
-          {message || 'Could not load your draft.'}
-          {restoredWaiting && ' Nothing you typed has been thrown away — it is still held here.'}
-        </p>
-        <button type="button" className="admin-btn admin-btn--quiet" onClick={reload}>
-          Try again
-        </button>
-      </>
-    )
-  }
+  if (state === 'loading' || !doc) return <DraftLoading draft={draft} id="site" isParked={isParked} />
 
   const contact = doc.contact || {}
   const problems = FIELDS.map((f) => [f, problem(f, contact[f.key])]).filter(([, p]) => p)
@@ -78,36 +60,7 @@ export default function SettingsEditor({ onStateChange, locked = false, live = f
 
   return (
     <>
-      {/* An error that isn't a conflict and isn't a failed load — a refused discard, or a
-          save that failed for some other reason — has nowhere else to appear. */}
-      {state === 'error' && message && (
-        <p className="admin-error" role="alert">
-          {message}
-        </p>
-      )}
-
-      {conflict !== null && (
-        <div className="admin-conflict" role="alert">
-          <strong>This was changed somewhere else.</strong>
-          {/* `restored` — not `message`, which every ordinary 409 sets too — means the
-              fields below are an unsaved edit recovered from a pane switch. Worth saying
-              plainly, right above a button that throws it away. */}
-          <p>
-            {restored
-              ? message
-              : 'Another tab — or the other person — saved these settings after you started. Nothing has been overwritten.'}{' '}
-            Choose which version to keep.
-          </p>
-          <div className="admin-conflict-actions">
-            <button type="button" className="admin-btn" onClick={keepTheirs}>
-              {restored ? 'Use the other version — discard my change' : 'Use the other version'}
-            </button>
-            <button type="button" className="admin-btn admin-btn--quiet" onClick={keepMine}>
-              Keep mine and overwrite it
-            </button>
-          </div>
-        </div>
-      )}
+      <DraftTopNotices draft={draft} noun="these settings" />
 
       <fieldset className="admin-fields" disabled={locked}>
         {FIELDS.map((f) => {
@@ -138,48 +91,7 @@ export default function SettingsEditor({ onStateChange, locked = false, live = f
         })}
       </fieldset>
 
-      {problems.length > 0 && (
-        <p className="admin-note admin-note--warn">
-          {problems.length} {problems.length === 1 ? 'field needs' : 'fields need'} fixing before this
-          can be published. Your changes are still saved.
-        </p>
-      )}
-
-      {hasDraft && !confirmingDiscard && (
-        <p className="admin-note">
-          These are unpublished changes — {live ? 'nirmalstudio.com' : 'the test copy of the site'} still shows what was
-          published.{' '}
-          <button type="button" className="admin-link" onClick={() => setConfirmingDiscard(true)} disabled={locked}>
-            Discard them
-          </button>{' '}
-          to go back to the published version.
-        </p>
-      )}
-
-      {hasDraft && confirmingDiscard && (
-        <div className="admin-pubbar admin-pubbar--unsaved" role="alert">
-          <p>
-            Throw away all your unpublished changes here? The site keeps what was published. This can’t be
-            undone.
-          </p>
-          <div className="admin-pubbar-actions">
-            <button
-              type="button"
-              className="admin-btn"
-              disabled={locked}
-              onClick={() => {
-                setConfirmingDiscard(false)
-                discard()
-              }}
-            >
-              Yes, throw them away
-            </button>
-            <button type="button" className="admin-btn admin-btn--quiet" onClick={() => setConfirmingDiscard(false)}>
-              Keep them
-            </button>
-          </div>
-        </div>
-      )}
+      <DraftBottomNotices draft={draft} problemCount={problems.length} locked={locked} live={live} />
     </>
   )
 }

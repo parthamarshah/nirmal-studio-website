@@ -204,6 +204,15 @@ console.log('--- images: upload, publish with a document, undo ---')
   check('the blob GitHub stored is exactly the uploaded bytes', u.sha === bytesSha, `${u.sha} vs ${bytesSha}`)
   const pv = await fetch(`${BASE}/upload?path=${encodeURIComponent(u.path)}`, { headers: { Cookie: cookie } })
   check('the staged copy can be previewed', pv.status === 200 && Buffer.from(await pv.arrayBuffer()).equals(jpeg))
+  // A published original (not staged) comes from GitHub — how a published photo is re-framed.
+  const someProject = fs.readdirSync('content/media/projects').find((d) => !d.startsWith('.'))
+  const someFile = fs.readdirSync(`content/media/projects/${someProject}`).find((f) => /\.(jpe?g|png|webp)$/i.test(f))
+  const pub = await fetch(`${BASE}/upload?path=${encodeURIComponent(`content/media/projects/${someProject}/${someFile}`)}`, { headers: { Cookie: cookie } })
+  const pubBytes = Buffer.from(await pub.arrayBuffer())
+  const want = fs.readFileSync(`content/media/projects/${someProject}/${someFile}`)
+  check('a published original can be previewed from the repo', pub.status === 200 && pubBytes.equals(want), `${pub.status} ${someProject}/${someFile} got ${pubBytes.length} bytes (${pub.headers.get('content-type')}), want ${want.length}: ${pubBytes.subarray(0, 80).toString()}`)
+  const outside = await fetch(`${BASE}/upload?path=${encodeURIComponent('functions/api/admin/_lib/auth.js')}`, { headers: { Cookie: cookie } })
+  check('a path outside content/media is refused', outside.status === 400, `${outside.status}`)
 
   const fg = await call('draft?id=founders')
   const fBase = fg.data?.published?.sha
@@ -217,19 +226,32 @@ console.log('--- images: upload, publish with a document, undo ---')
   check('a photo that was never uploaded is refused before any commit', fr.status === 422 && fr.data?.problems?.some((p) => p.includes('isn’t uploaded')), JSON.stringify(fr.data))
   let fTok = fp.data.updatedAt
 
-  const bio = structuredClone(fPub)
-  bio.people[tejAt].bio = 'Changed.'
-  fp = await call('draft', { method: 'PUT', body: { id: 'founders', doc: bio, ifUpdatedAt: fTok } })
-  fr = await call('publish', { method: 'POST', body: { drafts: [{ id: 'founders', updatedAt: fp.data.updatedAt }] } })
-  check('a founders change beyond the photo is refused (for now)', fr.status === 422 && fr.data?.problems?.some((p) => p.includes('bio')), JSON.stringify(fr.data))
-  fTok = fp.data.updatedAt
+  // What the editor can't change, and what the build would refuse, is refused here too.
+  const refusedFor = async (label, mutate, needle) => {
+    const d = structuredClone(fPub)
+    mutate(d)
+    fp = await call('draft', { method: 'PUT', body: { id: 'founders', doc: d, ifUpdatedAt: fTok } })
+    fTok = fp.data.updatedAt
+    fr = await call('publish', { method: 'POST', body: { drafts: [{ id: 'founders', updatedAt: fTok }] } })
+    check(label, fr.status === 422 && fr.data?.problems?.some((p) => p.includes(needle)), JSON.stringify(fr.data))
+  }
+  await refusedFor('a changed name is refused (names are locked)', (d) => (d.people[tejAt].name = 'Someone Else'), '“name”')
+  await refusedFor('a bio over the word limit is refused', (d) => (d.people[1].bio = 'word '.repeat(81).trim()), '81 words')
+  await refusedFor('a contact switched on but empty is refused', (d) => (d.people[1].contacts.linkedin = { value: null, on: true }), 'switched on but empty')
+  await refusedFor('a non-https LinkedIn is refused', (d) => (d.people[1].contacts.linkedin = { value: 'http://linkedin.com/in/x', on: true }), 'https://')
+  await refusedFor('a reordered people list is refused', (d) => d.people.reverse(), 'list of people')
 
   const withPhoto = structuredClone(fPub)
   withPhoto.people[tejAt].photo = { file: u.file, crop: { x: 0, y: 0.1, w: 1, h: 0.8 }, zoom: 1.2, filter: 'warm' }
+  withPhoto.people[1].basedIn = 'Udaipur'
+  withPhoto.people[1].contacts.linkedin = { value: 'https://www.linkedin.com/in/example', on: true }
+  withPhoto.intro.fold = 'A test introduction.'
   fp = await call('draft', { method: 'PUT', body: { id: 'founders', doc: withPhoto, ifUpdatedAt: fTok } })
   ov = await call('publish')
-  const fch = ov.data?.pending?.[0]?.changes
-  check('the confirmation names the new photo', Array.isArray(fch) && fch.length === 1 && fch[0].to === 'a photo' && fch[0].from === 'no photo', JSON.stringify(fch))
+  const fch = ov.data?.pending?.[0]?.changes ?? []
+  const named = (field) => fch.find((c) => c.field === field)
+  check('the confirmation names the new photo', named('Tej Shah’s photo')?.to === 'a photo' && named('Tej Shah’s photo')?.from === 'no photo', JSON.stringify(fch))
+  check('...and the text, contact and intro changes, field by field', named(`${fPub.people[1].name}’s based in`)?.to === 'Udaipur' && named(`${fPub.people[1].name}’s LinkedIn`)?.from === 'off' && named('the FOLD introduction')?.to === 'A test introduction.' && fch.length === 4, JSON.stringify(fch))
   const beforeImg = await head()
   fr = await call('publish', { method: 'POST', body: { drafts: [{ id: 'founders', updatedAt: fp.data.updatedAt }] } })
   check('publishing the photo succeeds', fr.status === 200 && fr.data?.commitSha, JSON.stringify(fr.data))

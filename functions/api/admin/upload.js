@@ -6,7 +6,8 @@ import { publishSetup } from './_lib/publishes.js'
 // Images from /admin, uploaded ahead of a publish.
 //
 // POST /api/admin/upload  { docId, data, width?, height?, hint } → { path, file, sha, bytes }
-// GET  /api/admin/upload?path=content/media/...                → the image bytes
+// GET  /api/admin/upload?path=content/media/...                → the image bytes (staged
+//                                                                 copy, else the published file)
 //
 // The browser has already done the heavy lifting (HEIC → JPEG, EXIF rotation applied and
 // stripped, shrunk to the size the build expects) and sends base64 — the form GitHub's
@@ -147,12 +148,22 @@ export async function onRequestGet(context) {
   if (session instanceof Response) return session
   const path = new URL(context.request.url).searchParams.get('path') || ''
   if (!isMediaPath(path)) return bad('Unknown image.')
-  const data = context.env.UPLOADS ? await context.env.UPLOADS.get(kvKey(path)) : null
-  if (!data) return bad('That image isn’t available to preview.', 404)
   const ext = path.split('.').pop().toLowerCase()
-  return new Response(decode(data), {
-    headers: { 'Content-Type': TYPES[ext] || 'application/octet-stream', 'Cache-Control': 'private, max-age=86400', 'X-Content-Type-Options': 'nosniff' },
-  })
+  const headers = { 'Content-Type': TYPES[ext] || 'application/octet-stream', 'Cache-Control': 'private, max-age=86400', 'X-Content-Type-Options': 'nosniff' }
+  const data = context.env.UPLOADS ? await context.env.UPLOADS.get(kvKey(path)) : null
+  if (data) return new Response(decode(data), { headers })
+  // Not staged (or its staged copy expired): an image that is already published. Re-framing
+  // a published photo needs the original, which the site itself never serves — only
+  // resized, already-cropped copies. Read from the branch being published to.
+  const setup = publishSetup(context.env)
+  if (setup instanceof Response) return bad('That image isn’t available to preview.', 404)
+  try {
+    const res = await setup.gh.raw(path, await setup.gh.head(setup.branch))
+    if (!res) return bad('That image isn’t available to preview.', 404)
+    return new Response(res.body, { headers })
+  } catch (err) {
+    return bad(explainGitHubError(err, ''), 502)
+  }
 }
 
 function decode(base64) {
