@@ -5,7 +5,55 @@ live in `CLAUDE.md` — read that first if you're picking this up cold.
 
 ## Resume here
 
-### ▶▶ STATE AT END OF 2026-10-12 SESSION — read this first
+### ▶▶▶▶ 2026-10-14 (later session) — founders publish found on the preview
+- **Parth published real founders content from the PREVIEW** (`2213458` on `admin-test`, 11:10):
+  all four photos + bios, both intros. It is NOT live (preview publishes to `admin-test`), but
+  **the fast-forward to `main` will carry it and flip `foundersReady` → the v1 founders layout
+  goes live for the first time.** Asked Parth: real content meant for live, or a test?
+- **Tej's WhatsApp was saved as `9106998434` (no 91)** → `wa.me/9106998434` doesn't reach him.
+  The `^\d{8,15}$` check (editor, `documents.js:329`, `build-content.mjs:244`, siteRules for the
+  studio number) can't catch a 10-digit Indian number missing its country code. Parth to put 91
+  back in the editor; offered a "looks like it's missing 91" warning.
+- Rachit/Hardik `basedIn`/`previously`/bios were swapped but their `background`/`expertise`
+  weren't — v1 doesn't show those, the legacy layout (`Studio.jsx:243`) does. Asked Parth.
+- **Fixed (`Founders.jsx`):** intros and bios now keep their line breaks (`white-space:
+  pre-line`, bio trimmed). The three-paragraph Nirmal intro was running together.
+- Bios of 10–19 words build with warnings only (50–80 wanted). Tej's bio is still the early
+  Claude draft. CPU measurement still pending: the founder photos went through upload without a
+  tail running, and were small (25–390KB) anyway.
+
+### ▶▶▶ STATE AT END OF 2026-10-14 SESSION — read this first (supersedes the 10-12 block below where they differ)
+- **No code changed this session.** Branches as below: `origin/main` = `9d8ac8d`,
+  `admin-test` = `9612ca0` (+ this doc commit if made). Local `main` ref is stale (`b021041`) —
+  `git checkout main && git pull` before the fast-forward.
+- **Review of steps 3–6 started:** Parth signed in to the preview, browsed the project list,
+  Details, Images and the image panel, and said "looks good". **That was NOT taken as "ship it"**
+  — asked him explicitly; no answer yet. Still need an explicit "ship it" before touching `main`.
+- **CPU measurement still not done** (the gate was skipped when steps 1–2 went live on
+  10-12, so the upload endpoint is already on production unmeasured). Waiting on Parth to upload
+  one 1–4MB phone photo to Citadel Tower → Images on the preview. Recipe that works:
+  `npx wrangler pages deployment list --project-name nirmal-studio --environment preview` to get
+  the newest `admin-test` deployment id, then run the tail **with stdin held open**, or it exits
+  silently at once in a background shell:
+  `tail -f /dev/null | npx wrangler pages deployment tail <id> --project-name nirmal-studio --format json > <file>`
+  (needs `dangerouslyDisableSandbox`). Output is pretty-printed concatenated JSON — split on
+  brace depth, read `cpuTime`/`wallTime` for the upload POST. (Session's tail process dies with
+  the session; restart it.)
+- **Found: Citadel Tower's floor plan (`gallery-1.jpg`) is typed `render`, not `drawing`** — a
+  migration leftover. It therefore gets WebP q80 at photo width and no zoom viewer, and blurs
+  the dimension text. Scanned every project image by brightness: it's the only mislabelled
+  drawing (the other 7 projects have no floor plans). Parth was told he can fix it in the editor
+  (image panel → What it is → Drawing); not yet done.
+- **Agreed order:** upload measurement → quick review pass (new project, trim, rotate, hide,
+  reorder) → "ship it" → fast-forward + `check:domains` → build the AI-image assignment
+  (Phase 4 blocker).
+- Unverified, from the session-orienter's reading only: the plan's Tiptap "Caption" style and
+  paste cleaning may be missing (progress lists Body/Heading/Subheading/Pull quote only). Check
+  during review.
+- Lines further down that say the CPU check is "before steps 1–2 go to main" are stale: those
+  steps are live.
+
+### ▶▶ STATE AT END OF 2026-10-12 SESSION
 - **`main` (live, nirmalstudio.com) = `9d8ac8d`**: Phase 2 + Phase 3 steps 1–2 (image uploads,
   founders editor and its relayout). **`admin-test` (preview) = `c0a8b77`**: steps 3–6 on top
   (project editor, project list, settings + preview, contact taps). Working tree clean.

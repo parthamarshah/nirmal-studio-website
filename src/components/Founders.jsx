@@ -90,7 +90,7 @@ function Person({ person, index, total, inRow }) {
             {previously && <span>Previously at {previously}</span>}
           </p>
         )}
-        <p className="founders-bio">{person.bio}</p>
+        <p className="founders-bio">{person.bio.trim()}</p>
         {contacts.length > 0 && (
           <ul className="founders-contacts">
             {contacts.map((c) => (
@@ -336,6 +336,7 @@ export default function Founders() {
         }
         .founders-heading em { color: var(--color-bronze-dark); }
         .founders-intro > p {
+          white-space: pre-line;
           font-family: var(--font-body);
           font-size: 0.92rem;
           line-height: 1.7;
@@ -376,6 +377,7 @@ export default function Founders() {
           color: var(--color-stone-dark);
         }
         .founders-bio {
+          white-space: pre-line;
           font-family: var(--font-body);
           font-size: 0.9rem;
           line-height: 1.7;
