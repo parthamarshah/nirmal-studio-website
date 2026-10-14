@@ -5,6 +5,17 @@ live in `CLAUDE.md` — read that first if you're picking this up cold.
 
 ## Resume here
 
+### ▶▶▶▶▶ SHIPPED 2026-10-14: `main` = `admin-test` = `fb115bb` (Parth: "push to production", everything)
+- Phase 3 steps 3–6 + Tej's founders content are LIVE. `_version.json` = fb115bb after ~75s,
+  `check:domains` OK, `/admin/` 200, live founders section screenshotted at 390/1440, Tej's
+  WhatsApp = `wa.me/919106998434`. No new migrations (0005 already on both DBs, verified).
+- **The founders publish was Tej** (Windows Chrome session on the preview, 10:56–11:10 IST),
+  confirmed correct by Parth. Fixed by hand before shipping (no drafts open on either DB):
+  WhatsApp `91` prefix, Rachit/Hardik `background` + `expertise` swapped to follow Tej's swap.
+- Still open: the upload CPU measurement (now post-launch, like steps 1–2); short bios
+  (10–19 words) and Tej's Claude-drafted bio — Tej's to rewrite; Citadel floor plan typed
+  `render` (fix in editor); Tiptap Caption/paste-cleaning check; then the AI-image assignment.
+
 ### ▶▶▶▶ 2026-10-14 (later session) — founders publish found on the preview
 - **Parth published real founders content from the PREVIEW** (`2213458` on `admin-test`, 11:10):
   all four photos + bios, both intros. It is NOT live (preview publishes to `admin-test`), but

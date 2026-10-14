@@ -61,8 +61,12 @@ misrepresent the actual legal/brand structure. **v1 founders layout (decided
 Tej's ~18% larger; phone = one carousel of four equal cards (Embla; native scroll-snap
 under reduced motion). It is **gated**: `Studio.jsx` shows it only when every person in
 `content/founders.json` has a photo and a bio (`foundersReady`) — until then the pre-v1
-layout (Tej block + FOLD block at ~3/4 its height, `LegacyStudio`) stays live. Don't
-add placeholder portraits/bios to switch it on.
+layout (Tej block + FOLD block at ~3/4 its height, `LegacyStudio`) is shown. Don't
+add placeholder portraits/bios to switch it on. **The v1 layout went live 2026-10-14** with
+Tej's own photos/bios/intros (entered by Tej himself from a Windows PC on the preview /admin;
+he also corrected Rachit = Indore / ex-UA Lab and Hardik = Bangalore & Ajmer / ex-Stapati —
+the PDF had them crossed). Removing any photo or bio silently drops the site back to the
+legacy layout. Tej has the preview PIN: a publish on the preview may be his, not Parth's.
 
 Services: Architecture, Interior Design, Landscape Design.
 Tagline: "Designing Spaces. Crafting Experiences."
