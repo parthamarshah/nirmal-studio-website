@@ -4,6 +4,7 @@ import { CONTACT_FIELDS, SECTIONS, SOCIALS, SPOTS, contactProblem, siteProblems,
 import { COVER_SPOTS } from '../lib/projectRules.js'
 import { isParked, useDraft } from './useDraft.js'
 import { DraftBottomNotices, DraftLoading, DraftTopNotices } from './DraftNotices.jsx'
+import { withCountryCode } from './phone.js'
 
 // Studio settings: contact details, social links, which images the homepage uses, and
 // (tucked away under Advanced) which homepage sections show.
@@ -72,6 +73,10 @@ export default function SettingsEditor({ onStateChange, locked = false, live = f
                       aria-invalid={err ? 'true' : undefined}
                       // Optional fields left empty are stored as "nothing", like the file's null.
                       onChange={(e) => setField(f.key, !f.required && !e.target.value.trim() ? null : e.target.value)}
+                      onBlur={f.key === 'whatsapp' ? () => {
+                        const fixed = withCountryCode(contact.whatsapp)
+                        if (fixed !== contact.whatsapp) setField('whatsapp', fixed)
+                      } : undefined}
                     />
                   )}
                   {err ? <p className="admin-field-error">{err}</p> : f.hint ? <p className="admin-field-hint">{f.hint}</p> : null}

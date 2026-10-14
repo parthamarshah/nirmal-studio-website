@@ -9,7 +9,7 @@ import { COVER_SPOTS, SPOT_NAMES } from './projectRules.js'
 export const CONTACT_FIELDS = [
   { key: 'phoneDisplay', label: 'Phone, as shown on the site', required: true, hint: 'e.g. 910 699 8434' },
   { key: 'phone', label: 'Phone, for the dial link', required: true, hint: 'With country code, e.g. +919106998434' },
-  { key: 'whatsapp', label: 'WhatsApp number', required: true, hint: 'Digits only, with country code', pattern: /^\d{8,15}$/, patternError: 'Digits only, 8–15 of them, including the country code.' },
+  { key: 'whatsapp', label: 'WhatsApp number', required: true, hint: 'Digits only, with country code — 91 is added if you leave it out', pattern: /^\d{8,15}$/, patternError: 'Digits only, 8–15 of them, including the country code.' },
   { key: 'whatsappGreeting', label: 'First WhatsApp message', required: false, hint: 'What the message box starts with when someone taps WhatsApp.' },
   { key: 'email', label: 'Email', required: true, pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, patternError: 'That doesn’t look like an email address.' },
   { key: 'address', label: 'Studio address', required: true, multiline: true },

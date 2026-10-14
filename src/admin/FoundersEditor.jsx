@@ -8,6 +8,7 @@ import { ImageError, prepareImage } from './images.js'
 import PhotoFramer from './PhotoFramer.jsx'
 import { centredCrop } from './framing.js'
 import { CONTACTS, FOUNDER_ID, bioState, contactProblem, countWords, INTRO_WORDS_SOFT_MAX, personProblems } from './founderRules.js'
+import { withCountryCode } from './phone.js'
 
 // The founders editor: one tab per person plus one for the two introductions. Names are
 // locked (decided in v1 planning); bios are written by Parth or Tej, never generated.
@@ -467,6 +468,11 @@ function PersonForm({ person, upload, removedPhoto, onPick, onRemovePhoto, onRes
                     // pasted and never switched on would otherwise silently never appear.
                     const switchOn = !value.on && !value.value && v.trim() ? { on: true } : {}
                     setContact({ value: textValue(v), ...switchOn })
+                  }}
+                  onBlur={() => {
+                    if (c.key !== 'whatsapp') return
+                    const fixed = withCountryCode(value.value)
+                    if (fixed !== value.value) setContact({ value: fixed })
                   }}
                 />
                 {err ? (
