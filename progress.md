@@ -5,6 +5,15 @@ live in `CLAUDE.md` — read that first if you're picking this up cold.
 
 ## Resume here
 
+### 2026-10-15: auto-91 shipped (`581ed9b`, live); AI-image assignment waiting on Tej
+- Founders + Settings WhatsApp boxes add `91` on blur to a 10-digit number starting 6–9
+  (`src/admin/phone.js`). Live, `check:domains` OK.
+- **AI images: decided NOT to build an /admin "unsorted" screen** (one-time job, 11 images).
+  Tej decides which house; Parth forwards him a numbered sheet (`~/Desktop/nirmal-ai-images-
+  which-house.jpg`, numbers = `concept-N.jpg`). On his answer: move each into
+  `content/media/projects/<slug>/` + a `render` pool entry (keep `aiGenerated: true`), empty
+  `unsorted.json`'s pool, delete `legacyConceptArt` + `showLegacyConceptArt`, preview → ship.
+
 ### ▶▶▶▶▶ SHIPPED 2026-10-14: `main` = `admin-test` = `fb115bb` (Parth: "push to production", everything)
 - Phase 3 steps 3–6 + Tej's founders content are LIVE. `_version.json` = fb115bb after ~75s,
   `check:domains` OK, `/admin/` 200, live founders section screenshotted at 390/1440, Tej's
