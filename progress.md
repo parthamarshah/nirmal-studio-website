@@ -5,7 +5,25 @@ live in `CLAUDE.md` — read that first if you're picking this up cold.
 
 ## Resume here
 
-### 2026-10-15: story text paste fixes (on `admin-test`)
+### ▶▶▶▶▶▶ STATE AT END OF 2026-10-15 SESSION — read this first (supersedes the blocks below)
+- **`main` = `admin-test` = `bcff8ac`** (+ this doc commit), all live, `check:domains` OK. Working
+  tree clean. Everything in Phase 3 steps 1–6 is on production; the v1 founders layout is live.
+- **Waiting on Tej:** which house each of the 11 AI images belongs to. Parth forwards
+  `~/Desktop/nirmal-ai-images-which-house.jpg` (numbers = `content/media/unsorted/concept-N.jpg`).
+  Then do it by hand (no /admin screen — decided): see the 2026-10-15 auto-91 block below.
+  Tej will also rewrite the short FOLD bios and his own (Claude-drafted) bio himself in /admin.
+- **Skipped by Parth (2026-10-15), don't push:** Citadel Tower floor plan typed `render` (still
+  blurry live; fix = image panel → What it is → Drawing) and the upload CPU measurement.
+- **Offered, no answer yet** (Parth ran /save instead): 1 GitHub token reminder ~12 Dec (expires
+  19 Dec) · 2 AI-crawler block (Cloudflare AI Crawl Control) — his call · 3 Google Business
+  Profile · 4 delete old `nirmal-studio-website` Pages project · 5 `git remote set-url origin`
+  to SSH · 6 Talk with Us helper editor · 7 slug change after rename · 8 Journal/Testimonials
+  editors. Suggested 1 + 5 first, then 2.
+- Pushes still go via `git push git@github.com:parthamarshah/nirmal-studio-website.git …`
+  (HTTPS credential gone). Ship = `git push … admin-test:main` after review, then wait for
+  `_version.json`, `npm run check:domains`.
+
+### 2026-10-15: story text paste fixes — LIVE (`bcff8ac`)
 - `RichEditor.jsx`: Word/web `<h1>`–`<h6>` fold onto Heading (1–3) / Subheading (4–6) instead of
   plain text; `transformPastedHTML` drops blank paragraphs and turns `&nbsp;` into spaces;
   WhatsApp formatting — single `*x*` = bold (was italic), `_x_` = italic, `**x**` still bold.
