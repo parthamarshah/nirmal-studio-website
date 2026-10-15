@@ -1,12 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
 import { EditorContent, useEditor, useEditorState } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
+import { markInputRule, markPasteRule } from '@tiptap/core'
+import Bold from '@tiptap/extension-bold'
+import Heading from '@tiptap/extension-heading'
+import Italic from '@tiptap/extension-italic'
 import { SAFE_LINK } from '../lib/projectRules.js'
 
 // A section's text. Writes Tiptap's JSON document — the format src/components/RichText.jsx
 // renders and src/lib/projectRules.js checks — and offers only what the site can show:
 // Body, Heading, Subheading, Pull quote, bold, italic, lists and links. Anything else
-// pasted in (colours, fonts, tables, images) is dropped by the editor's schema.
+// pasted in (colours, fonts, tables, images) is dropped by the editor's schema, and
+// `cleanPastedHTML` tidies what Word leaves behind.
 //
 // Loaded on demand (React.lazy in ProjectEditor), so the editor library never weighs on
 // the rest of /admin, and never on the public site.
@@ -18,9 +23,56 @@ const STYLES = [
   { key: 'quote', label: 'Pull quote' },
 ]
 
+// Word's or a web page's six heading sizes fold onto our two, instead of turning into
+// plain text (the stock rule only recognises <h3>/<h4>).
+const FoldedHeading = Heading.extend({
+  parseHTML() {
+    return [1, 2, 3, 4, 5, 6].map((n) => ({ tag: `h${n}`, attrs: { level: n <= 3 ? 3 : 4 } }))
+  },
+}).configure({ levels: [3, 4] })
+
+// WhatsApp's own formatting: *bold* and _italic_. Stock Tiptap reads a single *star* as
+// italic, so a message written in WhatsApp and pasted here (or typed the same way)
+// came out in the wrong style. **double** keeps working as bold.
+const oneStarTyped = /(?:^|\s)(\*(?!\s+\*)((?:[^*]+))\*(?!\s+\*))$/
+const oneStarPasted = /(?:^|\s)(\*(?!\s+\*)((?:[^*]+))\*(?!\s+\*))/g
+const underscoreTyped = /(?:^|\s)(_(?!\s+_)((?:[^_]+))_(?!\s+_))$/
+const underscorePasted = /(?:^|\s)(_(?!\s+_)((?:[^_]+))_(?!\s+_))/g
+const WhatsAppBold = Bold.extend({
+  addInputRules() {
+    return [...(this.parent?.() ?? []), markInputRule({ find: oneStarTyped, type: this.type })]
+  },
+  addPasteRules() {
+    return [...(this.parent?.() ?? []), markPasteRule({ find: oneStarPasted, type: this.type })]
+  },
+})
+const WhatsAppItalic = Italic.extend({
+  addInputRules() {
+    return [markInputRule({ find: underscoreTyped, type: this.type })]
+  },
+  addPasteRules() {
+    return [markPasteRule({ find: underscorePasted, type: this.type })]
+  },
+})
+
+// Word pads a paste with empty paragraphs (often a lone &nbsp;) that would show as gaps
+// on the page, and glues words with non-breaking spaces that stop lines wrapping.
+function cleanPastedHTML(html) {
+  const doc = new DOMParser().parseFromString(html, 'text/html')
+  for (const p of doc.body.querySelectorAll('p')) if (!p.textContent.trim()) p.remove()
+  const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT)
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) n.nodeValue = n.nodeValue.replace(/\u00a0/g, ' ')
+  return doc.body.innerHTML
+}
+
 const extensions = [
+  FoldedHeading,
+  WhatsAppBold,
+  WhatsAppItalic,
   StarterKit.configure({
-    heading: { levels: [3, 4] },
+    heading: false,
+    bold: false,
+    italic: false,
     code: false,
     codeBlock: false,
     horizontalRule: false,
@@ -56,7 +108,7 @@ export default function RichEditor({ value, onChange, disabled, label, id }) {
     editable: !disabled,
     immediatelyRender: true,
     shouldRerenderOnTransaction: false,
-    editorProps: { attributes: { 'aria-label': label, 'aria-multiline': 'true', role: 'textbox', ...(id ? { id } : {}), class: 'admin-rich-content' } },
+    editorProps: { transformPastedHTML: cleanPastedHTML, attributes: { 'aria-label': label, 'aria-multiline': 'true', role: 'textbox', ...(id ? { id } : {}), class: 'admin-rich-content' } },
     onUpdate: ({ editor: ed }) => {
       const json = ed.getJSON()
       const next = empty(json) ? null : json

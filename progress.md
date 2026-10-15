@@ -5,6 +5,16 @@ live in `CLAUDE.md` — read that first if you're picking this up cold.
 
 ## Resume here
 
+### 2026-10-15: story text paste fixes (on `admin-test`)
+- `RichEditor.jsx`: Word/web `<h1>`–`<h6>` fold onto Heading (1–3) / Subheading (4–6) instead of
+  plain text; `transformPastedHTML` drops blank paragraphs and turns `&nbsp;` into spaces;
+  WhatsApp formatting — single `*x*` = bold (was italic), `_x_` = italic, `**x**` still bold.
+  `@tiptap/core`, `extension-bold/-heading/-italic` now direct deps at 3.31.3 (were transitive).
+- Verified by pasting a messy Word document + a WhatsApp message into the exact editor setup in
+  headless Chrome; `test:projects` all passed.
+- **Caption style: dropped (Parth, 2026-10-15)** — images already have their own caption; a
+  second way would confuse.
+
 ### 2026-10-15: auto-91 shipped (`581ed9b`, live); AI-image assignment waiting on Tej
 - Founders + Settings WhatsApp boxes add `91` on blur to a 10-digit number starting 6–9
   (`src/admin/phone.js`). Live, `check:domains` OK.
