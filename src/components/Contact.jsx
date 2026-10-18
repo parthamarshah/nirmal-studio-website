@@ -208,10 +208,11 @@ export default function Contact() {
 
         <div
           style={{
-            marginTop: 'var(--space-lg)',
+            marginTop: 'var(--space-md)',
             display: 'flex',
             flexDirection: 'column',
-            gap: 'var(--space-sm)',
+            // xs, not sm: the phone and email links are already 44px tall for tapping.
+            gap: 'var(--space-xs)',
           }}
         >
           <p
@@ -351,7 +352,7 @@ export default function Contact() {
           width: 100%;
           max-width: 480px;
           height: 220px;
-          margin-top: var(--space-lg);
+          margin-top: var(--space-md);
           border: 1px solid var(--color-beige);
           border-radius: 4px;
         }

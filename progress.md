@@ -5,7 +5,13 @@ live in `CLAUDE.md` — read that first if you're picking this up cold.
 
 ## Resume here
 
-### ▶ 2026-10-18 — sister-site links (on `admin-test`, awaiting Parth's OK for `main`)
+### ▶ 2026-10-18 — less white space (on `admin-test`, awaiting Parth's OK for `main`)
+- `--space-xl` (the gap above/below each section) is now 4rem on phones, 6rem ≥768px (was 8rem
+  everywhere). Contact details and the Idea Timeline heading gap tightened. Nav bar goes solid
+  while the phone menu is open (the hero headline ran through the wordmark) and the menu closes
+  itself past 768px. Open question for Parth: the Statement screen is still full-height.
+
+### ▶ 2026-10-18 — sister-site links (LIVE on `main`, `859ff41`)
 - Two pills, Gurjar ↗ / Sharda ↗, at the foot of the phone menu and in a closing footer on every
   page (`src/components/SisterSites.jsx`); decisions in CLAUDE.md "Sister-site links". Reviewed
   (impact, UX, edge cases) and checked headless at 390/320/landscape/1440. Also fixed in passing:

@@ -255,7 +255,7 @@ function LegacyStudio() {
           entirely here (base case included) rather than partly inline — the
           exact failure Philosophy.jsx's split-screen hit (see CLAUDE.md
           known incidents). FOLD's mobile padding is deliberately tighter
-          than Tej's (space-lg vs. space-xl): on mobile the three stacked
+          than Tej's (space-md vs. space-xl, which is 4rem on phones): on mobile the three stacked
           member cards already add real height on top of it, and letting the
           padding be as generous as Tej's block pushed FOLD's rendered
           height past Tej's — the opposite of the pre-v1 rule that FOLD gets ~3/4
@@ -265,7 +265,7 @@ function LegacyStudio() {
           collapses the card stack — so it keeps the fuller padding. */}
       <style>{`
         .studio-section-fold {
-          padding: var(--space-lg) var(--space-md);
+          padding: var(--space-md);
         }
         .studio-section-fold-grid {
           display: grid;

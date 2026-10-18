@@ -76,11 +76,19 @@ export default function Nav({ scrolled = true, onNavigate, activeHref = null }) 
     const onPointerDown = (e) => {
       if (!navRef.current?.contains(e.target)) closeMenu()
     }
+    // The menu is hidden at desktop widths but menuOpen isn't, and an open menu keeps
+    // the bar solid — so a phone rotated to landscape would leave a cream bar over the hero.
+    const desktop = window.matchMedia('(min-width: 768px)')
+    const onDesktop = (e) => {
+      if (e.matches) setMenuOpen(false)
+    }
     document.addEventListener('keydown', onKeyDown)
     document.addEventListener('pointerdown', onPointerDown)
+    desktop.addEventListener('change', onDesktop)
     return () => {
       document.removeEventListener('keydown', onKeyDown)
       document.removeEventListener('pointerdown', onPointerDown)
+      desktop.removeEventListener('change', onDesktop)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [menuOpen])
@@ -127,7 +135,13 @@ export default function Nav({ scrolled = true, onNavigate, activeHref = null }) 
   }
 
   return (
-    <nav ref={navRef} className={`site-nav${scrolled ? ' site-nav--scrolled' : ''}`} aria-label="Primary">
+    // Solid while the menu is open too: over the hero the bar is see-through, and the
+    // hero's headline then ran straight through the wordmark above the open menu.
+    <nav
+      ref={navRef}
+      className={`site-nav${scrolled || menuOpen ? ' site-nav--scrolled' : ''}${menuOpen ? ' site-nav--menu-open' : ''}`}
+      aria-label="Primary"
+    >
       <a href={onHome ? '#hero' : '/'} className="site-nav-wordmark" onClick={handleWordmarkClick}>
         <span style={{ fontFamily: 'var(--font-wordmark)', fontWeight: 800 }}>nirmal</span>
         <span style={{ fontFamily: 'var(--font-wordmark)', fontWeight: 400 }}> studio</span>
@@ -257,6 +271,12 @@ export default function Nav({ scrolled = true, onNavigate, activeHref = null }) 
           padding: var(--space-sm) var(--space-md);
           background: transparent;
           transition: background 0.3s ease, backdrop-filter 0.3s ease;
+        }
+        /* Fully opaque and instant: the scrolled bar's 92% + blur read as a grey strip
+           over the dark hero, on top of the solid cream menu. */
+        .site-nav.site-nav--menu-open {
+          background: var(--color-bg);
+          transition: none;
         }
         .site-nav--scrolled {
           background: rgba(246, 244, 239, 0.92);

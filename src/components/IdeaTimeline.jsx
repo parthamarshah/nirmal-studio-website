@@ -222,7 +222,7 @@ export default function IdeaTimeline({ project }) {
           fontFamily: 'var(--font-heading)',
           fontSize: 'clamp(1.75rem, 4.5vw, 2.75rem)',
           textAlign: 'center',
-          marginBottom: 'var(--space-xl)',
+          marginBottom: 'var(--space-lg)',
         }}
       >
         From Idea to Home
