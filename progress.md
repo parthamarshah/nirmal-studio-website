@@ -5,7 +5,7 @@ live in `CLAUDE.md` — read that first if you're picking this up cold.
 
 ## Resume here
 
-### ▶ 2026-10-18 — less white space (on `admin-test`, awaiting Parth's OK for `main`)
+### ▶ 2026-10-18 — less white space (LIVE on `main`, `fe409bb`)
 - `--space-xl` (the gap above/below each section) is now 4rem on phones, 6rem ≥768px (was 8rem
   everywhere). Contact details and the Idea Timeline heading gap tightened. Nav bar goes solid
   while the phone menu is open (the hero headline ran through the wordmark) and the menu closes
