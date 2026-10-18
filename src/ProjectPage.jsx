@@ -3,6 +3,7 @@ import Nav from './components/Nav'
 import Boundary from './components/Boundary'
 import ProjectStory from './components/ProjectStory'
 import ImageViewer from './components/ImageViewer'
+import SisterFooter from './components/SisterSites'
 import { findVisibleProject, projectPath, visibleProjects } from './lib/content'
 
 // A standalone, shareable page for one project: nirmalstudio.com/projects/<slug>.
@@ -57,6 +58,9 @@ export default function ProjectPage({ slug }) {
           </div>
         )}
       </main>
+      <Boundary name="Sister sites">
+        <SisterFooter />
+      </Boundary>
 
       <ImageViewer image={viewerImage} onClose={closeViewer} />
 

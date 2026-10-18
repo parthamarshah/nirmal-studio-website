@@ -120,6 +120,15 @@ Tagline: "Designing Spaces. Crafting Experiences."
   decision) rather than jumping straight to WhatsApp; both it and the nav button share
   `src/components/loadTalk.js` so the chunk is fetched once. Both keep a real wa.me href
   as the no-JS fallback — see the two-anchors-gated-by-CSS pattern below.
+- **Sister-site links (decided 2026-10-18)**: two small pills, **Gurjar ↗** and
+  **Sharda ↗** (Gurjar Sahitya Bhavan, Sharda Design: older businesses from the same
+  house; Nirmal Studio is the newer one). They appear at the foot of the phone menu and
+  in a quiet closing `<footer>` on every page (`SisterSites.jsx`). Parth's calls, don't
+  "improve" them: **no label** (not "family", not "our roots"), **no years**, short names,
+  **Gurjar's logo always full colour**, no © line, URLs fixed in code (not in /admin).
+  Links point at `/en` on purpose: `gurjarbooks.com`'s root redirects to Gujarati (`/gu`).
+  `rel="noopener"` without `noreferrer`, so the sister sites see the referral. Both sites
+  will link back.
 - **Contact**: Tej Shah, WhatsApp/phone `910 699 8434`, email `tej@nirmalstudio.com`.
   The studio address **is confirmed and real** — it lives in `content/site.json`
   (`contact.address`, plus `contact.addressShort` for the Talk-to-Tej "Visit" link) and

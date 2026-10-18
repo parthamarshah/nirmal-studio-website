@@ -15,6 +15,7 @@ import Journal from './components/Journal'
 import Testimonials from './components/Testimonials'
 import Contact from './components/Contact'
 import SectionBoundary from './components/SectionBoundary'
+import SisterFooter from './components/SisterSites'
 
 // Each section sits in its own SectionBoundary: a section that fails to render
 // hides itself instead of blanking the whole page. Which project image each
@@ -56,6 +57,9 @@ function App() {
         {section(null, 'Testimonials', <Testimonials />)}
         {section('contact', 'Contact', <Contact />)}
       </main>
+      <SectionBoundary name="Sister sites">
+        <SisterFooter />
+      </SectionBoundary>
     </>
   )
 }

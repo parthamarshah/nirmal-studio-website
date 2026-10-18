@@ -7,6 +7,7 @@ import { isSectionOn, whatsappUrl } from '../lib/content'
 // button), never during page load or hydration.
 import { loadTalk } from './loadTalk'
 import { NAV_LINKS } from './navLinks'
+import { SisterLinks } from './SisterSites'
 
 // Persistent nav, used on every page. Transparent/light-text over the Hero
 // image until `scrolled` (driven by HomeNav.jsx's #hero ScrollTrigger on the
@@ -179,6 +180,11 @@ export default function Nav({ scrolled = true, onNavigate, activeHref = null }) 
         id="site-nav-menu"
         ref={menuRef}
         className={`site-nav-menu${menuOpen ? ' site-nav-menu--open' : ''}`}
+        // Closed, it is only collapsed and transparent: inert keeps its links out of
+        // the Tab order and away from screen readers. Open, it can scroll (a phone on
+        // its side is shorter than the menu), so Lenis must leave its wheel alone.
+        inert={!menuOpen}
+        data-lenis-prevent={menuOpen ? '' : undefined}
       >
         {links.map((link) => (
           <a
@@ -191,6 +197,7 @@ export default function Nav({ scrolled = true, onNavigate, activeHref = null }) 
             {link.label}
           </a>
         ))}
+        <SisterLinks className="site-nav-sisters" onLinkClick={() => setMenuOpen(false)} />
       </div>
 
       {/* The panel gets its OWN boundary, not the nav's: it is the newest, lazily
@@ -366,7 +373,8 @@ export default function Nav({ scrolled = true, onNavigate, activeHref = null }) 
           transition: max-height 0.3s ease, opacity 0.2s ease;
         }
         .site-nav-menu--open {
-          max-height: 320px;
+          max-height: min(440px, calc(100dvh - 76px));
+          overflow-y: auto;
           opacity: 1;
           pointer-events: auto;
         }
@@ -383,6 +391,10 @@ export default function Nav({ scrolled = true, onNavigate, activeHref = null }) 
         }
         .site-nav-menu-link[aria-current] {
           color: var(--color-bronze-darker);
+        }
+        .site-nav-sisters {
+          padding: var(--space-sm) var(--space-md);
+          border-top: 1px solid var(--color-beige);
         }
 
         @media (min-width: 768px) {

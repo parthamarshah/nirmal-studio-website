@@ -5,6 +5,13 @@ live in `CLAUDE.md` — read that first if you're picking this up cold.
 
 ## Resume here
 
+### ▶ 2026-10-18 — sister-site links (on `admin-test`, awaiting Parth's OK for `main`)
+- Two pills, Gurjar ↗ / Sharda ↗, at the foot of the phone menu and in a closing footer on every
+  page (`src/components/SisterSites.jsx`); decisions in CLAUDE.md "Sister-site links". Reviewed
+  (impact, UX, edge cases) and checked headless at 390/320/landscape/1440. Also fixed in passing:
+  the closed phone menu was still reachable by Tab/screen reader (now `inert`) and it now scrolls
+  if taller than the screen.
+
 ### ▶▶▶▶▶▶ STATE AT END OF 2026-10-15 SESSION — read this first (supersedes the blocks below)
 - **`main` = `admin-test` = `bcff8ac`** (+ this doc commit), all live, `check:domains` OK. Working
   tree clean. Everything in Phase 3 steps 1–6 is on production; the v1 founders layout is live.
