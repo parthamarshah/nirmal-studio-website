@@ -5,20 +5,23 @@ live in `CLAUDE.md` — read that first if you're picking this up cold.
 
 ## Resume here
 
-### ▶ 2026-10-18 — less white space (LIVE on `main`, `fe409bb`)
-- `--space-xl` (the gap above/below each section) is now 4rem on phones, 6rem ≥768px (was 8rem
-  everywhere). Contact details and the Idea Timeline heading gap tightened. Nav bar goes solid
-  while the phone menu is open (the hero headline ran through the wordmark) and the menu closes
-  itself past 768px. Open question for Parth: the Statement screen is still full-height.
+### ▶▶▶▶▶▶ STATE AT END OF 2026-10-18 SESSION — read this first (supersedes the blocks below)
+- **`main` = `admin-test` = `7d916e5`**, all live, `check:domains` OK. Working tree clean.
+- Shipped this session (details in Done): sister-site links (Gurjar ↗ / Sharda ↗) and a
+  white-space pass (section gaps halved on phones, −25% desktop; solid nav bar while the phone
+  menu is open).
+- **Open questions for Parth (asked, unanswered):**
+  1. Statement screen ("Architecture begins long before…") is still full-screen height — now
+     the biggest blank on a phone (~380px above/below). Keep, or ~70svh on phones only
+     (`src/components/Statement.jsx`, `minHeight: '100svh'`)?
+  2. Offered: the Idea Timeline's vertical line runs through the floor-plan caption
+     ("Nishee House, ground floor plan") — pre-existing, small fix.
+- **Not done, deliberately:** sister-link taps aren't counted in /admin's weekly numbers (would
+  need a new `kind` in `functions/api/tap.js` — a live backend change). Offer if asked.
+- Everything in the 2026-10-15 block below that says "waiting" or "offered" is still open
+  (AI-image assignment waits on Tej; GitHub token expires 19 Dec 2026; SSH remote; etc.).
 
-### ▶ 2026-10-18 — sister-site links (LIVE on `main`, `859ff41`)
-- Two pills, Gurjar ↗ / Sharda ↗, at the foot of the phone menu and in a closing footer on every
-  page (`src/components/SisterSites.jsx`); decisions in CLAUDE.md "Sister-site links". Reviewed
-  (impact, UX, edge cases) and checked headless at 390/320/landscape/1440. Also fixed in passing:
-  the closed phone menu was still reachable by Tab/screen reader (now `inert`) and it now scrolls
-  if taller than the screen.
-
-### ▶▶▶▶▶▶ STATE AT END OF 2026-10-15 SESSION — read this first (supersedes the blocks below)
+### STATE AT END OF 2026-10-15 SESSION (open items still apply)
 - **`main` = `admin-test` = `bcff8ac`** (+ this doc commit), all live, `check:domains` OK. Working
   tree clean. Everything in Phase 3 steps 1–6 is on production; the v1 founders layout is live.
 - **Waiting on Tej:** which house each of the 11 AI images belongs to. Parth forwards
@@ -1990,6 +1993,28 @@ first fix). Both pushed and redeployed — live at
   rewrote CLAUDE.md's Deploy section. Pushed; auto-deploy of `b28beb0` confirmed in
   the dashboard. Skipped impact-tracker/ux-reviewer/edge-case-checker for the commit
   — docs + one shell script + one `package.json` script line, no site code.
+
+- **Sister-site links (2026-10-18, live `859ff41`)** — Parth wanted links to the family's
+  older businesses, gurjarbooks.com/en and shardadesign.com/en, "like Blinkit's zomato ↗"
+  but only suggestive. New `src/components/SisterSites.jsx`: two pills (logo + short name + ↗)
+  at the foot of the phone menu and in a closing `<footer>` on the homepage and every project
+  page. His calls: no label (rejected "family", "our roots", years), short names, Gurjar logo
+  always full colour, URLs fixed in code — recorded in CLAUDE.md "Sister-site links". Sharda's
+  mark is redrawn inline (its favicon's `<style>` would restyle every page `<path>` and had a
+  dark-mode stroke); Gurjar's is a 5.6KB webp imported via Vite (hashed, prerender-safe).
+  `/en` on purpose (the Gurjar root redirects to Gujarati). Reviews also caught a pre-existing
+  bug: the closed phone menu's links were still Tab/screen-reader reachable (now `inert`);
+  the menu now scrolls when taller than the screen (landscape phone).
+- **White-space pass (2026-10-18, live `fe409bb`)** — Parth: too much empty space between
+  sections on a phone (screenshots of every join). One-token fix: `--space-xl` 8rem → 4rem
+  on phones, 6rem ≥768px (used almost only for section padding; Process's pinned desktop
+  insets move with it, measured live so the pin is unaffected). Also: Contact details gap
+  sm→xs and its button/map gaps lg→md, Idea Timeline heading margin xl→lg, legacy Studio
+  FOLD phone padding lg→md (keeps FOLD < Tej). Fixed a bug he spotted: opening the menu over
+  the hero left the bar see-through, so the headline ran through the wordmark — bar is now
+  solid cream while the menu is open (`site-nav--menu-open`) and the menu closes itself past
+  768px (rotate-to-landscape). Before/after full-page screenshots compared; three reviews, no
+  blockers.
 
 ## Not started yet
 
