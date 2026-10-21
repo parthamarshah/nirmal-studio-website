@@ -14,7 +14,7 @@
     "custom": []
   },
   "cover": {
-    "image": "gallery-3",
+    "image": "enscape-2026-09-16-12-24-50",
     "crop": null,
     "phoneImage": null,
     "phoneCrop": null
@@ -102,14 +102,6 @@
       "body": null,
       "images": [
         {
-          "image": "gallery-1",
-          "shape": "original"
-        },
-        {
-          "image": "gallery-2",
-          "shape": "original"
-        },
-        {
           "image": "gallery-4",
           "shape": "original"
         }
@@ -118,38 +110,68 @@
   ],
   "pool": [
     {
-      "id": "gallery-3",
-      "file": "gallery-3.jpg",
-      "type": "render",
-      "caption": "",
-      "rotation": 0,
-      "crop": null,
-      "hidden": false,
-      "showTag": false
-    },
-    {
-      "id": "gallery-1",
-      "file": "gallery-1.jpg",
-      "type": "render",
-      "caption": "",
-      "rotation": 0,
-      "crop": null,
-      "hidden": false,
-      "showTag": false
-    },
-    {
-      "id": "gallery-2",
-      "file": "gallery-2.jpg",
-      "type": "render",
-      "caption": "",
-      "rotation": 0,
-      "crop": null,
-      "hidden": false,
-      "showTag": false
-    },
-    {
       "id": "gallery-4",
       "file": "gallery-4.jpg",
+      "type": "render",
+      "caption": "",
+      "rotation": 0,
+      "crop": null,
+      "hidden": false,
+      "showTag": false
+    },
+    {
+      "id": "enscape-2026-09-16-12-16-26",
+      "file": "enscape-2026-09-16-12-16-26-76829e7a28.jpg",
+      "type": "render",
+      "caption": "",
+      "rotation": 0,
+      "crop": null,
+      "hidden": false,
+      "showTag": false
+    },
+    {
+      "id": "enscape-2026-09-16-12-12-25",
+      "file": "enscape-2026-09-16-12-12-25-384d8e94f7.jpg",
+      "type": "render",
+      "caption": "",
+      "rotation": 0,
+      "crop": null,
+      "hidden": false,
+      "showTag": false
+    },
+    {
+      "id": "enscape-2026-09-16-12-21-18",
+      "file": "enscape-2026-09-16-12-21-18-ce9298233b.jpg",
+      "type": "render",
+      "caption": "",
+      "rotation": 0,
+      "crop": null,
+      "hidden": false,
+      "showTag": false
+    },
+    {
+      "id": "enscape-2026-09-16-12-24-50",
+      "file": "enscape-2026-09-16-12-24-50-e68ec2f808.jpg",
+      "type": "render",
+      "caption": "",
+      "rotation": 0,
+      "crop": null,
+      "hidden": false,
+      "showTag": false
+    },
+    {
+      "id": "enscape-2026-09-16-12-29-53",
+      "file": "enscape-2026-09-16-12-29-53-3d4fe8e41c.jpg",
+      "type": "render",
+      "caption": "",
+      "rotation": 0,
+      "crop": null,
+      "hidden": false,
+      "showTag": false
+    },
+    {
+      "id": "enscape-2026-09-16-12-38-18",
+      "file": "enscape-2026-09-16-12-38-18-c1d6679c87.jpg",
       "type": "render",
       "caption": "",
       "rotation": 0,
